@@ -58,22 +58,19 @@ func NewImgResizeJob(ts *test.RealmTstate, p *perf.Perf, cfg *benchmarks.ImgBenc
 		fns = append(fns, fn)
 	}
 
-	db.DPrintf(db.ALWAYS, "Submit ImgResizeJob tasks")
+	tasks := make([]*fttask_clnt.Task[imgresize.Ttask], 0, ji.cfg.NInputsPerTask)
 	for i := 0; i < ji.cfg.NTasks; i++ {
-		tasks := make([]*fttask_clnt.Task[imgresize.Ttask], 0, ji.cfg.NInputsPerTask)
 		for _, fn := range fns {
 			tasks = append(tasks, &fttask_clnt.Task[imgresize.Ttask]{
+				Id:   fttask_clnt.TaskId(i),
 				Data: *imgresize.NewTask(fn, ji.cfg.JobCfg.UseS3Clnt, ji.cfg.JobCfg.UseBootScript),
 			})
 		}
-		err := ji.ftclnt.SubmitTasks(tasks)
-		assert.Nil(ji.Ts.T, err, "Error SubmitTask: %v", err)
 	}
-	// Sanity check
-	n, err := ji.ftclnt.GetNTasks(fttask_clnt.TODO)
-	assert.Nil(ji.Ts.T, err, "Error NTasksTODO: %v", err)
-	assert.Equal(ji.Ts.T, int(n), int(ji.cfg.NTasks), "Num tasks TODO doesn't match ntasks")
-	db.DPrintf(db.ALWAYS, "Done submitting ImgResize tasks")
+	db.DPrintf(db.TEST, "Submit ImgResizeJob tasks")
+	err = ji.ftclnt.SubmitTasks(tasks)
+	assert.Nil(ji.Ts.T, err, "Error SubmitTask: %v", err)
+	db.DPrintf(db.TEST, "Done submitting ImgResize tasks")
 	return ji
 }
 
@@ -84,7 +81,7 @@ func (ji *ImgResizeJobInstance) StartImgResizeJob() {
 func (ji *ImgResizeJobInstance) Wait() {
 	db.DPrintf(db.TEST, "Waiting for ImgResizeJob to finish")
 	for {
-		n, err := ji.ftclnt.GetNTasks(fttask_clnt.TODO)
+		n, err := ji.ftclnt.GetNTasks(fttask_clnt.DONE)
 		assert.Nil(ji.Ts.T, err, "Error NTaskDone: %v", err)
 		db.DPrintf(db.TEST, "[%v] ImgResizeJob NTaskDone: %v", ji.GetRealm(), n)
 		if n == int32(ji.cfg.NTasks) {
