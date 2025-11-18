@@ -40,7 +40,7 @@ func NewImgResizeJob(ts *test.RealmTstate, p *perf.Perf, cfg *benchmarks.ImgBenc
 	ji.RealmTstate = ts
 	ji.p = p
 
-	ji.sleepBetweenTasks = time.Second / time.Duration(ji.cfg.MaxRPS[0])
+	//	ji.sleepBetweenTasks = time.Second / time.Duration(ji.cfg.MaxRPS[0])
 	ji.runningTasks = make(chan bool)
 
 	ts.RmDir(sp.IMG)
