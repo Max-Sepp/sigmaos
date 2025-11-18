@@ -1522,7 +1522,8 @@ func TestImgProcess(t *testing.T) {
 	)
 	// Cluster configuration parameters
 	var (
-		numNodes     int = 12
+		//		numNodes     int = 12
+		numNodes     int = 1
 		numFullNodes int = numNodes
 	)
 	const (
@@ -1532,14 +1533,16 @@ func TestImgProcess(t *testing.T) {
 	)
 	// Hotel benchmark configuration parameters
 	var (
-		rpsBase int   = 150
-		nrounds int   = 43
-		rps     []int = []int{
-			rpsBase,
-		}
-		dur []time.Duration = []time.Duration{
-			30 * time.Second,
-		}
+		nrounds        int = 43
+		ntasks         int = 500
+		ninputsPerTask int = 1
+		//		rpsBase        int = 150
+		//		rps     []int = []int{
+		//			rpsBase,
+		//		}
+		//		dur []time.Duration = []time.Duration{
+		//			30 * time.Second,
+		//		}
 		withInitScript []bool = []bool{
 			false,
 			true,
@@ -1553,8 +1556,10 @@ func TestImgProcess(t *testing.T) {
 		benchNameBase += "_overlays"
 	}
 	for _, initscript := range withInitScript {
+		inputPath := filepath.Join(sp.S3, "9ps3/img-save/8.jpg")
 		benchName := benchNameBase
 		if initscript {
+			inputPath = "9ps3/img-save/8.jpg"
 			benchName += "_initscript"
 		}
 		db.DPrintf(db.ALWAYS, "Benchmark configuration:\n%v", ts)
@@ -1570,11 +1575,11 @@ func TestImgProcess(t *testing.T) {
 				UseBootScript: initscript,
 				UseS3Clnt:     true,
 			},
-			InputPath:      "name/ux/~local/8.jpg",
-			NTasks:         0,
-			NInputsPerTask: 0,
-			Durs:           dur,
-			MaxRPS:         rps,
+			InputPath:      inputPath,
+			NTasks:         ntasks,
+			NInputsPerTask: ninputsPerTask,
+			//			Durs:           dur,
+			//			MaxRPS:         rps,
 		}
 
 		ts.RunStandardBenchmark(benchName, driverVM, GetImgProcessCmd(imgCfg), numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost)
