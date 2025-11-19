@@ -384,7 +384,7 @@ func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 		db.DFatalf("Err set sched policy: %v", err)
 	}
 	// If proc should only run after boot script completes, wait for it
-	if uproc.GetRunAfterBootScript() {
+	if uproc.GetRunAfterBootScript() && uproc.GetProcEnv().UseSPProxy {
 		// Wait to make sure spproxy has heard about the proc we are going to wait
 		// for
 		informedWG.Wait()
