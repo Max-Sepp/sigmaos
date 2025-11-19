@@ -30,33 +30,37 @@ const (
 )
 
 type ImgdJobConfig struct {
-	Job            string      `json:"job"`
-	WorkerMcpu     proc.Tmcpu  `json:"worker_mcpu"`
-	WorkerMem      proc.Tmem   `json:"worker_mem"`
-	Persist        bool        `json:"persist"`
-	NRounds        int         `json:"n_rounds"`
-	ImgdMcpu       proc.Tmcpu  `json:"imgd_mcpu"`
-	UseSPProxy     bool        `json:"use_sp_proxy"`
-	UseBootScript  bool        `json:"use_boot_script"`
-	UseS3Clnt      bool        `json:"use_s3_clnt"`
+	Job                   string     `json:"job"`
+	WorkerMcpu            proc.Tmcpu `json:"worker_mcpu"`
+	WorkerMem             proc.Tmem  `json:"worker_mem"`
+	Persist               bool       `json:"persist"`
+	NRounds               int        `json:"n_rounds"`
+	ImgdMcpu              proc.Tmcpu `json:"imgd_mcpu"`
+	UseSPProxy            bool       `json:"use_sp_proxy"`
+	UseBootScript         bool       `json:"use_boot_script"`
+	UseS3Clnt             bool       `json:"use_s3_clnt"`
+	WorkerBootScriptMcpu  proc.Tmcpu `json:"worker_boot_script_mcpu"`
+	WorkerBootScriptMem   proc.Tmem  `json:"worker_boot_script_mem"`
 }
 
-func NewImgdJobConfig(job string, workerMcpu proc.Tmcpu, workerMem proc.Tmem, persist bool, nrounds int, imgdMcpu proc.Tmcpu, useSPProxy bool, useBootScript bool, useS3Clnt bool) *ImgdJobConfig {
+func NewImgdJobConfig(job string, workerMcpu proc.Tmcpu, workerMem proc.Tmem, persist bool, nrounds int, imgdMcpu proc.Tmcpu, useSPProxy bool, useBootScript bool, useS3Clnt bool, workerBootScriptMcpu proc.Tmcpu, workerBootScriptMem proc.Tmem) *ImgdJobConfig {
 	return &ImgdJobConfig{
-		Job:           job,
-		WorkerMcpu:    workerMcpu,
-		WorkerMem:     workerMem,
-		Persist:       persist,
-		NRounds:       nrounds,
-		ImgdMcpu:      imgdMcpu,
-		UseSPProxy:    useSPProxy,
-		UseBootScript: useBootScript,
-		UseS3Clnt:     useS3Clnt,
+		Job:                  job,
+		WorkerMcpu:           workerMcpu,
+		WorkerMem:            workerMem,
+		Persist:              persist,
+		NRounds:              nrounds,
+		ImgdMcpu:             imgdMcpu,
+		UseSPProxy:           useSPProxy,
+		UseBootScript:        useBootScript,
+		UseS3Clnt:            useS3Clnt,
+		WorkerBootScriptMcpu: workerBootScriptMcpu,
+		WorkerBootScriptMem:  workerBootScriptMem,
 	}
 }
 
 func (cfg *ImgdJobConfig) String() string {
-	return fmt.Sprintf("&{ job:%v workerMcpu:%v workerMem:%v persist:%v nrounds:%v imgdMcpu:%v useSPProxy:%v useBootScript:%v useS3Clnt:%v }", cfg.Job, cfg.WorkerMcpu, cfg.WorkerMem, cfg.Persist, cfg.NRounds, cfg.ImgdMcpu, cfg.UseSPProxy, cfg.UseBootScript, cfg.UseS3Clnt)
+	return fmt.Sprintf("&{ job:%v workerMcpu:%v workerMem:%v persist:%v nrounds:%v imgdMcpu:%v useSPProxy:%v useBootScript:%v useS3Clnt:%v workerBootScriptMcpu:%v workerBootScriptMem:%v }", cfg.Job, cfg.WorkerMcpu, cfg.WorkerMem, cfg.Persist, cfg.NRounds, cfg.ImgdMcpu, cfg.UseSPProxy, cfg.UseBootScript, cfg.UseS3Clnt, cfg.WorkerBootScriptMcpu, cfg.WorkerBootScriptMem)
 }
 
 func GetBootScript(sc *sigmaclnt.SigmaClnt) ([]byte, error) {
@@ -129,7 +133,7 @@ func NewImgdMgr[Data any](sc *sigmaclnt.SigmaClnt, jobCfg *ImgdJobConfig, em *cr
 		return nil, err
 	}
 
-	cfg := procgroupmgr.NewProcGroupConfig(1, "imgresized", []string{strconv.Itoa(int(jobCfg.WorkerMcpu)), strconv.Itoa(int(jobCfg.WorkerMem)), strconv.Itoa(jobCfg.NRounds), TaskSvcId(imgd.job), strconv.FormatBool(jobCfg.UseSPProxy), strconv.FormatBool(jobCfg.UseBootScript)}, jobCfg.ImgdMcpu, ImgSvcId(jobCfg.Job))
+	cfg := procgroupmgr.NewProcGroupConfig(1, "imgresized", []string{strconv.Itoa(int(jobCfg.WorkerMcpu)), strconv.Itoa(int(jobCfg.WorkerMem)), strconv.Itoa(jobCfg.NRounds), TaskSvcId(imgd.job), strconv.FormatBool(jobCfg.UseSPProxy), strconv.FormatBool(jobCfg.UseBootScript), strconv.Itoa(int(jobCfg.WorkerBootScriptMcpu)), strconv.Itoa(int(jobCfg.WorkerBootScriptMem))}, jobCfg.ImgdMcpu, ImgSvcId(jobCfg.Job))
 
 	if jobCfg.Persist {
 		cfg.Persist(sc.FsLib)
@@ -204,7 +208,7 @@ func IsThumbNail(fn string) bool {
 	return strings.Contains(fn, "-thumb")
 }
 
-func GetMkProcFn(serverId task.FtTaskSvcId, nrounds int, workerMcpu proc.Tmcpu, workerMem proc.Tmem, bootScript []byte, useSPProxy bool) fttask_mgr.TnewProc[Ttask] {
+func GetMkProcFn(serverId task.FtTaskSvcId, nrounds int, workerMcpu proc.Tmcpu, workerMem proc.Tmem, workerBootScriptMcpu proc.Tmcpu, workerBootScriptMem proc.Tmem, bootScript []byte, useSPProxy bool) fttask_mgr.TnewProc[Ttask] {
 	return func(task fttask_clnt.Task[Ttask]) (*proc.Proc, error) {
 		db.DPrintf(db.IMGD, "mkProc %v", task)
 		fn := task.Data.FileName
@@ -220,6 +224,12 @@ func GetMkProcFn(serverId task.FtTaskSvcId, nrounds int, workerMcpu proc.Tmcpu, 
 		p.GetProcEnv().UseSPProxy = useSPProxy
 		p.SetBootScript(bootScript, bootScriptInput)
 		p.SetRunBootScript(task.Data.UseBootScript)
+		if task.Data.UseBootScript {
+			// Run after boot script
+			p.SetRunAfterBootScript(true)
+			p.SetBootScriptMcpu(workerBootScriptMcpu)
+			p.SetBootScriptMem(workerBootScriptMem)
+		}
 		return p, nil
 	}
 }

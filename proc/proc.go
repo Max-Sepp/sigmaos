@@ -245,6 +245,7 @@ func (p *Proc) String() string {
 		"Args:%v "+
 		"Type:%v "+
 		"ResourceRerervation:%v "+
+		"BootScriptResourceRerervation:%v "+
 		"Kernels:%v "+
 		"}",
 		p.ProcEnvProto.Program,
@@ -263,6 +264,7 @@ func (p *Proc) String() string {
 		p.Args,
 		p.GetType(),
 		p.GetResourceReservation(),
+		p.GetBootScriptResourceReservation(),
 		p.ProcEnvProto.Kernels,
 	)
 }
@@ -466,6 +468,10 @@ func (p *Proc) GetUseShmem() bool {
 
 func (p *Proc) GetResourceReservation() *ResourceReservation {
 	return &ResourceReservation{p.ResourceRes}
+}
+
+func (p *Proc) GetBootScriptResourceReservation() *ResourceReservation {
+	return &ResourceReservation{p.BootScriptResourceRes}
 }
 
 // Return Env map as a []string

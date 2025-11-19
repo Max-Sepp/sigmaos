@@ -26,23 +26,25 @@ type AStat struct {
 }
 
 type ImgSrv struct {
-	sc            *sigmaclnt.SigmaClnt
-	ftclnt        fttask_clnt.FtTaskClnt[imgresize.Ttask, any]
-	nrounds       int
-	workerMcpu    proc.Tmcpu
-	workerMem     proc.Tmem
-	leaderclnt    *leaderclnt.LeaderClnt
-	imgSvcId      string
-	taskSvcId     task.FtTaskSvcId
-	ch            chan error
-	bootScript    []byte
-	useSPProxy    bool
-	useBootScript bool
+	sc                   *sigmaclnt.SigmaClnt
+	ftclnt               fttask_clnt.FtTaskClnt[imgresize.Ttask, any]
+	nrounds              int
+	workerMcpu           proc.Tmcpu
+	workerMem            proc.Tmem
+	workerBootScriptMcpu proc.Tmcpu
+	workerBootScriptMem  proc.Tmem
+	leaderclnt           *leaderclnt.LeaderClnt
+	imgSvcId             string
+	taskSvcId            task.FtTaskSvcId
+	ch                   chan error
+	bootScript           []byte
+	useSPProxy           bool
+	useBootScript        bool
 	AStat
 }
 
 func NewImgSrv(args []string) (*ImgSrv, error) {
-	if len(args) != 7 {
+	if len(args) != 9 {
 		return nil, fmt.Errorf("NewImgSrv: wrong number of arguments: %v", args)
 	}
 	imgd := &ImgSrv{}
@@ -85,6 +87,16 @@ func NewImgSrv(args []string) (*ImgSrv, error) {
 		db.DFatalf("Error GetBootScript: %v", err)
 	}
 	imgd.bootScript = bootScript
+	bsMcpu, err := strconv.Atoi(args[7])
+	if err != nil {
+		return nil, fmt.Errorf("NewImgSrv: Error parse MCPU %v", err)
+	}
+	imgd.workerBootScriptMcpu = proc.Tmcpu(bsMcpu)
+	bsMem, err := strconv.Atoi(args[8])
+	if err != nil {
+		return nil, fmt.Errorf("NewImgSrv: Error parse Mem %v", err)
+	}
+	imgd.workerBootScriptMem = proc.Tmem(bsMem)
 
 	imgd.sc.Started()
 
@@ -146,7 +158,7 @@ func (imgd *ImgSrv) Work() {
 
 	go imgd.processResults(ch)
 
-	ftc.ExecuteTasks(imgresize.GetMkProcFn(imgd.ftclnt.ServiceId(), imgd.nrounds, imgd.workerMcpu, imgd.workerMem, imgd.bootScript, imgd.sc.ProcEnv().GetUseSPProxy()))
+	ftc.ExecuteTasks(imgresize.GetMkProcFn(imgd.ftclnt.ServiceId(), imgd.nrounds, imgd.workerMcpu, imgd.workerMem, imgd.workerBootScriptMcpu, imgd.workerBootScriptMem, imgd.bootScript, imgd.sc.ProcEnv().GetUseSPProxy()))
 	close(ch)
 
 	st := spstats.NewTcounterSnapshot()

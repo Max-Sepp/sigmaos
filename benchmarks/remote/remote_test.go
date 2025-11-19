@@ -958,15 +958,17 @@ func TestLCBEHotelImgResizeMultiplexing(t *testing.T) {
 	}
 	imgCfg := &benchmarks.ImgBenchConfig{
 		JobCfg: &imgresize.ImgdJobConfig{
-			Job:           "img-job",
-			WorkerMcpu:    proc.Tmcpu(0),
-			WorkerMem:     proc.Tmem(1500),
-			Persist:       false,
-			NRounds:       500,
-			ImgdMcpu:      proc.Tmcpu(1000),
-			UseSPProxy:    false,
-			UseBootScript: false,
-			UseS3Clnt:     false,
+			Job:                  "img-job",
+			WorkerMcpu:           proc.Tmcpu(0),
+			WorkerMem:            proc.Tmem(1500),
+			Persist:              false,
+			NRounds:              500,
+			ImgdMcpu:             proc.Tmcpu(1000),
+			UseSPProxy:           false,
+			UseBootScript:        false,
+			UseS3Clnt:            false,
+			WorkerBootScriptMcpu: proc.Tmcpu(0),
+			WorkerBootScriptMem:  proc.Tmem(0),
 		},
 		InputPath:      "name/ux/~local/8.jpg",
 		NTasks:         350,
@@ -1063,15 +1065,17 @@ func TestLCBEHotelImgResizeRPCMultiplexing(t *testing.T) {
 	}
 	imgCfg := &benchmarks.ImgBenchConfig{
 		JobCfg: &imgresize.ImgdJobConfig{
-			Job:           "img-job",
-			WorkerMcpu:    proc.Tmcpu(0),
-			WorkerMem:     proc.Tmem(2500),
-			Persist:       false,
-			NRounds:       43,
-			ImgdMcpu:      proc.Tmcpu(1000),
-			UseSPProxy:    false,
-			UseBootScript: false,
-			UseS3Clnt:     false,
+			Job:                  "img-job",
+			WorkerMcpu:           proc.Tmcpu(0),
+			WorkerMem:            proc.Tmem(2500),
+			Persist:              false,
+			NRounds:              43,
+			ImgdMcpu:             proc.Tmcpu(1000),
+			UseSPProxy:           false,
+			UseBootScript:        false,
+			UseS3Clnt:            false,
+			WorkerBootScriptMcpu: proc.Tmcpu(0),
+			WorkerBootScriptMem:  proc.Tmem(0),
 		},
 		InputPath:      "name/ux/~local/8.jpg",
 		NTasks:         0,
@@ -1533,16 +1537,9 @@ func TestImgProcess(t *testing.T) {
 	)
 	// Hotel benchmark configuration parameters
 	var (
-		nrounds        int = 43
-		ntasks         int = 500
-		ninputsPerTask int = 1
-		//		rpsBase        int = 150
-		//		rps     []int = []int{
-		//			rpsBase,
-		//		}
-		//		dur []time.Duration = []time.Duration{
-		//			30 * time.Second,
-		//		}
+		nrounds        int    = 43
+		ntasks         int    = 500
+		ninputsPerTask int    = 1
 		withInitScript []bool = []bool{
 			false,
 			true,
@@ -1556,32 +1553,30 @@ func TestImgProcess(t *testing.T) {
 		benchNameBase += "_overlays"
 	}
 	for _, initscript := range withInitScript {
-		inputPath := filepath.Join(sp.S3, "9ps3/img-save/8.jpg")
+		inputPath := "9ps3/img-save/8.jpg"
 		benchName := benchNameBase
 		if initscript {
-			inputPath = "9ps3/img-save/8.jpg"
 			benchName += "_initscript"
 		}
 		db.DPrintf(db.ALWAYS, "Benchmark configuration:\n%v", ts)
 		imgCfg := &benchmarks.ImgBenchConfig{
 			JobCfg: &imgresize.ImgdJobConfig{
-				Job:           "img-job",
-				WorkerMcpu:    proc.Tmcpu(0),
-				WorkerMem:     proc.Tmem(2500),
-				Persist:       false,
-				NRounds:       nrounds,
-				ImgdMcpu:      proc.Tmcpu(1000),
-				UseSPProxy:    true,
-				UseBootScript: initscript,
-				UseS3Clnt:     true,
+				Job:                  "img-job",
+				WorkerMcpu:           proc.Tmcpu(1000),
+				WorkerMem:            proc.Tmem(0),
+				Persist:              false,
+				NRounds:              nrounds,
+				ImgdMcpu:             proc.Tmcpu(1000),
+				UseSPProxy:           true,
+				UseBootScript:        initscript,
+				UseS3Clnt:            true,
+				WorkerBootScriptMcpu: proc.Tmcpu(1000),
+				WorkerBootScriptMem:  proc.Tmem(0),
 			},
 			InputPath:      inputPath,
 			NTasks:         ntasks,
 			NInputsPerTask: ninputsPerTask,
-			//			Durs:           dur,
-			//			MaxRPS:         rps,
 		}
-
 		ts.RunStandardBenchmark(benchName, driverVM, GetImgProcessCmd(imgCfg), numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost)
 	}
 }
