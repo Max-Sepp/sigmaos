@@ -33,7 +33,7 @@ func (pq *ProcQueue) QueueProc(p *proc.Proc) {
 	pq.poolQueues[qid] = append(pq.poolQueues[qid], p)
 	// Wait until this is the only proc on the queue. When this is the case, the
 	// proc can run
-	for len(pq.poolQueues[qid]) > 1 {
+	for pq.poolQueues[qid][0] != p {
 		pq.cond.Wait()
 	}
 	db.DPrintf(db.PROCD, "[%v] Done queueing proc qlen[%v] %v", p.GetPid(), qid, len(pq.poolQueues[qid]))
