@@ -55,6 +55,7 @@ func (r *Resources) alloc(p *proc.Proc) {
 			r.qprpID++
 			pool = newQueueableProcResourcePool(r.qprpID, POOL_BOOT_SCRIPT_MCPU, POOL_BOOT_SCRIPT_MEM, p.GetMcpu(), p.GetMem())
 			db.DPrintf(db.LCSCHED, "New resource pool %v", pool.GetID())
+			r.qprps[pool] = true
 		}
 		db.DPrintf(db.LCSCHED, "[%v] Assign proc to resource pool %v", p.GetPid(), pool.GetID())
 		// Assign this proc to the pool, and allocate resources in the pool
