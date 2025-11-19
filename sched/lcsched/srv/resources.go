@@ -162,8 +162,8 @@ func (qprp *QueueableProcResourcePool) Alloc(p *proc.Proc) {
 	defer qprp.sanityCheck()
 
 	// Update resources available to run bootscripts in this resource pool
-	qprp.bootScriptMcpu += p.GetBootScriptMcpu()
-	qprp.bootScriptMem += p.GetBootScriptMem()
+	qprp.bootScriptMcpu -= p.GetBootScriptMcpu()
+	qprp.bootScriptMem -= p.GetBootScriptMem()
 	// Update number of running procs assigned to this resource pool
 	qprp.nproc++
 	p.SetQueueableResourcePoolID(qprp.id)
@@ -174,8 +174,8 @@ func (qprp *QueueableProcResourcePool) Free(p *proc.Proc) bool {
 	defer qprp.sanityCheck()
 
 	// Update resources available to run bootscripts in this resource pool
-	qprp.bootScriptMcpu -= p.GetBootScriptMcpu()
-	qprp.bootScriptMem -= p.GetBootScriptMem()
+	qprp.bootScriptMcpu += p.GetBootScriptMcpu()
+	qprp.bootScriptMem += p.GetBootScriptMem()
 	// Update number of running procs assigned to this resource pool
 	qprp.nproc--
 	return qprp.nproc == 0
