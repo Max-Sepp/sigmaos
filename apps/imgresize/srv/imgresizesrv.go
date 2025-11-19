@@ -158,7 +158,7 @@ func (imgd *ImgSrv) Work() {
 
 	go imgd.processResults(ch)
 
-	ftc.ExecuteTasks(imgresize.GetMkProcFn(imgd.ftclnt.ServiceId(), imgd.nrounds, imgd.workerMcpu, imgd.workerMem, imgd.workerBootScriptMcpu, imgd.workerBootScriptMem, imgd.bootScript, imgd.sc.ProcEnv().GetUseSPProxy()))
+	ftc.ExecuteTasks(imgresize.GetMkProcFn(imgd.ftclnt.ServiceId(), imgd.nrounds, imgd.workerMcpu, imgd.workerMem, imgd.workerBootScriptMcpu, imgd.workerBootScriptMem, imgd.bootScript, imgd.useSPProxy))
 	close(ch)
 
 	st := spstats.NewTcounterSnapshot()
