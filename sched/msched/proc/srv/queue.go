@@ -58,5 +58,5 @@ func (pq *ProcQueue) ProcDone(p *proc.Proc) {
 		delete(pq.poolQueues, qid)
 	}
 	// Wait up waiters
-	pq.cond.Signal()
+	pq.cond.Broadcast()
 }

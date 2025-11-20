@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 	"unsafe"
@@ -89,6 +90,7 @@ type ProcSrv struct {
 	procs           *syncmap.SyncMap[int, *procEntry]
 	ckclnt          *chunkclnt.ChunkClnt
 	pq              *ProcQueue
+	nRunning        atomic.Int64
 }
 
 type ProcRPCSrv struct {
@@ -405,7 +407,10 @@ func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 		defer ps.pq.ProcDone(uproc)
 	}
 	perf.LogSpawnLatency("ProcSrv.Run StartSigmaContainer", uproc.GetPid(), uproc.GetSpawnTime(), perf.TIME_NOT_SET)
+	nRunning := ps.nRunning.Add(1)
+	db.DPrintf(db.PROCD, "[%v] nRunning: %v", uproc.GetProgram(), nRunning)
 	cmd, err := scontainer.StartSigmaContainer(uproc, ps.dialproxy)
+	ps.nRunning.Add(-1)
 	if err != nil {
 		return err
 	}
