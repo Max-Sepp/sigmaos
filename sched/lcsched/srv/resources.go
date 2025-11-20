@@ -8,7 +8,7 @@ import (
 
 const (
 	// MCPU in a queueable proc resource pool dedicated to running boot scripts
-	POOL_BOOT_SCRIPT_MCPU proc.Tmcpu = 1000
+	POOL_BOOT_SCRIPT_MCPU proc.Tmcpu = 100
 	POOL_BOOT_SCRIPT_MEM  proc.Tmem  = 0
 )
 
@@ -73,6 +73,7 @@ func (r *Resources) free(p *proc.Proc) {
 
 	if p.GetIsQueueable() {
 		pool := r.pidToPool[p.GetPid()]
+		delete(r.pidToPool, p.GetPid())
 		db.DPrintf(db.LCSCHED, "[%v] Remove proc from resource pool %v", p.GetPid(), pool.GetID())
 		isEmpty := pool.Free(p)
 		if isEmpty {
