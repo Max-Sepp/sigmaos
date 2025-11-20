@@ -34,28 +34,47 @@ func newResources(mcpuInt uint32, memInt uint32) *Resources {
 	}
 }
 
+func (r *Resources) tryAddPool(p *proc.Proc) (*QueueableProcResourcePool, bool) {
+	// First, calculate resources to dedicate to this pool
+	newPoolMcpu := POOL_BOOT_SCRIPT_MCPU + p.GetMcpu()
+	newPoolMem := POOL_BOOT_SCRIPT_MEM + p.GetMem()
+	// If there aren't enough resources, bail out
+	if newPoolMcpu < r.mcpu || newPoolMem < r.mem {
+		return nil, false
+	}
+	// There are enough resources. Proceed with allocation.
+	// Allocate the pool's resources
+	r.mcpu -= newPoolMcpu
+	r.mem -= newPoolMem
+	// Create the pool
+	r.qprpID++
+	pool := newQueueableProcResourcePool(r.qprpID, POOL_BOOT_SCRIPT_MCPU, POOL_BOOT_SCRIPT_MEM, p.GetMcpu(), p.GetMem())
+	db.DPrintf(db.LCSCHED, "New resource pool %v", pool.GetID())
+	r.qprps[pool] = true
+	return pool, true
+}
+
 // Caller holds lock
 func (r *Resources) alloc(p *proc.Proc) {
 	defer r.sanityCheck()
 
 	// If this is a queueable proc, get a pool in which to run it
 	if p.GetIsQueueable() {
-		// Check if there is room in one of the existing queueable proc resource
-		// pools
-		pool, ok := r.getQueueableResourcePool(p)
+		// First see if there is room for a new pool to be created. More
+		// parallelism is great!
+		var pool *QueueableProcResourcePool
+		var ok bool
+		pool, ok = r.tryAddPool(p)
 		if !ok {
-			// No room for the proc in existing pools, so create a new one
-			// First, Calculate resources to dedicate to this pool
-			newPoolMcpu := POOL_BOOT_SCRIPT_MCPU + p.GetMcpu()
-			newPoolMem := POOL_BOOT_SCRIPT_MEM + p.GetMem()
-			// Allocate the pool's resources
-			r.mcpu -= newPoolMcpu
-			r.mem -= newPoolMem
-			// Create the pool
-			r.qprpID++
-			pool = newQueueableProcResourcePool(r.qprpID, POOL_BOOT_SCRIPT_MCPU, POOL_BOOT_SCRIPT_MEM, p.GetMcpu(), p.GetMem())
-			db.DPrintf(db.LCSCHED, "New resource pool %v", pool.GetID())
-			r.qprps[pool] = true
+			// No room to create a new pool, so check if there is room in one of the existing queueable proc resource
+			// pools
+			pool, ok = r.getQueueableResourcePool(p)
+			if !ok {
+				// No room for the proc in existing pools either. We should never reach
+				// this point, because the isEligible check should have failed before
+				// the call to alloc.
+				db.DFatalf("Alloc queueable resource pool failed after isEligible check succeeded pid: %v", p.GetPid())
+			}
 		}
 		db.DPrintf(db.LCSCHED, "[%v] Assign proc to resource pool %v", p.GetPid(), pool.GetID())
 		// Assign this proc to the pool, and allocate resources in the pool
