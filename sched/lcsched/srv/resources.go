@@ -39,7 +39,7 @@ func (r *Resources) tryAddPool(p *proc.Proc) (*QueueableProcResourcePool, bool) 
 	newPoolMcpu := POOL_BOOT_SCRIPT_MCPU + p.GetMcpu()
 	newPoolMem := POOL_BOOT_SCRIPT_MEM + p.GetMem()
 	// If there aren't enough resources, bail out
-	if newPoolMcpu < r.mcpu || newPoolMem < r.mem {
+	if newPoolMcpu > r.mcpu || newPoolMem > r.mem {
 		return nil, false
 	}
 	// There are enough resources. Proceed with allocation.
