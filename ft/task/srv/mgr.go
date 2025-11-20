@@ -13,8 +13,6 @@ import (
 	sp "sigmaos/sigmap"
 )
 
-const FTTASK_SRV_MCPU proc.Tmcpu = 1000
-
 type FtTaskSrvMgr struct {
 	sc      *sigmaclnt.SigmaClnt
 	stopped bool
@@ -23,13 +21,13 @@ type FtTaskSrvMgr struct {
 	pgm     *procgroupmgr.ProcGroupMgr
 }
 
-func NewFtTaskSrvMgr(sc *sigmaclnt.SigmaClnt, id string, persist bool) (*FtTaskSrvMgr, error) {
+func NewFtTaskSrvMgr(sc *sigmaclnt.SigmaClnt, id string, persist bool, mcpu proc.Tmcpu) (*FtTaskSrvMgr, error) {
 	err := sc.MkDir(sp.FTTASK, 0777)
 	if err != nil && !serr.IsErrorExists(err) {
 		return nil, err
 	}
 
-	config := procgroupmgr.NewProcGroupConfig(1, "fttask-srv", []string{}, FTTASK_SRV_MCPU, id)
+	config := procgroupmgr.NewProcGroupConfig(1, "fttask-srv", []string{}, mcpu, id)
 	if persist {
 		config.Persist(sc.FsLib)
 	}

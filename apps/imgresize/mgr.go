@@ -30,20 +30,21 @@ const (
 )
 
 type ImgdJobConfig struct {
-	Job                   string     `json:"job"`
-	WorkerMcpu            proc.Tmcpu `json:"worker_mcpu"`
-	WorkerMem             proc.Tmem  `json:"worker_mem"`
-	Persist               bool       `json:"persist"`
-	NRounds               int        `json:"n_rounds"`
-	ImgdMcpu              proc.Tmcpu `json:"imgd_mcpu"`
-	UseSPProxy            bool       `json:"use_sp_proxy"`
-	UseBootScript         bool       `json:"use_boot_script"`
-	UseS3Clnt             bool       `json:"use_s3_clnt"`
-	WorkerBootScriptMcpu  proc.Tmcpu `json:"worker_boot_script_mcpu"`
-	WorkerBootScriptMem   proc.Tmem  `json:"worker_boot_script_mem"`
+	Job                  string     `json:"job"`
+	WorkerMcpu           proc.Tmcpu `json:"worker_mcpu"`
+	WorkerMem            proc.Tmem  `json:"worker_mem"`
+	Persist              bool       `json:"persist"`
+	NRounds              int        `json:"n_rounds"`
+	ImgdMcpu             proc.Tmcpu `json:"imgd_mcpu"`
+	UseSPProxy           bool       `json:"use_sp_proxy"`
+	UseBootScript        bool       `json:"use_boot_script"`
+	UseS3Clnt            bool       `json:"use_s3_clnt"`
+	WorkerBootScriptMcpu proc.Tmcpu `json:"worker_boot_script_mcpu"`
+	WorkerBootScriptMem  proc.Tmem  `json:"worker_boot_script_mem"`
+	FTTaskSrvMcpu        proc.Tmcpu `json:"ft_task_srv_mcpu"`
 }
 
-func NewImgdJobConfig(job string, workerMcpu proc.Tmcpu, workerMem proc.Tmem, persist bool, nrounds int, imgdMcpu proc.Tmcpu, useSPProxy bool, useBootScript bool, useS3Clnt bool, workerBootScriptMcpu proc.Tmcpu, workerBootScriptMem proc.Tmem) *ImgdJobConfig {
+func NewImgdJobConfig(job string, workerMcpu proc.Tmcpu, workerMem proc.Tmem, persist bool, nrounds int, imgdMcpu proc.Tmcpu, useSPProxy bool, useBootScript bool, useS3Clnt bool, workerBootScriptMcpu proc.Tmcpu, workerBootScriptMem proc.Tmem, ftTaskSrvMcpu proc.Tmcpu) *ImgdJobConfig {
 	return &ImgdJobConfig{
 		Job:                  job,
 		WorkerMcpu:           workerMcpu,
@@ -56,11 +57,12 @@ func NewImgdJobConfig(job string, workerMcpu proc.Tmcpu, workerMem proc.Tmem, pe
 		UseS3Clnt:            useS3Clnt,
 		WorkerBootScriptMcpu: workerBootScriptMcpu,
 		WorkerBootScriptMem:  workerBootScriptMem,
+		FTTaskSrvMcpu:        ftTaskSrvMcpu,
 	}
 }
 
 func (cfg *ImgdJobConfig) String() string {
-	return fmt.Sprintf("&{ job:%v workerMcpu:%v workerMem:%v persist:%v nrounds:%v imgdMcpu:%v useSPProxy:%v useBootScript:%v useS3Clnt:%v workerBootScriptMcpu:%v workerBootScriptMem:%v }", cfg.Job, cfg.WorkerMcpu, cfg.WorkerMem, cfg.Persist, cfg.NRounds, cfg.ImgdMcpu, cfg.UseSPProxy, cfg.UseBootScript, cfg.UseS3Clnt, cfg.WorkerBootScriptMcpu, cfg.WorkerBootScriptMem)
+	return fmt.Sprintf("&{ job:%v workerMcpu:%v workerMem:%v persist:%v nrounds:%v imgdMcpu:%v useSPProxy:%v useBootScript:%v useS3Clnt:%v workerBootScriptMcpu:%v workerBootScriptMem:%v ftTaskSrvMcpu:%v }", cfg.Job, cfg.WorkerMcpu, cfg.WorkerMem, cfg.Persist, cfg.NRounds, cfg.ImgdMcpu, cfg.UseSPProxy, cfg.UseBootScript, cfg.UseS3Clnt, cfg.WorkerBootScriptMcpu, cfg.WorkerBootScriptMem, cfg.FTTaskSrvMcpu)
 }
 
 func GetBootScript(sc *sigmaclnt.SigmaClnt) ([]byte, error) {
@@ -113,9 +115,10 @@ func NewTask(fn string, useS3Clnt, useBootScript bool) *Ttask {
 }
 
 type ImgdMgr[Data any] struct {
-	job   string
-	pgm   *procgroupmgr.ProcGroupMgr
-	ftsrv *fttask_srv.FtTaskSrvMgr
+	job    string
+	jobCfg *ImgdJobConfig
+	pgm    *procgroupmgr.ProcGroupMgr
+	ftsrv  *fttask_srv.FtTaskSrvMgr
 }
 
 func NewImgdMgr[Data any](sc *sigmaclnt.SigmaClnt, jobCfg *ImgdJobConfig, em *crash.TeventMap) (*ImgdMgr[Data], error) {
@@ -123,8 +126,9 @@ func NewImgdMgr[Data any](sc *sigmaclnt.SigmaClnt, jobCfg *ImgdJobConfig, em *cr
 	imgd := &ImgdMgr[Data]{}
 
 	imgd.job = jobCfg.Job
+	imgd.jobCfg = jobCfg
 	var err error
-	imgd.ftsrv, err = fttask_srv.NewFtTaskSrvMgr(sc, TaskSvcId(jobCfg.Job), false)
+	imgd.ftsrv, err = fttask_srv.NewFtTaskSrvMgr(sc, TaskSvcId(jobCfg.Job), false, imgd.jobCfg.FTTaskSrvMcpu)
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +159,7 @@ func (imgd *ImgdMgr[Data]) NewImgdClnt(sc *sigmaclnt.SigmaClnt) (*ImgdClnt[Data]
 
 func (imgd *ImgdMgr[Data]) Restart(sc *sigmaclnt.SigmaClnt) error {
 	var err error
-	imgd.ftsrv, err = fttask_srv.NewFtTaskSrvMgr(sc, TaskSvcId(imgd.job), false)
+	imgd.ftsrv, err = fttask_srv.NewFtTaskSrvMgr(sc, TaskSvcId(imgd.job), false, imgd.jobCfg.FTTaskSrvMcpu)
 	if err != nil {
 		return err
 	}

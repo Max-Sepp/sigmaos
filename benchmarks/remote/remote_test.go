@@ -969,6 +969,7 @@ func TestLCBEHotelImgResizeMultiplexing(t *testing.T) {
 			UseS3Clnt:            false,
 			WorkerBootScriptMcpu: proc.Tmcpu(0),
 			WorkerBootScriptMem:  proc.Tmem(0),
+			FTTaskSrvMcpu:        proc.Tmcpu(1000),
 		},
 		InputPath:      "name/ux/~local/8.jpg",
 		NTasks:         350,
@@ -1076,6 +1077,7 @@ func TestLCBEHotelImgResizeRPCMultiplexing(t *testing.T) {
 			UseS3Clnt:            false,
 			WorkerBootScriptMcpu: proc.Tmcpu(0),
 			WorkerBootScriptMem:  proc.Tmem(0),
+			FTTaskSrvMcpu:        proc.Tmcpu(1000),
 		},
 		InputPath:      "name/ux/~local/8.jpg",
 		NTasks:         0,
@@ -1527,7 +1529,7 @@ func TestImgProcess(t *testing.T) {
 	// Cluster configuration parameters
 	var (
 		//		numNodes     int = 12
-		numNodes     int = 1
+		numNodes     int = 2
 		numFullNodes int = numNodes
 	)
 	const (
@@ -1537,8 +1539,8 @@ func TestImgProcess(t *testing.T) {
 	)
 	// Hotel benchmark configuration parameters
 	var (
-		nrounds        int    = 43
-		ntasks         int    = 500
+		nrounds        int    = 1
+		ntasks         int    = 50
 		ninputsPerTask int    = 1
 		withInitScript []bool = []bool{
 			false,
@@ -1553,7 +1555,7 @@ func TestImgProcess(t *testing.T) {
 		benchNameBase += "_overlays"
 	}
 	for _, initscript := range withInitScript {
-		inputPath := "9ps3/img-save/8.jpg"
+		inputPath := "9ps3/img-save/1.jpg"
 		benchName := benchNameBase
 		if initscript {
 			benchName += "_initscript"
@@ -1562,16 +1564,17 @@ func TestImgProcess(t *testing.T) {
 		imgCfg := &benchmarks.ImgBenchConfig{
 			JobCfg: &imgresize.ImgdJobConfig{
 				Job:                  "img-job",
-				WorkerMcpu:           proc.Tmcpu(1000),
+				WorkerMcpu:           proc.Tmcpu(900),
 				WorkerMem:            proc.Tmem(0),
 				Persist:              false,
 				NRounds:              nrounds,
-				ImgdMcpu:             proc.Tmcpu(1000),
+				ImgdMcpu:             proc.Tmcpu(50),
 				UseSPProxy:           true,
 				UseBootScript:        initscript,
 				UseS3Clnt:            true,
-				WorkerBootScriptMcpu: proc.Tmcpu(1000),
+				WorkerBootScriptMcpu: proc.Tmcpu(25),
 				WorkerBootScriptMem:  proc.Tmem(0),
+				FTTaskSrvMcpu:        proc.Tmcpu(50),
 			},
 			InputPath:      inputPath,
 			NTasks:         ntasks,

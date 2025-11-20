@@ -124,6 +124,7 @@ var DefaultImgBenchConfig = &ImgBenchConfig{
 		UseS3Clnt:            false,
 		WorkerBootScriptMcpu: proc.Tmcpu(0),
 		WorkerBootScriptMem:  proc.Tmem(0),
+		FTTaskSrvMcpu:        proc.Tmcpu(1000),
 	},
 	InputPath:      filepath.Join(sp.S3, sp.LOCAL, "9ps3/img/8.jpg"),
 	NTasks:         10,

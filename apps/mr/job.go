@@ -153,14 +153,14 @@ func InitCoordFS(sc *sigmaclnt.SigmaClnt, jobRoot, jobname string, nreducetask i
 	sc.FsLib.MkDir(MRDIRELECT, 0777)
 	sc.FsLib.MkDir(jobRoot, 0777)
 
-	mftsrv, err := fttask_srv.NewFtTaskSrvMgr(sc, jobname+"-mtasks", false)
+	mftsrv, err := fttask_srv.NewFtTaskSrvMgr(sc, jobname+"-mtasks", false, 1000)
 	if err != nil {
 		db.DPrintf(db.ERROR, "NewFtTaskSrvMgr %v err %v\n", jobname, err)
 		return nil, err
 	}
 	mftclnt := fttask_clnt.NewFtTaskClnt[Bin, any](sc.FsLib, mftsrv.Id, sp.NullFence())
 
-	rftsrv, err := fttask_srv.NewFtTaskSrvMgr(sc, jobname+"-rtasks", false)
+	rftsrv, err := fttask_srv.NewFtTaskSrvMgr(sc, jobname+"-rtasks", false, 1000)
 	if err != nil {
 		db.DPrintf(db.ERROR, "NewFtTaskSrvMgr %v err %v\n", jobname, err)
 		return nil, err

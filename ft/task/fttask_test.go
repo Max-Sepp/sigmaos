@@ -73,7 +73,7 @@ func newTstate[Data any, Output any](t *testing.T) (*Tstate[Data, Output], error
 		return nil, err
 	}
 	ts.Tstate = ts0
-	mgr, err := fttask_srv.NewFtTaskSrvMgr(ts.SigmaClnt, "test", false)
+	mgr, err := fttask_srv.NewFtTaskSrvMgr(ts.SigmaClnt, "test", false, 1000)
 	if err != nil {
 		return nil, err
 	}
