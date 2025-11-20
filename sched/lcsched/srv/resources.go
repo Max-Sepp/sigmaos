@@ -8,7 +8,7 @@ import (
 
 const (
 	// MCPU in a queueable proc resource pool dedicated to running boot scripts
-	POOL_BOOT_SCRIPT_MCPU proc.Tmcpu = 100
+	POOL_BOOT_SCRIPT_MCPU proc.Tmcpu = 50
 	POOL_BOOT_SCRIPT_MEM  proc.Tmem  = 0
 )
 
@@ -20,6 +20,7 @@ type Resources struct {
 	qprpID    uint64
 	qprps     map[*QueueableProcResourcePool]bool    // Queueable proc resource pools
 	pidToPool map[sp.Tpid]*QueueableProcResourcePool // Mappings of procs to queueable resource pools
+	nRunning  uint64                                 // Number of procs running on this msched
 }
 
 func newResources(mcpuInt uint32, memInt uint32) *Resources {
@@ -31,6 +32,7 @@ func newResources(mcpuInt uint32, memInt uint32) *Resources {
 		qprpID:    0,
 		qprps:     make(map[*QueueableProcResourcePool]bool),
 		pidToPool: make(map[sp.Tpid]*QueueableProcResourcePool),
+		nRunning:  0,
 	}
 }
 
@@ -57,6 +59,7 @@ func (r *Resources) tryAddPool(p *proc.Proc) (*QueueableProcResourcePool, bool) 
 // Caller holds lock
 func (r *Resources) alloc(p *proc.Proc) {
 	defer r.sanityCheck()
+	r.nRunning++
 
 	// If this is a queueable proc, get a pool in which to run it
 	if p.GetIsQueueable() {
@@ -89,6 +92,7 @@ func (r *Resources) alloc(p *proc.Proc) {
 // Caller holds lock
 func (r *Resources) free(p *proc.Proc) {
 	defer r.sanityCheck()
+	r.nRunning--
 
 	if p.GetIsQueueable() {
 		pool := r.pidToPool[p.GetPid()]
@@ -121,7 +125,7 @@ func (r *Resources) sanityCheck() {
 }
 
 // Caller holds lock
-func (r *Resources) isEligible(p *proc.Proc) bool {
+func (r *Resources) IsEligible(p *proc.Proc) bool {
 	if p.GetIsQueueable() {
 		// Check if there is room in one of the existing queueable proc resource
 		// pools
