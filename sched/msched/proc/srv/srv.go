@@ -410,7 +410,6 @@ func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 	nRunning := ps.nRunning.Add(1)
 	db.DPrintf(db.PROCD, "[%v] nRunning: %v", uproc.GetProgram(), nRunning)
 	cmd, err := scontainer.StartSigmaContainer(uproc, ps.dialproxy)
-	ps.nRunning.Add(-1)
 	if err != nil {
 		return err
 	}
@@ -424,6 +423,7 @@ func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 	if err != nil {
 		db.DPrintf(db.PROCD, "[%v] Proc Run cmd.Wait err %v", uproc.GetPid(), err)
 	}
+	ps.nRunning.Add(-1)
 	scontainer.CleanupUProc(uproc.GetPid())
 	ps.procs.Delete(pid)
 	if uproc.GetProcEnv().UseSPProxy {
