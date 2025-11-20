@@ -125,10 +125,11 @@ func (lcs *LCSched) schedule() {
 					return r.IsEligible(p)
 				})
 				if ok {
-					db.DPrintf(db.LCSCHED, "Successfully schedule realm %v kid %v nRunning %v p %v", realm, p.GetProgram(), r.nRunning, kid)
+					db.DPrintf(db.LCSCHED, "Successfully schedule realm %v kid %v p %v", realm, kid, p.GetProgram())
 					perf.LogSpawnLatency("LCSched.Dequeue found eligible msched", p.GetPid(), p.GetSpawnTime(), enqueueT)
 					// Alloc resources for the proc
 					r.alloc(p)
+					db.DPrintf(db.LCSCHED, "Realm %v kid %v nRunning %v p %v", realm, kid, r.nRunning, p.GetProgram())
 					go lcs.runProc(kid, p, ch, r)
 					success = true
 					// Move on to the next realm
