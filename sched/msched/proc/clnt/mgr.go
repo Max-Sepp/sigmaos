@@ -21,24 +21,26 @@ import (
 type startProcdFn func() (sp.Tpid, *ProcClnt)
 
 type ProcdMgr struct {
-	mu            sync.Mutex
-	fsl           *fslib.FsLib
-	kernelId      string
-	pool          *pool
-	kclnt         *kernelclnt.KernelClnt
-	upcs          map[sp.Trealm]map[proc.Ttype]*ProcClnt // We use a separate procd for each type of proc (BE or LC) to simplify cgroup management.
-	realms        map[sp.Trealm]bool
-	beProcds      []*ProcClnt
-	sharesAlloced Tshare
+	mu               sync.Mutex
+	fsl              *fslib.FsLib
+	kernelId         string
+	pool             *pool
+	resourcePoolCnts map[uint64]uint64
+	kclnt            *kernelclnt.KernelClnt
+	upcs             map[sp.Trealm]map[proc.Ttype]*ProcClnt // We use a separate procd for each type of proc (BE or LC) to simplify cgroup management.
+	realms           map[sp.Trealm]bool
+	beProcds         []*ProcClnt
+	sharesAlloced    Tshare
 }
 
 func NewProcdMgr(fsl *fslib.FsLib, kernelId string) *ProcdMgr {
 	pdm := &ProcdMgr{
-		fsl:           fsl,
-		kernelId:      kernelId,
-		upcs:          make(map[sp.Trealm]map[proc.Ttype]*ProcClnt),
-		beProcds:      make([]*ProcClnt, 0),
-		sharesAlloced: 0,
+		fsl:              fsl,
+		kernelId:         kernelId,
+		upcs:             make(map[sp.Trealm]map[proc.Ttype]*ProcClnt),
+		resourcePoolCnts: make(map[uint64]uint64),
+		beProcds:         make([]*ProcClnt, 0),
+		sharesAlloced:    0,
 	}
 	pdm.pool = newPool(pdm.startProcd)
 	go func() {

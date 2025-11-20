@@ -43,6 +43,15 @@ func (pdm *ProcdMgr) startBalanceShares(p *proc.Proc) error {
 		if share == MIN_SHARE {
 			share = 0
 		}
+		if p.GetIsQueueable() {
+			qid := p.GetQueueableResourcePoolID()
+			cnt, ok := pdm.resourcePoolCnts[qid]
+			pdm.resourcePoolCnts[qid] = cnt + 1
+			// If this is not the first proc of this queueable resource pool, bail out
+			if ok {
+				return nil
+			}
+		}
 		if err := pdm.setShare(rpcc, share+mcpuToShare(p.GetMcpu())); err != nil {
 			return err
 		}
@@ -68,6 +77,17 @@ func (pdm *ProcdMgr) exitBalanceShares(p *proc.Proc) error {
 
 	switch p.GetType() {
 	case proc.T_LC:
+		if p.GetIsQueueable() {
+			qid := p.GetQueueableResourcePoolID()
+			pdm.resourcePoolCnts[qid]--
+			// If this is not the last proc running in this queueable resource pool,
+			// bail out
+			if cnt := pdm.resourcePoolCnts[qid]; cnt > 0 {
+				return nil
+			}
+			// Clean up counts
+			delete(pdm.resourcePoolCnts, qid)
+		}
 		rpcc := pdm.upcs[p.GetRealm()][p.GetType()]
 		if err := pdm.setShare(rpcc, rpcc.GetCPUShare()-mcpuToShare(p.GetMcpu())); err != nil {
 			return err
