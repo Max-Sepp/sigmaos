@@ -72,7 +72,7 @@ func (clnt *S3Clnt) PutObject(bucket, key string, b []byte) error {
 			Iov: [][]byte{b},
 		},
 	}
-	err := clnt.rpcc.RPC("S3RpcAPI.PUttObject", req, &res)
+	err := clnt.rpcc.RPC("S3RpcAPI.PutObject", req, &res)
 	if err != nil {
 		db.DPrintf(db.S3CLNT2_ERR, "Err PutObject: %v", err)
 		db.DPrintf(db.ERROR, "Err PutObject: %v", err)
