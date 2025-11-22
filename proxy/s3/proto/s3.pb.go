@@ -21,17 +21,18 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type GetReq struct {
+type S3Req struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Bucket string `protobuf:"bytes,1,opt,name=bucket,proto3" json:"bucket,omitempty"`
-	Key    string `protobuf:"bytes,2,opt,name=key,proto3" json:"key,omitempty"`
+	Bucket string      `protobuf:"bytes,1,opt,name=bucket,proto3" json:"bucket,omitempty"`
+	Key    string      `protobuf:"bytes,2,opt,name=key,proto3" json:"key,omitempty"`
+	Blob   *proto.Blob `protobuf:"bytes,3,opt,name=blob,proto3" json:"blob,omitempty"`
 }
 
-func (x *GetReq) Reset() {
-	*x = GetReq{}
+func (x *S3Req) Reset() {
+	*x = S3Req{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_proxy_s3_proto_s3_proto_msgTypes[0]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -39,13 +40,13 @@ func (x *GetReq) Reset() {
 	}
 }
 
-func (x *GetReq) String() string {
+func (x *S3Req) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetReq) ProtoMessage() {}
+func (*S3Req) ProtoMessage() {}
 
-func (x *GetReq) ProtoReflect() protoreflect.Message {
+func (x *S3Req) ProtoReflect() protoreflect.Message {
 	mi := &file_proxy_s3_proto_s3_proto_msgTypes[0]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -57,26 +58,33 @@ func (x *GetReq) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetReq.ProtoReflect.Descriptor instead.
-func (*GetReq) Descriptor() ([]byte, []int) {
+// Deprecated: Use S3Req.ProtoReflect.Descriptor instead.
+func (*S3Req) Descriptor() ([]byte, []int) {
 	return file_proxy_s3_proto_s3_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *GetReq) GetBucket() string {
+func (x *S3Req) GetBucket() string {
 	if x != nil {
 		return x.Bucket
 	}
 	return ""
 }
 
-func (x *GetReq) GetKey() string {
+func (x *S3Req) GetKey() string {
 	if x != nil {
 		return x.Key
 	}
 	return ""
 }
 
-type GetRep struct {
+func (x *S3Req) GetBlob() *proto.Blob {
+	if x != nil {
+		return x.Blob
+	}
+	return nil
+}
+
+type S3Rep struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
@@ -85,8 +93,8 @@ type GetRep struct {
 	Blob *proto.Blob `protobuf:"bytes,2,opt,name=blob,proto3" json:"blob,omitempty"`
 }
 
-func (x *GetRep) Reset() {
-	*x = GetRep{}
+func (x *S3Rep) Reset() {
+	*x = S3Rep{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_proxy_s3_proto_s3_proto_msgTypes[1]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -94,13 +102,13 @@ func (x *GetRep) Reset() {
 	}
 }
 
-func (x *GetRep) String() string {
+func (x *S3Rep) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetRep) ProtoMessage() {}
+func (*S3Rep) ProtoMessage() {}
 
-func (x *GetRep) ProtoReflect() protoreflect.Message {
+func (x *S3Rep) ProtoReflect() protoreflect.Message {
 	mi := &file_proxy_s3_proto_s3_proto_msgTypes[1]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -112,19 +120,19 @@ func (x *GetRep) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetRep.ProtoReflect.Descriptor instead.
-func (*GetRep) Descriptor() ([]byte, []int) {
+// Deprecated: Use S3Rep.ProtoReflect.Descriptor instead.
+func (*S3Rep) Descriptor() ([]byte, []int) {
 	return file_proxy_s3_proto_s3_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *GetRep) GetOK() bool {
+func (x *S3Rep) GetOK() bool {
 	if x != nil {
 		return x.OK
 	}
 	return false
 }
 
-func (x *GetRep) GetBlob() *proto.Blob {
+func (x *S3Rep) GetBlob() *proto.Blob {
 	if x != nil {
 		return x.Blob
 	}
@@ -136,16 +144,18 @@ var File_proxy_s3_proto_s3_proto protoreflect.FileDescriptor
 var file_proxy_s3_proto_s3_proto_rawDesc = []byte{
 	0x0a, 0x17, 0x70, 0x72, 0x6f, 0x78, 0x79, 0x2f, 0x73, 0x33, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f,
 	0x2f, 0x73, 0x33, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x1a, 0x13, 0x72, 0x70, 0x63, 0x2f, 0x70,
-	0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x72, 0x70, 0x63, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22, 0x32,
-	0x0a, 0x06, 0x47, 0x65, 0x74, 0x52, 0x65, 0x71, 0x12, 0x16, 0x0a, 0x06, 0x62, 0x75, 0x63, 0x6b,
-	0x65, 0x74, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x62, 0x75, 0x63, 0x6b, 0x65, 0x74,
-	0x12, 0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x6b,
-	0x65, 0x79, 0x22, 0x33, 0x0a, 0x06, 0x47, 0x65, 0x74, 0x52, 0x65, 0x70, 0x12, 0x0e, 0x0a, 0x02,
-	0x6f, 0x4b, 0x18, 0x01, 0x20, 0x01, 0x28, 0x08, 0x52, 0x02, 0x6f, 0x4b, 0x12, 0x19, 0x0a, 0x04,
-	0x62, 0x6c, 0x6f, 0x62, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x05, 0x2e, 0x42, 0x6c, 0x6f,
-	0x62, 0x52, 0x04, 0x62, 0x6c, 0x6f, 0x62, 0x42, 0x18, 0x5a, 0x16, 0x73, 0x69, 0x67, 0x6d, 0x61,
-	0x6f, 0x73, 0x2f, 0x70, 0x72, 0x6f, 0x78, 0x79, 0x2f, 0x73, 0x33, 0x2f, 0x70, 0x72, 0x6f, 0x74,
-	0x6f, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x72, 0x70, 0x63, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22, 0x4c,
+	0x0a, 0x05, 0x53, 0x33, 0x52, 0x65, 0x71, 0x12, 0x16, 0x0a, 0x06, 0x62, 0x75, 0x63, 0x6b, 0x65,
+	0x74, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x62, 0x75, 0x63, 0x6b, 0x65, 0x74, 0x12,
+	0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x6b, 0x65,
+	0x79, 0x12, 0x19, 0x0a, 0x04, 0x62, 0x6c, 0x6f, 0x62, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0b, 0x32,
+	0x05, 0x2e, 0x42, 0x6c, 0x6f, 0x62, 0x52, 0x04, 0x62, 0x6c, 0x6f, 0x62, 0x22, 0x32, 0x0a, 0x05,
+	0x53, 0x33, 0x52, 0x65, 0x70, 0x12, 0x0e, 0x0a, 0x02, 0x6f, 0x4b, 0x18, 0x01, 0x20, 0x01, 0x28,
+	0x08, 0x52, 0x02, 0x6f, 0x4b, 0x12, 0x19, 0x0a, 0x04, 0x62, 0x6c, 0x6f, 0x62, 0x18, 0x02, 0x20,
+	0x01, 0x28, 0x0b, 0x32, 0x05, 0x2e, 0x42, 0x6c, 0x6f, 0x62, 0x52, 0x04, 0x62, 0x6c, 0x6f, 0x62,
+	0x42, 0x18, 0x5a, 0x16, 0x73, 0x69, 0x67, 0x6d, 0x61, 0x6f, 0x73, 0x2f, 0x70, 0x72, 0x6f, 0x78,
+	0x79, 0x2f, 0x73, 0x33, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74,
+	0x6f, 0x33,
 }
 
 var (
@@ -162,17 +172,18 @@ func file_proxy_s3_proto_s3_proto_rawDescGZIP() []byte {
 
 var file_proxy_s3_proto_s3_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_proxy_s3_proto_s3_proto_goTypes = []interface{}{
-	(*GetReq)(nil),     // 0: GetReq
-	(*GetRep)(nil),     // 1: GetRep
+	(*S3Req)(nil),      // 0: S3Req
+	(*S3Rep)(nil),      // 1: S3Rep
 	(*proto.Blob)(nil), // 2: Blob
 }
 var file_proxy_s3_proto_s3_proto_depIdxs = []int32{
-	2, // 0: GetRep.blob:type_name -> Blob
-	1, // [1:1] is the sub-list for method output_type
-	1, // [1:1] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	2, // 0: S3Req.blob:type_name -> Blob
+	2, // 1: S3Rep.blob:type_name -> Blob
+	2, // [2:2] is the sub-list for method output_type
+	2, // [2:2] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_proxy_s3_proto_s3_proto_init() }
@@ -182,7 +193,7 @@ func file_proxy_s3_proto_s3_proto_init() {
 	}
 	if !protoimpl.UnsafeEnabled {
 		file_proxy_s3_proto_s3_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetReq); i {
+			switch v := v.(*S3Req); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -194,7 +205,7 @@ func file_proxy_s3_proto_s3_proto_init() {
 			}
 		}
 		file_proxy_s3_proto_s3_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetRep); i {
+			switch v := v.(*S3Rep); i {
 			case 0:
 				return &v.state
 			case 1:

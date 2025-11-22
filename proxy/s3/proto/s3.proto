@@ -4,12 +4,13 @@ import "rpc/proto/rpc.proto";
 
 option go_package = "sigmaos/proxy/s3/proto";
 
-message GetReq {
+message S3Req {
   string bucket = 1;
   string key = 2;
+  Blob blob = 3;
 }
 
-message GetRep {
+message S3Rep {
   bool oK = 1; 
   Blob blob = 2;
 }

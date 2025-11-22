@@ -92,9 +92,6 @@ func NewImgProcess(pe *proc.ProcEnv, args []string, p *perf.Perf) (*ImgProcess, 
 	ip.inputs = strings.Split(args[1], ",")
 	db.DPrintf(db.ALWAYS, "Args {%v} inputs {%v} fail {%v}", args[1], ip.inputs, proc.GetSigmaFail())
 	ip.output = ip.inputs[0] + "-thumbnail"
-	if useS3Clnt {
-		ip.output = filepath.Join(sp.S3, sp.LOCAL, ip.output)
-	}
 	ip.nrounds, err = strconv.Atoi(args[3])
 	if err != nil {
 		db.DFatalf("Err convert nrounds: %v", err)
@@ -109,6 +106,14 @@ func NewImgProcess(pe *proc.ProcEnv, args []string, p *perf.Perf) (*ImgProcess, 
 		ip.s3Clnt = s3Clnt
 	}
 	return ip, nil
+}
+
+type nopWriteCloser struct {
+	io.Writer
+}
+
+func (nopWriteCloser) Close() error {
+	return nil
 }
 
 func (ip *ImgProcess) Work(i int, output string) *proc.Status {
@@ -168,9 +173,16 @@ func (ip *ImgProcess) Work(i int, output string) *proc.Status {
 	db.DPrintf(db.ALWAYS, "Time %v resize: %v", ip.inputs[i], time.Since(dr))
 
 	dcw := time.Now()
-	wrt, err := ip.CreateWriter(output, 0777, sp.OWRITE)
-	if err != nil {
-		return proc.NewStatusErr(fmt.Sprintf("Open output failed %v", output), err)
+	var wrt io.WriteCloser
+	var outbuf *bytes.Buffer
+	if ip.useS3Clnt {
+		outbuf = bytes.NewBuffer(nil)
+		wrt = &nopWriteCloser{outbuf}
+	} else {
+		wrt, err = ip.CreateWriter(output, 0777, sp.OWRITE)
+		if err != nil {
+			return proc.NewStatusErr(fmt.Sprintf("Open output failed %v", output), err)
+		}
 	}
 	//	pwrt := perf.NewPerfWriter(wrt, ip.p)
 	db.DPrintf(db.ALWAYS, "Time %v create writer: %v", ip.inputs[i], time.Since(dcw))
@@ -182,5 +194,13 @@ func (ip *ImgProcess) Work(i int, output string) *proc.Status {
 	}()
 
 	jpeg.Encode(wrt, img1, nil)
+	if ip.useS3Clnt {
+		pn := strings.Split(output, "/")
+		bucket := pn[0]
+		key := filepath.Join(pn[1:]...)
+		if err := ip.s3Clnt.PutObject(bucket, key, outbuf.Bytes()); err != nil {
+			return proc.NewStatusErr(fmt.Sprintf("Err PutObject bucket:%v key:%v", bucket, key), err)
+		}
+	}
 	return proc.NewStatus(proc.StatusOK)
 }

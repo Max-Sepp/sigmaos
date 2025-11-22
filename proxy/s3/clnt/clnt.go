@@ -27,11 +27,11 @@ func NewS3Clnt(fsl *fslib.FsLib, pn string) (*S3Clnt, error) {
 func (clnt *S3Clnt) GetObject(bucket, key string) ([]byte, error) {
 	db.DPrintf(db.S3CLNT2, "GetObject bucket:%v key:%v", bucket, key)
 	b := []byte{}
-	var res proto.GetRep
+	var res proto.S3Rep
 	res.Blob = &rpcproto.Blob{
 		Iov: [][]byte{b},
 	}
-	req := &proto.GetReq{
+	req := &proto.S3Req{
 		Bucket: bucket,
 		Key:    key,
 	}
@@ -48,7 +48,7 @@ func (clnt *S3Clnt) GetObject(bucket, key string) ([]byte, error) {
 func (clnt *S3Clnt) DelegatedGetObject(rpcIdx uint64) ([]byte, error) {
 	db.DPrintf(db.S3CLNT2, "DelegatedGetObject(%v)", rpcIdx)
 	b := []byte{}
-	var res proto.GetRep
+	var res proto.S3Rep
 	res.Blob = &rpcproto.Blob{
 		Iov: [][]byte{b},
 	}
@@ -60,4 +60,24 @@ func (clnt *S3Clnt) DelegatedGetObject(rpcIdx uint64) ([]byte, error) {
 	}
 	db.DPrintf(db.S3CLNT2, "DelegatedGetObject(%v) ok blob_len:%v", rpcIdx, len(res.Blob.Iov))
 	return res.Blob.Iov[0], nil
+}
+
+func (clnt *S3Clnt) PutObject(bucket, key string, b []byte) error {
+	db.DPrintf(db.S3CLNT2, "PutObject bucket:%v key:%v len:%v", bucket, key, len(b))
+	var res proto.S3Rep
+	req := &proto.S3Req{
+		Bucket: bucket,
+		Key:    key,
+		Blob: &rpcproto.Blob{
+			Iov: [][]byte{b},
+		},
+	}
+	err := clnt.rpcc.RPC("S3RpcAPI.PUttObject", req, &res)
+	if err != nil {
+		db.DPrintf(db.S3CLNT2_ERR, "Err PutObject: %v", err)
+		db.DPrintf(db.ERROR, "Err PutObject: %v", err)
+		return err
+	}
+	db.DPrintf(db.S3CLNT2, "PutObject ok bucket:%v key:%v len:%v", bucket, key, len(b))
+	return nil
 }
