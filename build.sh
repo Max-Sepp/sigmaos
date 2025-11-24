@@ -320,12 +320,18 @@ if ! [ -z "$PARALLEL" ]; then
   njobs=$(echo $targets | wc -w)
 fi
 
-build_targets="parallel -j$njobs \"DOCKER_BUILDKIT=1 docker build --progress=plain -f docker/target.Dockerfile --target {} -t {}$BUILD_TARGET_SUFFIX . 2>&1 | tee $BUILD_LOG/{}.out\" ::: $targets"
+build_targets="parallel --halt now,fail=1 -j$njobs \"set -o pipefail; DOCKER_BUILDKIT=1 docker build --progress=plain -f docker/target.Dockerfile --target {} -t {}$BUILD_TARGET_SUFFIX . 2>&1 | tee $BUILD_LOG/{}.out\" ::: $targets"
 
 if [ "${NO_DOCKER}" != "true" ]; then
   printf "\nBuilding Docker image targets\n$build_targets\n\n"
   echo "========== Start Docker targets build =========="
   eval $build_targets
+  docker_build_status=$?
+  if [ $docker_build_status -ne 0 ]; then
+    printf "\n!!!!!!!!!! BUILD ERROR !!!!!!!!!!\n";
+    echo "!!!!!!!!!! ABORTING BUILD !!!!!!!!!!"
+    exit 1
+  fi
   echo "========== Done building Docker targets =========="
 fi
 

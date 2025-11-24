@@ -58,7 +58,7 @@ TARGETS="uproc-trampoline spawn-latency"
 # If building in parallel, build with (n - 1) threads.
 njobs=$(nproc)
 njobs="$(($njobs-1))"
-build="parallel -j$njobs $CARGO \"build --manifest-path=rs/{}/Cargo.toml --release\" ::: $TARGETS"
+build="parallel --halt now,fail=1 -j$njobs $CARGO \"build --manifest-path=rs/{}/Cargo.toml --release\" ::: $TARGETS"
 echo $build
 eval $build
 
@@ -74,7 +74,7 @@ cp rs/spawn-latency/target/release/spawn-latency bin/user/spawn-latency-v$VERSIO
 
 # Build wasm scripts
 TARGETS=$(ls rs/wasm)
-build="parallel -j$njobs $CARGO \"build --manifest-path=rs/wasm/{}/Cargo.toml --target=wasm32-unknown-unknown --release\" ::: $TARGETS"
+build="parallel --halt now,fail=1 -j$njobs $CARGO \"build --manifest-path=rs/wasm/{}/Cargo.toml --target=wasm32-unknown-unknown --release\" ::: $TARGETS"
 echo $build
 eval $build
 

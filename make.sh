@@ -131,12 +131,12 @@ for k in $WHAT; do
     # If building in parallel, build with (n - 1) threads.
     njobs=$(nproc)
     njobs="$(($njobs-1))"
-    build="parallel -j$njobs $GO \"build -ldflags='$LDF' $RACE -o $OUTPATH/$k/{}$VERSION cmd/$k/{}/main.go\" ::: $FILES"
+    build="parallel --halt now,fail=1 -j$njobs $GO \"build -ldflags='$LDF' $RACE -o $OUTPATH/$k/{}$VERSION cmd/$k/{}/main.go\" ::: $FILES"
     echo $build
     eval $build
     # Bail out early on build error
     export EXIT_STATUS=$?
-    if [ $EXIT_STATUS  -ne 0 ]; then
+    if [ $EXIT_STATUS -ne 0 ]; then
       exit $EXIT_STATUS
     fi
   fi
