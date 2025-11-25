@@ -3,7 +3,6 @@ package gvisor_test
 import (
 	"os"
 	"os/exec"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -29,7 +28,7 @@ func TestHelloWorld(t *testing.T) {
 	// Create and write default config to bundle directory
 	ctrCmd := []string{"/bin/bash", "-c", "echo 'hello world' ; sleep 100s"}
 	cfg := gvisor.NewDefaultConfig(ctrCmd)
-	err := cfg.WriteToFile(filepath.Join(bundleDir, "config.json"))
+	err := cfg.WriteToFile(bundleDir)
 	assert.Nil(t, err, "Failed to write config file: %v", err)
 
 	// Run the container asynchronously with shared stdout

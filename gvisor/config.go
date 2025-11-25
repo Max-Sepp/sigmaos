@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	ocirspec "github.com/opencontainers/runtime-spec/specs-go"
 
@@ -107,13 +108,13 @@ func (c *Config) String() string {
 	return fmt.Sprintf("&{Spec: %s}", string(b))
 }
 
-func (c *Config) WriteToFile(pathname string) error {
+func (c *Config) WriteToFile(bundleDirPathName string) error {
 	b, err := json.MarshalIndent(c.Spec, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal spec: %w", err)
 	}
 
-	err = os.WriteFile(pathname, b, 0644)
+	err = os.WriteFile(filepath.Join(bundleDirPathName, "config.json"), b, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write file: %w", err)
 	}
