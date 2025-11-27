@@ -9,13 +9,20 @@ import (
 	ocirspec "github.com/opencontainers/runtime-spec/specs-go"
 
 	db "sigmaos/debug"
+	"sigmaos/proc"
+	"sigmaos/sched/msched/proc/srv/binsrv"
 )
 
 type Config struct {
 	Spec *ocirspec.Spec
 }
 
-func NewDefaultConfig(args []string) *Config {
+func NewDefaultConfig(p *proc.Proc) *Config {
+	binPn := binsrv.BinPath(p.GetVersionedProgram())
+	return NewDefaultConfigBinPath(p, binPn)
+}
+
+func NewDefaultConfigBinPath(p *proc.Proc, binPn string) *Config {
 	return &Config{
 		Spec: &ocirspec.Spec{
 			Version: "1.0.0",
@@ -24,7 +31,7 @@ func NewDefaultConfig(args []string) *Config {
 					UID: 0,
 					GID: 0,
 				},
-				Args: args,
+				Args: append([]string{binPn}, p.GetArgs()...),
 				Env: []string{
 					"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 					"TERM=xterm",

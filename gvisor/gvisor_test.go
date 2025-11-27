@@ -11,6 +11,7 @@ import (
 
 	db "sigmaos/debug"
 	"sigmaos/gvisor"
+	"sigmaos/proc"
 	sp "sigmaos/sigmap"
 )
 
@@ -18,8 +19,8 @@ func TestCompile(t *testing.T) {
 }
 
 func TestConfig(t *testing.T) {
-	ctrCmd := []string{"/bin/bash", "-c", "echo 'hello world'"}
-	cfg := gvisor.NewDefaultConfig(ctrCmd)
+	p := proc.NewProc("/bin/bash", []string{"-c", "echo 'hello world'"})
+	cfg := gvisor.NewDefaultConfig(p)
 	db.DPrintf(db.TEST, "gvisor config: %v", cfg)
 }
 
@@ -51,8 +52,8 @@ func TestOverlayDir(t *testing.T) {
 	assert.True(t, os.IsNotExist(err), "config.json should not exist in merged directory")
 
 	// Create config.json in the overlay directory
-	ctrCmd := []string{"/bin/bash", "-c", "echo 'overlay test'"}
-	cfg := gvisor.NewDefaultConfig(ctrCmd)
+	p := proc.NewProc("/bin/bash", []string{"-c", "echo 'overlay test'"})
+	cfg := gvisor.NewDefaultConfig(p)
 	err = cfg.WriteToFile(mergedDir)
 	assert.Nil(t, err, "Failed to write config file: %v", err)
 
@@ -89,8 +90,8 @@ func TestHelloWorld(t *testing.T) {
 
 	// Create and write default config to overlay bundle directory
 	mergedDir := filepath.Join(overlayBundleDir, "merged")
-	ctrCmd := []string{"/bin/bash", "-c", "echo 'hello world' ; sleep 100s"}
-	cfg := gvisor.NewDefaultConfig(ctrCmd)
+	p := proc.NewProc("/bin/bash", []string{"-c", "echo 'hello world' ; sleep 100s"})
+	cfg := gvisor.NewDefaultConfigBinPath(p, "/bin/bash")
 	err = cfg.WriteToFile(mergedDir)
 	assert.Nil(t, err, "Failed to write config file: %v", err)
 

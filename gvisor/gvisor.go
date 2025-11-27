@@ -5,6 +5,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
+	"time"
 
 	db "sigmaos/debug"
 	"sigmaos/proc"
@@ -27,9 +29,18 @@ func StartGVisorContainer(p *proc.Proc, baseBundleDir string) (*GVisorContainer,
 		db.DPrintf(db.ERROR, "[%v] Failed to create bundle overlay: %v", p.GetPid(), err)
 		return nil, fmt.Errorf("[%v] failed to create bundle overlay: %v", p.GetPid(), err)
 	}
+	// Set some environemnt variables
+	p.AppendEnv("SIGMA_EXEC_TIME", strconv.FormatInt(time.Now().UnixMicro(), 10))
+	b, err := time.Now().MarshalText()
+	if err != nil {
+		db.DFatalf("Error marshal timestamp pb: %v", err)
+	}
+	p.AppendEnv("SIGMA_EXEC_TIME_PB", string(b))
+	p.AppendEnv("SIGMA_SPAWN_TIME", strconv.FormatInt(p.GetSpawnTime().UnixMicro(), 10))
+	p.AppendEnv(proc.SIGMAPERF, p.GetProcEnv().GetPerf())
+	cfg := NewDefaultConfig(p)
 	// Create and write default config to overlay bundle directory
 	mergedDir := filepath.Join(overlayBundleDir, "merged")
-	cfg := NewDefaultConfig(p.GetArgs())
 	if err := cfg.WriteToFile(mergedDir); err != nil {
 		DestroyBundleOverlay(overlayBundleDir)
 		db.DPrintf(db.ERROR, "[%v] Failed to write config file: %v", p.GetPid(), err)
