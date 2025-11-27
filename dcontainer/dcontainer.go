@@ -20,6 +20,7 @@ import (
 
 	"sigmaos/dcontainer/cgroup"
 	db "sigmaos/debug"
+	"sigmaos/gvisor"
 	"sigmaos/proc"
 	chunksrv "sigmaos/sched/msched/proc/chunk/srv"
 	sp "sigmaos/sigmap"
@@ -103,6 +104,18 @@ func StartDockerContainer(p *proc.Proc, kernelId, user, netmode string) (*DConta
 				Type:     mount.TypeBind,
 				Source:   procdBin,
 				Target:   filepath.Join(sp.SIGMAHOME, "bin/kernel"),
+				ReadOnly: true,
+			},
+		)
+	}
+
+	// TODO: only mount if running with gvisor
+	if true {
+		mnts = append(mnts,
+			mount.Mount{
+				Type:     mount.TypeBind,
+				Source:   gvisor.BASE_BUNDLE_PATH,
+				Target:   gvisor.BASE_BUNDLE_PATH,
 				ReadOnly: true,
 			},
 		)

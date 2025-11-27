@@ -25,7 +25,7 @@ func TestConfig(t *testing.T) {
 }
 
 func TestOverlayDir(t *testing.T) {
-	baseBundleDir := "/home/arielck/workspace/hack/gvisor/bundle"
+	baseBundleDir := gvisor.BASE_BUNDLE_PATH
 	pid := sp.Tpid("test-proc-pid")
 
 	// Create the proc bundle overlay filesystem
@@ -71,7 +71,7 @@ func TestOverlayDir(t *testing.T) {
 }
 
 func TestHelloWorld(t *testing.T) {
-	baseBundleDir := "/home/arielck/workspace/hack/gvisor/bundle"
+	baseBundleDir := gvisor.BASE_BUNDLE_PATH
 	pid := sp.Tpid("test-proc-pid")
 	containerID := "hello_world_ctr"
 
