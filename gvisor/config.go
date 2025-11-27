@@ -32,11 +32,8 @@ func NewDefaultConfigBinPath(p *proc.Proc, binPn string) *Config {
 					GID: 0,
 				},
 				Args: append([]string{binPn}, p.GetArgs()...),
-				Env: []string{
-					"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-					"TERM=xterm",
-				},
-				Cwd: "/",
+				Env:  p.GetEnv(),
+				Cwd:  "/",
 				Capabilities: &ocirspec.LinuxCapabilities{
 					Bounding: []string{
 						"CAP_AUDIT_WRITE",

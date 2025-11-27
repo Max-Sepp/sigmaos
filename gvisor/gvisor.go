@@ -30,6 +30,7 @@ func StartGVisorContainer(p *proc.Proc, baseBundleDir string) (*GVisorContainer,
 		return nil, fmt.Errorf("[%v] failed to create bundle overlay: %v", p.GetPid(), err)
 	}
 	// Set some environemnt variables
+	p.AppendEnv("PATH", "/bin:/bin2:/usr/bin:/home/sigmaos/bin/kernel")
 	p.AppendEnv("SIGMA_EXEC_TIME", strconv.FormatInt(time.Now().UnixMicro(), 10))
 	b, err := time.Now().MarshalText()
 	if err != nil {
