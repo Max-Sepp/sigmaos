@@ -11,6 +11,7 @@ import (
 
 	db "sigmaos/debug"
 	"sigmaos/gvisor"
+	sp "sigmaos/sigmap"
 )
 
 func TestCompile(t *testing.T) {
@@ -22,13 +23,67 @@ func TestConfig(t *testing.T) {
 	db.DPrintf(db.TEST, "gvisor config: %v", cfg)
 }
 
+func TestOverlayDir(t *testing.T) {
+	baseBundleDir := "/home/arielck/workspace/hack/gvisor/bundle"
+	pid := sp.Tpid("test-proc-pid")
+
+	// Create the proc bundle overlay filesystem
+	err := gvisor.MakeProcBundleOverlayFS()
+	assert.Nil(t, err, "Failed to create proc bundle overlay filesystem: %v", err)
+	defer os.RemoveAll(gvisor.PROC_BUNDLE_OVERLAY_DIR)
+
+	// Get the overlay bundle directory path for this pid
+	overlayBundleDir := gvisor.PidToOverlayBundleDirPath(pid)
+
+	// Create the overlay directory
+	err = gvisor.CreateBundleOverlay(baseBundleDir, overlayBundleDir)
+	assert.Nil(t, err, "Failed to create bundle overlay: %v", err)
+
+	// Check that the merged directory exists
+	mergedDir := filepath.Join(overlayBundleDir, "merged")
+	entries, err := os.ReadDir(mergedDir)
+	assert.Nil(t, err, "Failed to read merged directory: %v", err)
+	db.DPrintf(db.TEST, "Merged directory contents: %v", entries)
+
+	// Check that config.json does not exist in the merged directory
+	configPath := filepath.Join(mergedDir, "config.json")
+	_, err = os.Stat(configPath)
+	assert.True(t, os.IsNotExist(err), "config.json should not exist in merged directory")
+
+	// Create config.json in the overlay directory
+	ctrCmd := []string{"/bin/bash", "-c", "echo 'overlay test'"}
+	cfg := gvisor.NewDefaultConfig(ctrCmd)
+	err = cfg.WriteToFile(mergedDir)
+	assert.Nil(t, err, "Failed to write config file: %v", err)
+
+	// Verify config.json was created
+	_, err = os.Stat(configPath)
+	assert.Nil(t, err, "config.json should exist after writing: %v", err)
+
+	// Destroy the overlay directory
+	err = gvisor.DestroyBundleOverlay(overlayBundleDir)
+	assert.Nil(t, err, "Failed to destroy bundle overlay: %v", err)
+
+	// Verify the overlay directory is gone
+	_, err = os.Stat(overlayBundleDir)
+	assert.True(t, os.IsNotExist(err), "Overlay directory should not exist after destruction")
+}
+
 func TestHelloWorld(t *testing.T) {
 	baseBundleDir := "/home/arielck/workspace/hack/gvisor/bundle"
-	overlayBundleDir := "/tmp/gvisor-hello-world-overlay"
+	pid := sp.Tpid("test-proc-pid")
 	containerID := "hello_world_ctr"
 
+	// Create the proc bundle overlay filesystem
+	err := gvisor.MakeProcBundleOverlayFS()
+	assert.Nil(t, err, "Failed to create proc bundle overlay filesystem: %v", err)
+	defer os.RemoveAll(gvisor.PROC_BUNDLE_OVERLAY_DIR)
+
+	// Get the overlay bundle directory path for this pid
+	overlayBundleDir := gvisor.PidToOverlayBundleDirPath(pid)
+
 	// Create the overlay bundle
-	err := gvisor.CreateBundleOverlay(baseBundleDir, overlayBundleDir)
+	err = gvisor.CreateBundleOverlay(baseBundleDir, overlayBundleDir)
 	assert.Nil(t, err, "Failed to create bundle overlay: %v", err)
 	defer gvisor.DestroyBundleOverlay(overlayBundleDir)
 
@@ -65,42 +120,4 @@ func TestHelloWorld(t *testing.T) {
 	assert.NotNil(t, err, "Container run not killed: %v", err)
 	db.DPrintf(db.TEST, "Container completed")
 	assert.True(t, time.Since(start) < 20*time.Second, "Waited too long %v", time.Since(start))
-}
-
-func TestOverlayDir(t *testing.T) {
-	baseBundleDir := "/home/arielck/workspace/hack/gvisor/bundle"
-	overlayBundleDir := "/tmp/gvisor-overlay-test"
-
-	// Create the overlay directory
-	err := gvisor.CreateBundleOverlay(baseBundleDir, overlayBundleDir)
-	assert.Nil(t, err, "Failed to create bundle overlay: %v", err)
-
-	// Check that the merged directory exists
-	mergedDir := filepath.Join(overlayBundleDir, "merged")
-	entries, err := os.ReadDir(mergedDir)
-	assert.Nil(t, err, "Failed to read merged directory: %v", err)
-	db.DPrintf(db.TEST, "Merged directory contents: %v", entries)
-
-	// Check that config.json does not exist in the merged directory
-	configPath := filepath.Join(mergedDir, "config.json")
-	_, err = os.Stat(configPath)
-	assert.True(t, os.IsNotExist(err), "config.json should not exist in merged directory")
-
-	// Create config.json in the overlay directory
-	ctrCmd := []string{"/bin/bash", "-c", "echo 'overlay test'"}
-	cfg := gvisor.NewDefaultConfig(ctrCmd)
-	err = cfg.WriteToFile(mergedDir)
-	assert.Nil(t, err, "Failed to write config file: %v", err)
-
-	// Verify config.json was created
-	_, err = os.Stat(configPath)
-	assert.Nil(t, err, "config.json should exist after writing: %v", err)
-
-	// Destroy the overlay directory
-	err = gvisor.DestroyBundleOverlay(overlayBundleDir)
-	assert.Nil(t, err, "Failed to destroy bundle overlay: %v", err)
-
-	// Verify the overlay directory is gone
-	_, err = os.Stat(overlayBundleDir)
-	assert.True(t, os.IsNotExist(err), "Overlay directory should not exist after destruction")
 }
