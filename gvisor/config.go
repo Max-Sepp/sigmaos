@@ -100,6 +100,43 @@ func NewDefaultConfig(args []string) *Config {
 	}
 }
 
+func (c *Config) AddUserProcMounts() {
+	c.Spec.Mounts = append(c.Spec.Mounts, []ocirspec.Mount{
+		// Add mounts to make binfs available to the gvisor container
+		{
+			Destination: "/mnt",
+			Type:        "bind",
+			Source:      "mnt",
+			Options: []string{
+				"ro",
+			},
+		},
+		{
+			Destination: "/mnt/binfs",
+			Type:        "bind",
+			Source:      "mnt/bnfs",
+			Options: []string{
+				"ro",
+			},
+		},
+		// Add mounts to make the sigmaos-perf directory available to the proc.
+		// This dir is used to exfiltrate performance results
+		{
+			Destination: "/tmp",
+			Type:        "bind",
+			Source:      "tmp",
+			Options: []string{
+				"ro",
+			},
+		},
+		{
+			Destination: "/tmp/sigmaos-perf",
+			Type:        "bind",
+			Source:      "/tmp/sigmaos-perf",
+		},
+	}...)
+}
+
 func (c *Config) String() string {
 	b, err := json.Marshal(c.Spec)
 	if err != nil {

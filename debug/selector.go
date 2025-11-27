@@ -147,6 +147,7 @@ const (
 	BOOTCLNT  Tselector = "BOOTCLNT"
 	BOOT      Tselector = "BOOT"
 	CONTAINER Tselector = "CONTAINER"
+	GVISOR    Tselector = "GVISOR"
 )
 
 // Named
