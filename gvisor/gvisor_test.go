@@ -37,7 +37,7 @@ func TestOverlayDir(t *testing.T) {
 	overlayBundleDir := gvisor.PidToOverlayBundleDirPath(pid)
 
 	// Create the overlay directory
-	err = gvisor.CreateBundleOverlay(baseBundleDir, overlayBundleDir)
+	err = gvisor.CreateBundleOverlay(baseBundleDir, overlayBundleDir, false)
 	assert.Nil(t, err, "Failed to create bundle overlay: %v", err)
 
 	// Check that the merged directory exists
@@ -62,7 +62,7 @@ func TestOverlayDir(t *testing.T) {
 	assert.Nil(t, err, "config.json should exist after writing: %v", err)
 
 	// Destroy the overlay directory
-	err = gvisor.DestroyBundleOverlay(overlayBundleDir)
+	err = gvisor.DestroyBundleOverlay(overlayBundleDir, false)
 	assert.Nil(t, err, "Failed to destroy bundle overlay: %v", err)
 
 	// Verify the overlay directory is gone
@@ -84,9 +84,9 @@ func TestHelloWorld(t *testing.T) {
 	overlayBundleDir := gvisor.PidToOverlayBundleDirPath(pid)
 
 	// Create the overlay bundle
-	err = gvisor.CreateBundleOverlay(baseBundleDir, overlayBundleDir)
+	err = gvisor.CreateBundleOverlay(baseBundleDir, overlayBundleDir, false)
 	assert.Nil(t, err, "Failed to create bundle overlay: %v", err)
-	defer gvisor.DestroyBundleOverlay(overlayBundleDir)
+	defer gvisor.DestroyBundleOverlay(overlayBundleDir, false)
 
 	// Create and write default config to overlay bundle directory
 	mergedDir := filepath.Join(overlayBundleDir, "merged")

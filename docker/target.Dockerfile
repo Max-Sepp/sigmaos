@@ -32,6 +32,7 @@ RUN mkdir bin && \
 # ========== local user image ==========
 FROM base AS sigmauser-local
 RUN mkdir jail && \
+    mkdir /tmp/sigmaos-proc-bundle-overlays && \
     mkdir /tmp/spproxyd
 
 RUN apt-get update && \

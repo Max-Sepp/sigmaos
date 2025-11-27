@@ -13,6 +13,7 @@ import (
 )
 
 type GVisorContainer struct {
+	inDocker      bool
 	p             *proc.Proc
 	containerID   string
 	runCmd        *exec.Cmd
@@ -20,12 +21,13 @@ type GVisorContainer struct {
 	baseBundleDir string
 }
 
-func StartGVisorContainer(p *proc.Proc, baseBundleDir string) (*GVisorContainer, error) {
+func StartGVisorContainer(p *proc.Proc, dialproxy bool, baseBundleDir string, inDocker bool) (*GVisorContainer, error) {
+	db.DPrintf(db.CONTAINER, "RunUProc gvisor dialproxy %v %v env %v", dialproxy, p, os.Environ())
 	containerID := "gvisor-ctr-" + p.GetPid().String()
 	// Get the overlay bundle directory path for this pid
 	overlayBundleDir := PidToOverlayBundleDirPath(p.GetPid())
 	// Create the overlay bundle
-	if err := CreateBundleOverlay(baseBundleDir, overlayBundleDir); err != nil {
+	if err := CreateBundleOverlay(baseBundleDir, overlayBundleDir, inDocker); err != nil {
 		db.DPrintf(db.ERROR, "[%v] Failed to create bundle overlay: %v", p.GetPid(), err)
 		return nil, fmt.Errorf("[%v] failed to create bundle overlay: %v", p.GetPid(), err)
 	}
@@ -43,26 +45,36 @@ func StartGVisorContainer(p *proc.Proc, baseBundleDir string) (*GVisorContainer,
 	// Create and write default config to overlay bundle directory
 	mergedDir := filepath.Join(overlayBundleDir, "merged")
 	if err := cfg.WriteToFile(mergedDir); err != nil {
-		DestroyBundleOverlay(overlayBundleDir)
+		DestroyBundleOverlay(overlayBundleDir, inDocker)
 		db.DPrintf(db.ERROR, "[%v] Failed to write config file: %v", p.GetPid(), err)
 		return nil, fmt.Errorf("[%v] failed to write config file: %v", p.GetPid(), err)
 	}
 	// Run the container asynchronously with shared stdout
-	runCmd := exec.Command("sudo", "runsc", "--network=host", "--ipc=host", "run", "--bundle", mergedDir, containerID)
+	var runCmd *exec.Cmd
+	if inDocker {
+		runCmd = exec.Command("runsc", "--systemd-cgroup", "--network=host" /*"--ipc=host", */, "run", "--bundle", mergedDir, containerID)
+	} else {
+		runCmd = exec.Command("sudo", "runsc", "--network=host" /*"--ipc=host",*/, "run", "--bundle", mergedDir, containerID)
+	}
 	runCmd.Stdout = os.Stdout
 	runCmd.Stderr = os.Stderr
 	if err := runCmd.Start(); err != nil {
-		DestroyBundleOverlay(overlayBundleDir)
+		DestroyBundleOverlay(overlayBundleDir, inDocker)
 		db.DPrintf(db.ERROR, "[%v] Failed to start container: %v", p.GetPid(), err)
 		return nil, fmt.Errorf("[%v] failed to start container: %v", p.GetPid(), err)
 	}
 	return &GVisorContainer{
+		inDocker:      inDocker,
 		p:             p,
 		containerID:   containerID,
 		runCmd:        runCmd,
 		overlayDir:    overlayBundleDir,
 		baseBundleDir: baseBundleDir,
 	}, nil
+}
+
+func (gc *GVisorContainer) Pid() int {
+	return gc.runCmd.Process.Pid
 }
 
 func (gc *GVisorContainer) String() string {
@@ -82,7 +94,12 @@ func (gc *GVisorContainer) Wait() error {
 
 func (gc *GVisorContainer) Kill() error {
 	// Kill the container
-	killCmd := exec.Command("sudo", "runsc", "kill", gc.containerID)
+	var killCmd *exec.Cmd
+	if gc.inDocker {
+		killCmd = exec.Command("runsc", "kill", gc.containerID)
+	} else {
+		killCmd = exec.Command("sudo", "runsc", "kill", gc.containerID)
+	}
 	out, err := killCmd.CombinedOutput()
 	if err != nil {
 		db.DPrintf(db.ERROR, "[%v] Failed to kill container %v: %v, output: %s", gc.p.GetPid(), gc.containerID, err, string(out))
@@ -94,7 +111,7 @@ func (gc *GVisorContainer) Kill() error {
 		db.DPrintf(db.GVISOR, "[%v] Container run completed with error (expected after kill): %v", gc.p.GetPid(), err)
 	}
 	// Destroy the overlay bundle
-	if err := DestroyBundleOverlay(gc.overlayDir); err != nil {
+	if err := DestroyBundleOverlay(gc.overlayDir, gc.inDocker); err != nil {
 		db.DPrintf(db.ERROR, "[%v] Failed to destroy overlay bundle %v: %v", gc.p.GetPid(), gc.overlayDir, err)
 		return fmt.Errorf("[%v] failed to destroy overlay bundle: %v", gc.p.GetPid(), err)
 	}

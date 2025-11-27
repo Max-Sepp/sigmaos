@@ -18,6 +18,7 @@ import (
 
 	"sigmaos/api/fs"
 	db "sigmaos/debug"
+	"sigmaos/gvisor"
 	kernelclnt "sigmaos/kernel/clnt"
 	"sigmaos/proc"
 	spproxysrv "sigmaos/proxy/sigmap/srv"
@@ -409,7 +410,11 @@ func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 	perf.LogSpawnLatency("ProcSrv.Run StartSigmaContainer", uproc.GetPid(), uproc.GetSpawnTime(), perf.TIME_NOT_SET)
 	nRunning := ps.nRunning.Add(1)
 	db.DPrintf(db.PROCD, "[%v] nRunning: %v", uproc.GetProgram(), nRunning)
-	cmd, err := scontainer.StartSigmaContainer(uproc, ps.dialproxy)
+	//	cmd, err := scontainer.StartSigmaContainer(uproc, ps.dialproxy)
+	//	if err != nil {
+	//		return err
+	//	}
+	cmd, err := gvisor.StartGVisorContainer(uproc, ps.dialproxy, gvisor.BASE_BUNDLE_PATH, true)
 	if err != nil {
 		return err
 	}
@@ -425,7 +430,9 @@ func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 	}
 	nRunning = ps.nRunning.Add(-1)
 	db.DPrintf(db.PROCD, "[%v] nRunning after: %v", uproc.GetProgram(), nRunning)
-	scontainer.CleanupUProc(uproc.GetPid())
+	if false {
+		scontainer.CleanupUProc(uproc.GetPid())
+	}
 	ps.procs.Delete(pid)
 	if uproc.GetProcEnv().UseSPProxy {
 		if err := ps.spc.InformProcDone(uproc); err != nil {
