@@ -48,7 +48,7 @@ func StartGVisorContainer(p *proc.Proc, baseBundleDir string) (*GVisorContainer,
 		return nil, fmt.Errorf("[%v] failed to write config file: %v", p.GetPid(), err)
 	}
 	// Run the container asynchronously with shared stdout
-	runCmd := exec.Command("sudo", "runsc", "--network=host", "run", "--bundle", mergedDir, containerID)
+	runCmd := exec.Command("sudo", "runsc", "--network=host", "--ipc=host", "run", "--bundle", mergedDir, containerID)
 	runCmd.Stdout = os.Stdout
 	runCmd.Stderr = os.Stderr
 	if err := runCmd.Start(); err != nil {
