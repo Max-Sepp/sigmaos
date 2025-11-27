@@ -136,7 +136,13 @@ func (c *Config) AddUserProcMounts() {
 		{
 			Destination: "/tmp/sigmaos-perf",
 			Type:        "bind",
-			Source:      "/tmp/sigmaos-perf",
+			Source:      "tmp/sigmaos-perf",
+		},
+		// Mount spproxyd
+		{
+			Destination: "/tmp/spproxyd",
+			Type:        "bind",
+			Source:      "tmp/spproxyd",
 		},
 	}...)
 }
