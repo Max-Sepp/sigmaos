@@ -32,7 +32,7 @@ func (upc *uprocCmd) Pid() int {
 
 // Contain user procs using uproc-trampoline trampoline
 func StartSigmaContainer(uproc *proc.Proc, dialproxy bool) (*uprocCmd, error) {
-	db.DPrintf(db.CONTAINER, "RunUProc dialproxy %v %v env %v\n", dialproxy, uproc, os.Environ())
+	db.DPrintf(db.CONTAINER, "RunUProc scontainer dialproxy %v %v env %v\n", dialproxy, uproc, os.Environ())
 	var cmd *exec.Cmd
 	straceProcs := proc.GetLabels(uproc.GetProcEnv().GetStrace())
 	valgrindProcs := proc.GetLabels(uproc.GetProcEnv().GetValgrind())

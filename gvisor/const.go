@@ -1,5 +1,5 @@
 package gvisor
 
 const (
-	BASE_BUNDLE_PATH = "/tmp/base-sigmauser-bundle"
+	BASE_BUNDLE_PATH = "/tmp/sigmaos-base-user-bundle"
 )
