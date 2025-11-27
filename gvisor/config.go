@@ -95,7 +95,6 @@ func NewDefaultConfigBinPath(p *proc.Proc, binPn string) *Config {
 			Linux: &ocirspec.Linux{
 				Namespaces: []ocirspec.LinuxNamespace{
 					{Type: ocirspec.PIDNamespace},
-					{Type: ocirspec.IPCNamespace},
 					{Type: ocirspec.UTSNamespace},
 					{Type: ocirspec.MountNamespace},
 				},

@@ -52,9 +52,9 @@ func StartGVisorContainer(p *proc.Proc, dialproxy bool, baseBundleDir string, in
 	// Run the container asynchronously with shared stdout
 	var runCmd *exec.Cmd
 	if inDocker {
-		runCmd = exec.Command("runsc", "--systemd-cgroup", "--network=host" /*"--ipc=host", */, "run", "--bundle", mergedDir, containerID)
+		runCmd = exec.Command("runsc", "--ignore-cgroups", "--network=host" /*"--ipc=host", */, "run", "--bundle", mergedDir, containerID)
 	} else {
-		runCmd = exec.Command("sudo", "runsc", "--network=host" /*"--ipc=host",*/, "run", "--bundle", mergedDir, containerID)
+		runCmd = exec.Command("sudo", "runsc", "--ignore-cgroups", "--network=host" /*"--ipc=host",*/, "run", "--bundle", mergedDir, containerID)
 	}
 	runCmd.Stdout = os.Stdout
 	runCmd.Stderr = os.Stderr
