@@ -10,7 +10,11 @@ import (
 
 	db "sigmaos/debug"
 	"sigmaos/proc"
-	"sigmaos/sched/msched/proc/srv/binsrv"
+	chunksrv "sigmaos/sched/msched/proc/chunk/srv"
+)
+
+const (
+	BIN_DIR = "/tmp/sigmaos-realm-bins"
 )
 
 type Config struct {
@@ -18,8 +22,8 @@ type Config struct {
 }
 
 func NewDefaultConfig(p *proc.Proc) *Config {
-	binPn := binsrv.BinPath(p.GetVersionedProgram())
-	return NewDefaultConfigBinPath(p, binPn)
+	pn := filepath.Join(BIN_DIR, p.GetVersionedProgram())
+	return NewDefaultConfigBinPath(p, pn)
 }
 
 func NewDefaultConfigBinPath(p *proc.Proc, binPn string) *Config {
@@ -65,7 +69,7 @@ func NewDefaultConfigBinPath(p *proc.Proc, binPn string) *Config {
 				},
 			},
 			Root: &ocirspec.Root{
-				Path:     "/",
+				Path:     "rootfs",
 				Readonly: true,
 			},
 			Hostname: "runsc",
@@ -73,7 +77,7 @@ func NewDefaultConfigBinPath(p *proc.Proc, binPn string) *Config {
 				{
 					Destination: "/proc",
 					Type:        "proc",
-					Source:      "proc",
+					Source:      "/proc",
 				},
 				{
 					Destination: "/dev",
@@ -96,7 +100,7 @@ func NewDefaultConfigBinPath(p *proc.Proc, binPn string) *Config {
 				Namespaces: []ocirspec.LinuxNamespace{
 					{Type: ocirspec.PIDNamespace},
 					{Type: ocirspec.UTSNamespace},
-					{Type: ocirspec.MountNamespace},
+					//					{Type: ocirspec.MountNamespace},
 				},
 			},
 		},
@@ -105,43 +109,23 @@ func NewDefaultConfigBinPath(p *proc.Proc, binPn string) *Config {
 
 func (c *Config) AddUserProcMounts() {
 	c.Spec.Mounts = append(c.Spec.Mounts, []ocirspec.Mount{
-		// Add mounts to make binfs available to the gvisor container
+		// Directory where realm bins are cached
 		{
-			Destination: "/mnt",
+			Destination: BIN_DIR,
 			Type:        "bind",
-			Source:      "mnt",
-			Options: []string{
-				"ro",
-			},
+			Source:      filepath.Dir(chunksrv.ROOTBINCACHE),
 		},
-		{
-			Destination: "/mnt/binfs",
-			Type:        "bind",
-			Source:      "mnt/bnfs",
-			Options: []string{
-				"ro",
-			},
-		},
-		// Add mounts to make the sigmaos-perf directory available to the proc.
-		// This dir is used to exfiltrate performance results
-		{
-			Destination: "/tmp",
-			Type:        "bind",
-			Source:      "tmp",
-			Options: []string{
-				"ro",
-			},
-		},
+		// Directory to exfiltrate performance results
 		{
 			Destination: "/tmp/sigmaos-perf",
 			Type:        "bind",
-			Source:      "tmp/sigmaos-perf",
+			Source:      "/tmp/sigmaos-perf",
 		},
 		// Mount spproxyd
 		{
 			Destination: "/tmp/spproxyd",
 			Type:        "bind",
-			Source:      "tmp/spproxyd",
+			Source:      "/tmp/spproxyd",
 		},
 	}...)
 }
@@ -159,11 +143,9 @@ func (c *Config) WriteToFile(bundleDirPathName string) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal spec: %w", err)
 	}
-
 	err = os.WriteFile(filepath.Join(bundleDirPathName, "config.json"), b, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write file: %w", err)
 	}
-
 	return nil
 }

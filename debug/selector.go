@@ -144,10 +144,11 @@ const (
 
 // Boot
 const (
-	BOOTCLNT  Tselector = "BOOTCLNT"
-	BOOT      Tselector = "BOOT"
-	CONTAINER Tselector = "CONTAINER"
-	GVISOR    Tselector = "GVISOR"
+	BOOTCLNT   Tselector = "BOOTCLNT"
+	BOOT       Tselector = "BOOT"
+	CONTAINER  Tselector = "CONTAINER"
+	GVISOR     Tselector = "GVISOR"
+	GVISOR_ERR Tselector = "GVISOR" + ERR
 )
 
 // Named

@@ -15,6 +15,7 @@ import (
 	"github.com/hanwen/go-fuse/v2/fs"
 	"github.com/hanwen/go-fuse/v2/fuse"
 
+	db "sigmaos/debug"
 	"sigmaos/sched/msched/proc"
 	chunksrv "sigmaos/sched/msched/proc/chunk/srv"
 	sp "sigmaos/sigmap"
@@ -95,6 +96,7 @@ func mountBinFs(upds proc.ProcSrv) (*fuse.Server, error) {
 
 	server, err := fs.Mount("/mnt/binfs", loopbackRoot, opts)
 	if err != nil {
+		db.DFatalf("Err mnt binsrv: %v", err)
 		return nil, err
 	}
 	return server, nil

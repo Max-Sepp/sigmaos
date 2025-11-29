@@ -414,6 +414,11 @@ func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 	//	if err != nil {
 	//		return err
 	//	}
+	// Pre-download the proc binary
+	if err := ps.downloadFullBinary(uproc.GetVersionedProgram(), uproc.GetPid(), uproc.GetRealm(), uproc.GetSecrets()["s3"], uproc.GetSigmaPath(), uproc.GetNamedEndpoint()); err != nil {
+		db.DPrintf(db.ERROR, "Error download full binary for gVisor container")
+		return err
+	}
 	cmd, err := gvisor.StartGVisorContainer(uproc, ps.dialproxy, gvisor.BASE_BUNDLE_PATH, true)
 	if err != nil {
 		return err
@@ -443,6 +448,17 @@ func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 	return err
 }
 
+func (ps *ProcSrv) downloadFullBinary(versionedProg string, pid sp.Tpid, realm sp.Trealm, s3secret *sp.SecretProto, path []string, ndEP *sp.TendpointProto) error {
+	st, _, err := ps.ckclnt.GetFileStat(ps.kernelId, versionedProg, pid, realm, s3secret, path, ndEP)
+	if err != nil {
+		return err
+	}
+	if _, err := ps.ckclnt.FetchBinary(ps.kernelId, versionedProg, pid, realm, s3secret, st.Tsize(), path, ndEP); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (ps *ProcRPCSrv) WarmProcd(ctx fs.CtxI, req proto.WarmBinReq, res *proto.WarmBinRep) error {
 	return ps.ps.WarmProcd(ctx, req, res)
 }
@@ -455,11 +471,7 @@ func (ps *ProcSrv) WarmProcd(ctx fs.CtxI, req proto.WarmBinReq, res *proto.WarmB
 	if err := ps.assignToRealm(r, pid, req.Program, req.SigmaPath, req.GetS3Secret(), req.GetNamedEndpointProto()); err != nil {
 		db.DFatalf("Err assign to realm: %v", err)
 	}
-	st, _, err := ps.ckclnt.GetFileStat(ps.kernelId, req.Program, pid, r, req.GetS3Secret(), req.SigmaPath, req.GetNamedEndpointProto())
-	if err != nil {
-		return err
-	}
-	if _, err := ps.ckclnt.FetchBinary(ps.kernelId, req.Program, pid, r, req.GetS3Secret(), st.Tsize(), req.SigmaPath, req.GetNamedEndpointProto()); err != nil {
+	if err := ps.downloadFullBinary(req.Program, pid, r, req.GetS3Secret(), req.SigmaPath, req.GetNamedEndpointProto()); err != nil {
 		return err
 	}
 	res.OK = true
