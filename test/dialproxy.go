@@ -18,12 +18,12 @@ type DialProxyProvider struct {
 
 // Start a new spproxyd/dialproxy, whether that be as a kernel (in its own
 // container) or as a Linux process (if the test is running in a container)
-func NewDialProxyProvider(pe *proc.ProcEnv, useDialProxy, bootAsKernel bool) (*DialProxyProvider, error) {
+func NewDialProxyProvider(pe *proc.ProcEnv, useDialProxy, useGVisor, bootAsKernel bool) (*DialProxyProvider, error) {
 	var spss kernel.Subsystem
 	var spkc *bootclnt.Kernel
 	if bootAsKernel {
 		sckid := sp.SPProxydKernel(bootclnt.GenKernelId())
-		_, err := bootclnt.Start(sckid, sp.Tip(EtcdIP), pe, sp.SPPROXYDREL, useDialProxy, homeDir, projectRoot, User, netname)
+		_, err := bootclnt.Start(sckid, sp.Tip(EtcdIP), pe, sp.SPPROXYDREL, useDialProxy, useGVisor, homeDir, projectRoot, User, netname)
 		if err != nil {
 			db.DPrintf(db.ALWAYS, "Error start kernel for spproxyd")
 			return nil, err

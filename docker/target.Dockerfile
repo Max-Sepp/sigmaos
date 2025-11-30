@@ -66,15 +66,16 @@ ENV dbip x.x.x.x
 ENV mongoip x.x.x.x
 ENV buildtag "local-build"
 ENV dialproxy "false"
+ENV gvisor "false"
 # Install docker-cli
-RUN apt install -y docker.io
+RUN apt update && apt install -y docker.io
 ENV reserveMcpu "0"
 ENV netmode "host"
 ENV sigmauser "NOT_SET"
 
 # Make a directory for binaries shared between realms.
 RUN mkdir -p /home/sigmaos/bin/user/common
-CMD ["/bin/sh", "-c", "bin/linux/bootkernel ${kernelid} ${named} ${boot} ${dbip} ${mongoip} ${reserveMcpu} ${buildtag} ${dialproxy} ${netmode} ${sigmauser}"]
+CMD ["/bin/sh", "-c", "bin/linux/bootkernel ${kernelid} ${named} ${boot} ${dbip} ${mongoip} ${reserveMcpu} ${buildtag} ${dialproxy} ${netmode} ${sigmauser} ${gvisor}"]
 
 # ========== remote kernel image ==========
 FROM sigmaos-local as sigmaos-remote
@@ -87,4 +88,4 @@ COPY bin/kernel /home/sigmaos/bin/kernel/
 COPY create-net.sh /home/sigmaos/bin/kernel/create-net.sh
 # Copy named
 RUN cp /home/sigmaos/bin/kernel/named /home/sigmaos/bin/user/common/named
-CMD ["/bin/sh", "-c", "bin/linux/bootkernel ${kernelid} ${named} ${boot} ${dbip} ${mongoip} ${reserveMcpu} ${buildtag} ${dialproxy} ${netmode} ${sigmauser}"]
+CMD ["/bin/sh", "-c", "bin/linux/bootkernel ${kernelid} ${named} ${boot} ${dbip} ${mongoip} ${reserveMcpu} ${buildtag} ${dialproxy} ${netmode} ${sigmauser} ${gvisor}"]

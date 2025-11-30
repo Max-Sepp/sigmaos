@@ -16,7 +16,7 @@ import (
 )
 
 func main() {
-	if len(os.Args) != 11 {
+	if len(os.Args) != 12 {
 		db.DFatalf("usage: %v kernelid srvs nameds dbip mongoip reserveMcpu buildTag dialproxy net user\nprovided:%v", os.Args[0], os.Args)
 	}
 	db.DPrintf(db.BOOT, "Boot %v", os.Args[1:])
@@ -25,12 +25,17 @@ func main() {
 	if err != nil {
 		db.DFatalf("Error parse dialproxy: %v", err)
 	}
+	gvisor, err := strconv.ParseBool(os.Args[11])
+	if err != nil {
+		db.DFatalf("Error parse gvisor: %v", err)
+	}
 	param := kernel.Param{
 		KernelID:  os.Args[1],
 		Services:  srvs,
 		Dbip:      os.Args[4],
 		Mongoip:   os.Args[5],
 		DialProxy: dialproxy,
+		GVisor:    gvisor,
 		BuildTag:  os.Args[7],
 		Net:       os.Args[9],
 		User:      os.Args[10],

@@ -12,6 +12,7 @@ TAG=""
 NUM_FULL_NODE="0"
 NUM_BESCHED_NODE="0"
 DIALPROXY="--usedialproxy"
+GVISOR=""
 TOKEN=""
 TURBO=""
 RMCPU="0"
@@ -54,6 +55,10 @@ while [[ $# -gt 0 ]]; do
   --nodialproxy)
     shift
     DIALPROXY=""
+    ;;
+  --usegvisor)
+    shift
+    GVISOR="--usegvisor"
     ;;
   --numfullnode)
     shift
@@ -214,7 +219,7 @@ for vm in $vms; do
       echo "START etcd"
       ./start-etcd.sh
     fi
-    ./start-kernel.sh --boot $LEADER_NODE --named ${SIGMASTART_PRIVADDR} --pull ${TAG} --reserveMcpu ${RMCPU} --dbip ${MAIN_PRIVADDR}:3306 --mongoip ${MAIN_PRIVADDR}:27017 ${DIALPROXY} ${KERNELID} 2>&1 | tee /tmp/start.out
+    ./start-kernel.sh --boot $LEADER_NODE --named ${SIGMASTART_PRIVADDR} --pull ${TAG} --reserveMcpu ${RMCPU} --dbip ${MAIN_PRIVADDR}:3306 --mongoip ${MAIN_PRIVADDR}:27017 ${DIALPROXY} ${GVISOR} ${KERNELID} 2>&1 | tee /tmp/start.out
 #    docker cp ~/1.jpg ${KERNELID}:/home/sigmaos/1.jpg
 #    docker cp ~/6.jpg ${KERNELID}:/home/sigmaos/6.jpg
 #    docker cp ~/7.jpg ${KERNELID}:/home/sigmaos/7.jpg
@@ -222,7 +227,7 @@ for vm in $vms; do
   else
     echo "JOIN ${SIGMASTART} ${KERNELID}"
     ${TOKEN} 2>&1 > /dev/null
-    ./start-kernel.sh --boot $FOLLOWER_NODE --named ${SIGMASTART_PRIVADDR} --pull ${TAG} --dbip ${MAIN_PRIVADDR}:3306 --mongoip ${MAIN_PRIVADDR}:27017 ${DIALPROXY} ${KERNELID} 2>&1 | tee /tmp/join.out
+    ./start-kernel.sh --boot $FOLLOWER_NODE --named ${SIGMASTART_PRIVADDR} --pull ${TAG} --dbip ${MAIN_PRIVADDR}:3306 --mongoip ${MAIN_PRIVADDR}:27017 ${DIALPROXY} ${GVISOR} ${KERNELID} 2>&1 | tee /tmp/join.out
 #    docker cp ~/1.jpg ${KERNELID}:/home/sigmaos/1.jpg
 #    docker cp ~/6.jpg ${KERNELID}:/home/sigmaos/6.jpg
 #    docker cp ~/7.jpg ${KERNELID}:/home/sigmaos/7.jpg

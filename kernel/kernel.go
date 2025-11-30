@@ -29,6 +29,7 @@ type Param struct {
 	Dbip        string
 	Mongoip     string
 	DialProxy   bool
+	GVisor      bool
 	BuildTag    string
 	Net         string
 	User        string

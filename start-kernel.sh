@@ -5,7 +5,7 @@
 #
 
 usage() {
-    echo "Usage: $0 [--pull TAG] [--boot all|all_no_besched|node|node_no_besched|minnode|besched_node|named|realm_no_besched|spproxyd] [--named ADDRs] [--dbip DBIP] [--mongoip MONGOIP] [--usedialproxy] [--reserveMcpu rmcpu] [--homedir HOMEDIR] [--projectroot PROJECT_ROOT] [--sigmauser SIGMAUSER] [--net NETNAME] kernelid"  1>&2
+    echo "Usage: $0 [--pull TAG] [--boot all|all_no_besched|node|node_no_besched|minnode|besched_node|named|realm_no_besched|spproxyd] [--named ADDRs] [--dbip DBIP] [--mongoip MONGOIP] [--usedialproxy] [--usegvisor] [--reserveMcpu rmcpu] [--homedir HOMEDIR] [--projectroot PROJECT_ROOT] [--sigmauser SIGMAUSER] [--net NETNAME] kernelid"  1>&2
 }
 
 UPDATE=""
@@ -17,6 +17,7 @@ MONGOIP="x.x.x.x"
 NET="host"
 KERNELID=""
 DIALPROXY="false"
+GVISOR="false"
 RMCPU="0"
 HOMEDIR=$HOME
 PROJECT_ROOT=$(realpath $(dirname $0))
@@ -83,6 +84,10 @@ while [[ "$#" -gt 1 ]]; do
   --usedialproxy)
     shift
     DIALPROXY="true"
+    ;;
+  --usegvisor)
+    shift
+    GVISOR="true"
     ;;
   --named)
     shift
@@ -209,6 +214,7 @@ CID=$(docker run -dit \
              -e mongoip=${MONGOIP} \
              -e buildtag=${TAG} \
              -e dialproxy=${DIALPROXY} \
+             -e gvisor=${GVISOR} \
              -e SIGMAPERF=${SIGMAPERF} \
              -e SIGMAFAIL=${SIGMAFAIL} \
              -e SIGMADEBUG=${SIGMADEBUG} \

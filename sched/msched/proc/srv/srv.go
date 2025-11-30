@@ -93,13 +93,14 @@ type ProcSrv struct {
 	ckclnt          *chunkclnt.ChunkClnt
 	pq              *ProcQueue
 	nRunning        atomic.Int64
+	gvisor          bool
 }
 
 type ProcRPCSrv struct {
 	ps *ProcSrv
 }
 
-func RunProcSrv(kernelId string, dialproxy bool, spproxydPID sp.Tpid) error {
+func RunProcSrv(kernelId string, dialproxy bool, gvisor bool, spproxydPID sp.Tpid) error {
 	pe := proc.GetProcEnv()
 	ps := &ProcSrv{
 		kernelId:        kernelId,
@@ -111,6 +112,7 @@ func RunProcSrv(kernelId string, dialproxy bool, spproxydPID sp.Tpid) error {
 		prefetchedStats: make(map[string]bool),
 		procs:           syncmap.NewSyncMap[int, *procEntry](),
 		pq:              newProcQueue(),
+		gvisor:          gvisor,
 	}
 
 	// Set inner container IP as soon as uprocsrv starts up
@@ -413,7 +415,7 @@ func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 	db.DPrintf(db.PROCD, "[%v] nRunning: %v", uproc.GetProgram(), nRunning)
 	var ctr container.ProcContainer
 	var err error
-	if false {
+	if !ps.gvisor {
 		ctr, err = scontainer.StartSigmaContainer(uproc, ps.dialproxy)
 		if err != nil {
 			return err
