@@ -76,7 +76,11 @@ func (scc *SigmaClntConn) ReportError(err error) {
 func (scc *SigmaClntConn) close() error {
 	if !scc.api.testAndSetClosed() {
 		db.DPrintf(db.ALWAYS, "close: sigmaclntconn close %v", scc.api)
-		scc.api.sc.Close()
+		if scc.api.sc == nil {
+			db.DPrintf(db.ERROR, "Try to close sigmaclntconn for nil sigmaclnt: %v", scc.api.pe.GetPID())
+		} else {
+			scc.api.sc.Close()
+		}
 	}
 	if err := scc.conn.Close(); err != nil {
 		return err
@@ -97,6 +101,7 @@ type SPProxySrvAPI struct {
 	sc                  *sigmaclnt.SigmaClnt
 	epcc                *epcacheclnt.EndpointCacheClnt
 	spps                *SPProxySrv
+	pe                  *proc.ProcEnv
 }
 
 func (scc *SPProxySrvAPI) testAndSetClosed() bool {
@@ -112,6 +117,7 @@ func NewSPProxySrvAPI(spps *SPProxySrv, pe *proc.ProcEnv, fidc *fidclnt.FidClnt)
 		sc:   nil,
 		fidc: fidc,
 		spps: spps,
+		pe:   pe,
 	}
 	sca.cond = sync.NewCond(&sca.mu)
 	return sca, nil
