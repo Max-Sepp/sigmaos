@@ -1,8 +1,32 @@
 package shmem
 
+// #include <sys/mman.h>
+// #include <fcntl.h>
+// #include <errno.h>
+// #include <stdlib.h>
+// #include <string.h>
+//
+// static int _shm_open(const char *name, int oflag, mode_t mode, int *err) {
+//     int fd = shm_open(name, oflag, mode);
+//     if (fd == -1) {
+//         *err = errno;
+//     }
+//     return fd;
+// }
+//
+// static int _shm_unlink(const char *name, int *err) {
+//     int r = shm_unlink(name);
+//     if (r == -1) {
+//         *err = errno;
+//     }
+//     return r;
+// }
+import "C"
+
 import (
 	"fmt"
-	"hash/fnv"
+	"syscall"
+	"unsafe"
 
 	"golang.org/x/sys/unix"
 
@@ -10,37 +34,69 @@ import (
 )
 
 type Segment struct {
-	idStr    string
-	key      uint32 // User-specified key
-	size     int    // Segment size
-	id       int    // ID returned by shmem creation
-	attached bool
-	buf      []byte
+	idStr string
+	size  int    // Segment size
+	fd    int    // File descriptor for POSIX shared memory
+	buf   []byte
+}
+
+// shm_open wrapper using cgo
+func shmOpen(name string, oflag int, mode uint32) (fd int, err error) {
+	cname := C.CString(name)
+	defer C.free(unsafe.Pointer(cname))
+
+	var cerrno C.int
+	r := C._shm_open(cname, C.int(oflag), C.mode_t(mode), &cerrno)
+	if r == -1 {
+		return -1, syscall.Errno(cerrno)
+	}
+	return int(r), nil
+}
+
+// shm_unlink wrapper using cgo
+func shmUnlink(name string) error {
+	cname := C.CString(name)
+	defer C.free(unsafe.Pointer(cname))
+
+	var cerrno C.int
+	r := C._shm_unlink(cname, &cerrno)
+	if r == -1 {
+		return syscall.Errno(cerrno)
+	}
+	return nil
 }
 
 // Create a shared memory segment
 func NewSegment(idStr string, size int) (*Segment, error) {
 	sms := &Segment{
 		idStr: idStr,
-		key:   id2key(idStr),
 		size:  size,
 	}
-	if sms.key == unix.IPC_PRIVATE {
-		db.DPrintf(db.ERROR, "Err IPC private idStr %v", idStr)
-		return nil, fmt.Errorf("err IPC private idStr %v", idStr)
-	}
-	id, err := unix.SysvShmGet(int(sms.key), size, unix.IPC_CREAT|unix.IPC_EXCL|0666)
+	// Create POSIX shared memory object with name based on idStr
+	name := "/" + idStr
+	fd, err := shmOpen(name, unix.O_CREAT|unix.O_EXCL|unix.O_RDWR, 0666)
 	if err != nil {
-		db.DPrintf(db.ERROR, "Err shmget: %v", err)
-		return nil, fmt.Errorf("err shmget: %v", err)
+		db.DPrintf(db.ERROR, "Err shm_open: %v", err)
+		return nil, fmt.Errorf("err shm_open: %v", err)
 	}
-	sms.id = id
-	sms.buf, err = unix.SysvShmAttach(sms.id, 0, 0)
+	sms.fd = fd
+	// Set the size of the shared memory object
+	if err := unix.Ftruncate(fd, int64(size)); err != nil {
+		db.DPrintf(db.ERROR, "Err ftruncate: %v", err)
+		unix.Close(fd)
+		shmUnlink(name)
+		return nil, fmt.Errorf("err ftruncate: %v", err)
+	}
+	// Map the shared memory object into the process address space
+	buf, err := unix.Mmap(fd, 0, size, unix.PROT_READ|unix.PROT_WRITE, unix.MAP_SHARED)
 	if err != nil {
-		db.DPrintf(db.ERROR, "Err shmat: %v", err)
-		return nil, fmt.Errorf("err shmat: %v", err)
+		db.DPrintf(db.ERROR, "Err mmap: %v", err)
+		unix.Close(fd)
+		shmUnlink(name)
+		return nil, fmt.Errorf("err mmap: %v", err)
 	}
-	db.DPrintf(db.SHMEM, "Create shmem buffer key [%v] -> [%v] at 0x%p", sms.idStr, sms.key, &sms.buf[0])
+	sms.buf = buf
+	db.DPrintf(db.SHMEM, "Create shmem buffer [%v] at 0x%p", sms.idStr, &sms.buf[0])
 	return sms, nil
 }
 
@@ -51,21 +107,22 @@ func (sms *Segment) GetBuf() []byte {
 
 // Destroy a shared memory segment
 func (sms *Segment) Destroy() error {
-	if err := unix.SysvShmDetach(sms.buf); err != nil {
-		db.DPrintf(db.ERROR, "Err shm detach: %v", err)
-		return fmt.Errorf("err shm detach: %v", err)
+	// Unmap the shared memory
+	if err := unix.Munmap(sms.buf); err != nil {
+		db.DPrintf(db.ERROR, "Err munmap: %v", err)
+		return fmt.Errorf("err munmap: %v", err)
 	}
 	sms.buf = nil
-	_, err := unix.SysvShmCtl(sms.id, unix.IPC_RMID, nil)
-	if err != nil {
-		db.DPrintf(db.ERROR, "Err shm destroy: %v", err)
-		return fmt.Errorf("err shm destroy: %v", err)
+	// Close the file descriptor
+	if err := unix.Close(sms.fd); err != nil {
+		db.DPrintf(db.ERROR, "Err close: %v", err)
+		return fmt.Errorf("err close: %v", err)
+	}
+	// Unlink the shared memory object
+	name := "/" + sms.idStr
+	if err := shmUnlink(name); err != nil {
+		db.DPrintf(db.ERROR, "Err shm_unlink: %v", err)
+		return fmt.Errorf("err shm_unlink: %v", err)
 	}
 	return nil
-}
-
-func id2key(id string) uint32 {
-	h := fnv.New64a()
-	h.Write([]byte(id))
-	return uint32(h.Sum64())
 }

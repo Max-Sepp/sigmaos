@@ -22,7 +22,7 @@ const std::string SHMEM_ERR = SHMEM + sigmaos::util::log::ERR;
 class Segment {
  public:
   Segment(const std::string &id, size_t size)
-      : _id_str(id), _key(id2key(id)), _id(-1), _size(size), _buf(nullptr) {}
+      : _id_str(id), _fd(-1), _size(size), _buf(nullptr) {}
   ~Segment() {
     auto res = Destroy();
     if (!res.has_value()) {
@@ -36,8 +36,7 @@ class Segment {
 
  private:
   std::string _id_str;
-  int _key;
-  int _id;
+  int _fd;  // File descriptor for POSIX shared memory
   size_t _size;
   void *_buf;
   // Used for logger initialization

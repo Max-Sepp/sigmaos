@@ -74,7 +74,14 @@ func StartGVisorContainer(p *proc.Proc, dialproxy bool, baseBundleDir string, in
 			mergedDir,
 			containerID)
 	} else {
-		runCmd = exec.Command("sudo", "runsc", "--ignore-cgroups", "--network=host" /*"--ipc=host",*/, "run", "--bundle", mergedDir, containerID)
+		runCmd = exec.Command("sudo",
+			"runsc",
+			"--ignore-cgroups",
+			"--network=host",
+			"run",
+			"--bundle",
+			mergedDir,
+			containerID)
 	}
 	runCmd.Stdout = os.Stdout
 	runCmd.Stderr = os.Stderr

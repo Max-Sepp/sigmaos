@@ -115,6 +115,11 @@ func (c *Config) AddUserProcMounts() {
 			Type:        "bind",
 			Source:      filepath.Dir(chunksrv.ROOTBINCACHE),
 		},
+		{
+			Destination: "/dev/shm",
+			Type:        "bind",
+			Source:      "/dev/shm",
+		},
 		// Directory to exfiltrate performance results
 		{
 			Destination: "/tmp/sigmaos-perf",

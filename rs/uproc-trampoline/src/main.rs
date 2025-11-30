@@ -185,6 +185,8 @@ fn jail_proc(
         "proc",
         "bin",
         "mnt",
+        "dev",
+        "dev/shm",
         "tmp",
         "tmp/sigmaos-perf",
     ];
@@ -247,6 +249,12 @@ fn jail_proc(
     // E.g., openat "/proc/meminfo", "/proc/self/exe", but further
     // restricted by apparmor sigmoas-uproc profile.
     Mount::builder().fstype("proc").mount("proc", "proc")?;
+
+    // the binary passed to exec below has the path /mnt/binfs/<binary>
+    Mount::builder()
+        .fstype("none")
+        .flags(MountFlags::BIND)
+        .mount("/dev/shm", "dev/shm")?;
 
     // the binary passed to exec below has the path /mnt/binfs/<binary>
     Mount::builder()
