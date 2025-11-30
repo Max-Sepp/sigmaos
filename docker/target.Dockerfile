@@ -33,7 +33,8 @@ RUN mkdir bin && \
 FROM base AS sigmauser-local
 RUN mkdir jail && \
     mkdir /tmp/sigmaos-proc-bundle-overlays && \
-    mkdir /tmp/spproxyd
+    mkdir /tmp/spproxyd && \
+    mkdir /sigmaos-realm-bins-gvisor
 
 RUN apt-get update && \
     apt-get install -y \

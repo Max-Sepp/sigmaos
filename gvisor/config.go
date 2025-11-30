@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	BIN_DIR = "/tmp/sigmaos-realm-bins"
+	BIN_DIR = "/tmp/sigmaos-realm-bins-gvisor"
 )
 
 type Config struct {

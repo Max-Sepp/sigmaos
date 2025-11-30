@@ -17,6 +17,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"sigmaos/api/fs"
+	"sigmaos/container"
 	db "sigmaos/debug"
 	"sigmaos/gvisor"
 	kernelclnt "sigmaos/kernel/clnt"
@@ -410,28 +411,33 @@ func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 	perf.LogSpawnLatency("ProcSrv.Run StartSigmaContainer", uproc.GetPid(), uproc.GetSpawnTime(), perf.TIME_NOT_SET)
 	nRunning := ps.nRunning.Add(1)
 	db.DPrintf(db.PROCD, "[%v] nRunning: %v", uproc.GetProgram(), nRunning)
-	//	cmd, err := scontainer.StartSigmaContainer(uproc, ps.dialproxy)
-	//	if err != nil {
-	//		return err
-	//	}
-	// Pre-download the proc binary
-	if err := ps.downloadFullBinary(uproc.GetVersionedProgram(), uproc.GetPid(), uproc.GetRealm(), uproc.GetSecrets()["s3"], uproc.GetSigmaPath(), uproc.GetNamedEndpoint()); err != nil {
-		db.DPrintf(db.ERROR, "Error download full binary for gVisor container")
-		return err
+	var ctr container.ProcContainer
+	var err error
+	if false {
+		ctr, err = scontainer.StartSigmaContainer(uproc, ps.dialproxy)
+		if err != nil {
+			return err
+		}
+	} else {
+		// Pre-download the proc binary
+		if err := ps.downloadFullBinary(uproc.GetVersionedProgram(), uproc.GetPid(), uproc.GetRealm(), uproc.GetSecrets()["s3"], uproc.GetSigmaPath(), uproc.GetNamedEndpoint()); err != nil {
+			db.DPrintf(db.ERROR, "Error download full binary for gVisor container")
+			return err
+		}
+		ctr, err = gvisor.StartGVisorContainer(uproc, ps.dialproxy, gvisor.BASE_BUNDLE_PATH, true)
+		if err != nil {
+			return err
+		}
 	}
-	cmd, err := gvisor.StartGVisorContainer(uproc, ps.dialproxy, gvisor.BASE_BUNDLE_PATH, true)
-	if err != nil {
-		return err
-	}
-	pid := cmd.Pid()
+	pid := ctr.Pid()
 	db.DPrintf(db.PROCD, "Pid %v -> %d", uproc.GetPid(), pid)
 	pe, alloc := ps.procs.Alloc(pid, newProcEntry(uproc))
 	if !alloc { // it was already inserted
 		pe.insertSignal(uproc)
 	}
-	err = cmd.Wait()
+	err = ctr.Wait()
 	if err != nil {
-		db.DPrintf(db.PROCD, "[%v] Proc Run cmd.Wait err %v", uproc.GetPid(), err)
+		db.DPrintf(db.PROCD, "[%v] Proc Run ctr.Wait err %v", uproc.GetPid(), err)
 	}
 	nRunning = ps.nRunning.Add(-1)
 	db.DPrintf(db.PROCD, "[%v] nRunning after: %v", uproc.GetProgram(), nRunning)
