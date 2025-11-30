@@ -206,6 +206,8 @@ for vm in $vms; do
 
   cd sigmaos
   sudo ./load-apparmor.sh
+  docker pull arielszekely/sigmauser:$TAG
+  sudo ./create-gvisor-bundle.sh --user_ctr arielszekely/sigmauser:${TAG}
 
   echo "$PWD $SIGMADEBUG"
   if [ "${vm}" = "${MAIN}" ]; then 
