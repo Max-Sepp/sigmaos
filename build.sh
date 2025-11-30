@@ -1,7 +1,7 @@
 #!/bin/bash
 
 usage() {
-  echo "Usage: $0 [--push TAG] [--target TARGET] [--version VERSION] [--userbin USERBIN] [--no_go] [--no_rs] [--no_docker] [--no_cpp] [--parallel] [--rebuildbuilder]" 1>&2
+  echo "Usage: $0 [--push TAG] [--target TARGET] [--version VERSION] [--userbin USERBIN] [--no_go] [--no_rs] [--no_docker] [--no_cpp] [--parallel] [--rebuildbuilder] [--refresh_gvisor_bundle]" 1>&2
 }
 
 PARALLEL=""
@@ -14,6 +14,7 @@ NO_CPP="false"
 NO_RS="false"
 NO_GO="false"
 NO_DOCKER="false"
+REFRESH_GVISOR_BUNDLE="false"
 NORACE="--norace"
 while [[ "$#" -gt 0 ]]; do
   case "$1" in
@@ -40,6 +41,10 @@ while [[ "$#" -gt 0 ]]; do
   --no_cpp)
     shift
     NO_CPP="true"
+    ;;
+  --refresh_gvisor_bundle)
+    shift
+    REFRESH_GVISOR_BUNDLE="true"
     ;;
   --push)
     shift
@@ -362,4 +367,9 @@ if ! [ -z "$TAG" ]; then
   docker push arielszekely/sigmaos:$TAG
   docker tag sigmauser arielszekely/sigmauser:$TAG
   docker push arielszekely/sigmauser:$TAG
+fi
+
+# If gVisor rootfs doesn't exist, create it
+if [ "${REFRESH_GVISOR_BUNDLE}" == "true" ] || ! [ -d $GVISOR_BUNDLE ]; then
+  ./create-gvisor-bundle.sh
 fi
