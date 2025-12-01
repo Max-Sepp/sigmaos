@@ -100,10 +100,16 @@ const (
 	MATMUL         Tselector = "MATMUL"
 )
 
+// Etcd
+const (
+	ETCD     Tselector = "ETCD"
+	ETCD_ERR           = ETCD + ERR
+)
+
 // Img
 const (
 	IMGD     Tselector = "IMGD"
-	IMGD_ERR           = "IMGD" + ERR
+	IMGD_ERR           = IMGD + ERR
 )
 
 // MR
@@ -149,6 +155,8 @@ const (
 	CONTAINER  Tselector = "CONTAINER"
 	GVISOR     Tselector = "GVISOR"
 	GVISOR_ERR Tselector = "GVISOR" + ERR
+	K8S        Tselector = "K8S"
+	K8S_ERR    Tselector = "K8S" + ERR
 )
 
 // Named
