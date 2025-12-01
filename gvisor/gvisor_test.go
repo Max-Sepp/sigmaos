@@ -150,9 +150,14 @@ func TestEtcd(t *testing.T) {
 	assert.Nil(t, err, "Spawn")
 	db.DPrintf(db.TEST, "Post spawn")
 
+	time.Sleep(5 * time.Second)
+	err = mrts.GetRealm(test.REALM1).Evict(p.GetPid())
+	assert.Nil(t, err, "Spawn")
+	db.DPrintf(db.TEST, "Evicted shim")
+
 	db.DPrintf(db.TEST, "Pre waitexit")
 	status, err := mrts.GetRealm(test.REALM1).WaitExit(p.GetPid())
 	db.DPrintf(db.TEST, "Post waitexit")
 	assert.Nil(t, err, "WaitExit error")
-	assert.True(t, status != nil && status.IsStatusOK(), "Exit status wrong: %v", status)
+	assert.True(t, status != nil && status.IsStatusEvicted(), "Exit status wrong: %v", status)
 }
