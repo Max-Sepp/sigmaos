@@ -128,7 +128,7 @@ func (gc *GVisorContainer) GetGoferPid() int {
 }
 
 func (gc *GVisorContainer) String() string {
-	return fmt.Sprintf("&{pid: %v, containerID: %v, overlayDir: %v}",
+	return fmt.Sprintf("&{ pid:%v containerID:%v overlayDir:%v }",
 		gc.p.GetPid(), gc.containerID, gc.overlayDir)
 }
 
