@@ -129,6 +129,7 @@ func TestEtcd(t *testing.T) {
 	const (
 		PEER_PORT = 6380
 		CLNT_PORT = 6379
+		SNAP_PATH = "/tmp/snapshot.db"
 	)
 
 	mrts, err1 := test.NewMultiRealmTstate(t, []sp.Trealm{test.REALM1})
@@ -137,7 +138,24 @@ func TestEtcd(t *testing.T) {
 	}
 	defer mrts.Shutdown()
 
+	// TODO: create snapshot file if it doesn't exist already
+
+	// Upload snapshot
+	snapUXPn := filepath.Join(sp.UX, sp.LOCAL, "snapshot.db")
+	if err := mrts.GetRealm(test.REALM1).UploadFile(SNAP_PATH, snapUXPn); !assert.Nil(t, err, "Err Upload snapshot: %v", err) {
+		return
+	}
+
+	// Find the resolved snapshot path
+	resolvedPn, err := mrts.GetRealm(test.REALM1).ResolveMounts(snapUXPn)
+	if !assert.Nil(t, err, "Err resolve path: %v") {
+		return
+	}
+
+	db.DPrintf(db.TEST, "Resolved snapshot pathname: %v", resolvedPn)
+
 	p := proc.NewProc("etcd-shim", []string{
+		resolvedPn,
 		"etcd-proc",
 		fmt.Sprintf("http://127.0.0.1:%v", PEER_PORT),
 		fmt.Sprintf("http://127.0.0.1:%v", CLNT_PORT),
@@ -146,7 +164,7 @@ func TestEtcd(t *testing.T) {
 	// Add the etcd binary to be downloaded with the proc
 	p.AddBin("etcd-v1.0")
 	db.DPrintf(db.TEST, "Pre spawn")
-	err := mrts.GetRealm(test.REALM1).Spawn(p)
+	err = mrts.GetRealm(test.REALM1).Spawn(p)
 	assert.Nil(t, err, "Spawn")
 	db.DPrintf(db.TEST, "Post spawn")
 

@@ -7,6 +7,8 @@ import (
 	"time"
 
 	clientv3 "go.etcd.io/etcd/client/v3"
+	"go.etcd.io/etcd/etcdutl/v3/snapshot"
+	"go.uber.org/zap"
 
 	db "sigmaos/debug"
 	"sigmaos/proc"
@@ -15,14 +17,21 @@ import (
 
 type EtcdShim struct {
 	clnt *clientv3.Client
+	ssrv *sigmasrv.SigmaSrv
 }
 
-func RunEtcdShim(name string, peerUrls, clientUrls, listenClientUrls []string) error {
+func RunEtcdShim(snapPn, name string, peerUrls, clientUrls, listenClientUrls []string) error {
 	es := &EtcdShim{}
 	// Otherwise, don't post EP (and instead post EP in the EP cache service)
 	ssrv, err := sigmasrv.NewSigmaSrv("", es, proc.GetProcEnv())
 	if err != nil {
 		db.DFatalf("Err NewSigmaSrv: %v", err)
+		return err
+	}
+	es.ssrv = ssrv
+	// Restore the snapshot to a fresh etcd directory
+	if err := es.restoreSnapshot(snapPn, name, peerUrls); err != nil {
+		db.DFatalf("Err restoreSnapshot: %v", err)
 		return err
 	}
 	// Start etcd
@@ -60,6 +69,35 @@ func RunEtcdShim(name string, peerUrls, clientUrls, listenClientUrls []string) e
 	}
 	db.DPrintf(db.ETCD, "Exiting etcd shim")
 	return ssrv.SrvExit(proc.NewStatus(proc.StatusEvicted))
+}
+
+func (es *EtcdShim) restoreSnapshot(snapPn string, name string, peerUrls []string) error {
+	// Download the snapshot file
+	b, err := es.ssrv.MemFs.SigmaClnt().GetFile(snapPn)
+	if err != nil {
+		db.DPrintf(db.ETCD_ERR, "Err GetFile: %v", err)
+		db.DPrintf(db.ERROR, "Err GetFile: %v", err)
+		return err
+	}
+	// Write the snapshot out
+	localSnapPn := "./snapshot.db"
+	if err := os.WriteFile(localSnapPn, b, 0777); err != nil {
+		db.DPrintf(db.ETCD_ERR, "Err WriteFile: %v", err)
+		db.DPrintf(db.ERROR, "Err WriteFile: %v", err)
+		return err
+	}
+	snapshotMgr := snapshot.NewV3(zap.L())
+	rc := snapshot.RestoreConfig{
+		SnapshotPath:        localSnapPn,
+		Name:                name,
+		OutputDataDir:       "",
+		OutputWALDir:        "",
+		PeerURLs:            peerUrls,
+		InitialCluster:      name + "=" + strings.Join(peerUrls, ","),
+		InitialClusterToken: "etcd-cluster-1",
+		SkipHashCheck:       true,
+	}
+	return snapshotMgr.Restore(rc)
 }
 
 func startEtcd(name string, peerUrls, clientUrls, listenClientUrls []string) (*exec.Cmd, error) {
