@@ -55,12 +55,13 @@ message ProcEnvProto {
 message ProcProto {
   ProcEnvProto procEnvProto = 1;
   repeated string args = 2;
-  map<string, string> env = 3;
-  Blob blob = 4; // boot script
-  bytes bootScriptInput = 5;
-  uint32 typeInt = 6;
-  bool runAfterBootScript = 7;
-  uint64 queueableResourcePoolID = 8;
-  ResourceReservationProto resourceRes = 9;
-  ResourceReservationProto bootScriptResourceRes = 10;
+  repeated string addedBins = 3;
+  map<string, string> env = 4;
+  Blob blob = 5; // boot script
+  bytes bootScriptInput = 6;
+  uint32 typeInt = 7;
+  bool runAfterBootScript = 8;
+  uint64 queueableResourcePoolID = 9;
+  ResourceReservationProto resourceRes = 10;
+  ResourceReservationProto bootScriptResourceRes = 11;
 }

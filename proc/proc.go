@@ -94,6 +94,7 @@ func NewPrivProcPid(pid sp.Tpid, program string, args []string, priv bool) *Proc
 		p.TypeInt = uint32(T_LC)
 	}
 	p.Env = make(map[string]string)
+	p.AddedBins = nil
 	p.setBaseEnv()
 	return p
 }
@@ -127,6 +128,14 @@ func (p *Proc) GetSecrets() map[string]*sp.SecretProto {
 
 func (p *Proc) GetVersion() string {
 	return p.ProcEnvProto.GetVersion()
+}
+
+func (p *Proc) GetAddedBins() []string {
+	return p.AddedBins
+}
+
+func (p *Proc) AddBin(versionedProgram string) {
+	p.AddedBins = append(p.AddedBins, versionedProgram)
 }
 
 func (p *Proc) InheritParentProcEnv(parentPE *ProcEnv) {

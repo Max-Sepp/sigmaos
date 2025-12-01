@@ -1334,15 +1334,16 @@ class ProcProto final :
 
   enum : int {
     kArgsFieldNumber = 2,
-    kEnvFieldNumber = 3,
-    kBootScriptInputFieldNumber = 5,
+    kAddedBinsFieldNumber = 3,
+    kEnvFieldNumber = 4,
+    kBootScriptInputFieldNumber = 6,
     kProcEnvProtoFieldNumber = 1,
-    kBlobFieldNumber = 4,
-    kResourceResFieldNumber = 9,
-    kBootScriptResourceResFieldNumber = 10,
-    kTypeIntFieldNumber = 6,
-    kRunAfterBootScriptFieldNumber = 7,
-    kQueueableResourcePoolIDFieldNumber = 8,
+    kBlobFieldNumber = 5,
+    kResourceResFieldNumber = 10,
+    kBootScriptResourceResFieldNumber = 11,
+    kTypeIntFieldNumber = 7,
+    kRunAfterBootScriptFieldNumber = 8,
+    kQueueableResourcePoolIDFieldNumber = 9,
   };
   // repeated string args = 2;
   int args_size() const;
@@ -1368,7 +1369,31 @@ class ProcProto final :
   std::string* _internal_add_args();
   public:
 
-  // map<string, string> env = 3;
+  // repeated string addedBins = 3;
+  int addedbins_size() const;
+  private:
+  int _internal_addedbins_size() const;
+  public:
+  void clear_addedbins();
+  const std::string& addedbins(int index) const;
+  std::string* mutable_addedbins(int index);
+  void set_addedbins(int index, const std::string& value);
+  void set_addedbins(int index, std::string&& value);
+  void set_addedbins(int index, const char* value);
+  void set_addedbins(int index, const char* value, size_t size);
+  std::string* add_addedbins();
+  void add_addedbins(const std::string& value);
+  void add_addedbins(std::string&& value);
+  void add_addedbins(const char* value);
+  void add_addedbins(const char* value, size_t size);
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string>& addedbins() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string>* mutable_addedbins();
+  private:
+  const std::string& _internal_addedbins(int index) const;
+  std::string* _internal_add_addedbins();
+  public:
+
+  // map<string, string> env = 4;
   int env_size() const;
   private:
   int _internal_env_size() const;
@@ -1385,7 +1410,7 @@ class ProcProto final :
   ::PROTOBUF_NAMESPACE_ID::Map< std::string, std::string >*
       mutable_env();
 
-  // bytes bootScriptInput = 5;
+  // bytes bootScriptInput = 6;
   void clear_bootscriptinput();
   const std::string& bootscriptinput() const;
   template <typename ArgT0 = const std::string&, typename... ArgT>
@@ -1417,7 +1442,7 @@ class ProcProto final :
       ::ProcEnvProto* procenvproto);
   ::ProcEnvProto* unsafe_arena_release_procenvproto();
 
-  // .Blob blob = 4;
+  // .Blob blob = 5;
   bool has_blob() const;
   private:
   bool _internal_has_blob() const;
@@ -1435,7 +1460,7 @@ class ProcProto final :
       ::Blob* blob);
   ::Blob* unsafe_arena_release_blob();
 
-  // .ResourceReservationProto resourceRes = 9;
+  // .ResourceReservationProto resourceRes = 10;
   bool has_resourceres() const;
   private:
   bool _internal_has_resourceres() const;
@@ -1453,7 +1478,7 @@ class ProcProto final :
       ::ResourceReservationProto* resourceres);
   ::ResourceReservationProto* unsafe_arena_release_resourceres();
 
-  // .ResourceReservationProto bootScriptResourceRes = 10;
+  // .ResourceReservationProto bootScriptResourceRes = 11;
   bool has_bootscriptresourceres() const;
   private:
   bool _internal_has_bootscriptresourceres() const;
@@ -1471,7 +1496,7 @@ class ProcProto final :
       ::ResourceReservationProto* bootscriptresourceres);
   ::ResourceReservationProto* unsafe_arena_release_bootscriptresourceres();
 
-  // uint32 typeInt = 6;
+  // uint32 typeInt = 7;
   void clear_typeint();
   uint32_t typeint() const;
   void set_typeint(uint32_t value);
@@ -1480,7 +1505,7 @@ class ProcProto final :
   void _internal_set_typeint(uint32_t value);
   public:
 
-  // bool runAfterBootScript = 7;
+  // bool runAfterBootScript = 8;
   void clear_runafterbootscript();
   bool runafterbootscript() const;
   void set_runafterbootscript(bool value);
@@ -1489,7 +1514,7 @@ class ProcProto final :
   void _internal_set_runafterbootscript(bool value);
   public:
 
-  // uint64 queueableResourcePoolID = 8;
+  // uint64 queueableResourcePoolID = 9;
   void clear_queueableresourcepoolid();
   uint64_t queueableresourcepoolid() const;
   void set_queueableresourcepoolid(uint64_t value);
@@ -1507,6 +1532,7 @@ class ProcProto final :
   typedef void DestructorSkippable_;
   struct Impl_ {
     ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string> args_;
+    ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string> addedbins_;
     ::PROTOBUF_NAMESPACE_ID::internal::MapField<
         ProcProto_EnvEntry_DoNotUse,
         std::string, std::string,
@@ -3339,7 +3365,82 @@ ProcProto::mutable_args() {
   return &_impl_.args_;
 }
 
-// map<string, string> env = 3;
+// repeated string addedBins = 3;
+inline int ProcProto::_internal_addedbins_size() const {
+  return _impl_.addedbins_.size();
+}
+inline int ProcProto::addedbins_size() const {
+  return _internal_addedbins_size();
+}
+inline void ProcProto::clear_addedbins() {
+  _impl_.addedbins_.Clear();
+}
+inline std::string* ProcProto::add_addedbins() {
+  std::string* _s = _internal_add_addedbins();
+  // @@protoc_insertion_point(field_add_mutable:ProcProto.addedBins)
+  return _s;
+}
+inline const std::string& ProcProto::_internal_addedbins(int index) const {
+  return _impl_.addedbins_.Get(index);
+}
+inline const std::string& ProcProto::addedbins(int index) const {
+  // @@protoc_insertion_point(field_get:ProcProto.addedBins)
+  return _internal_addedbins(index);
+}
+inline std::string* ProcProto::mutable_addedbins(int index) {
+  // @@protoc_insertion_point(field_mutable:ProcProto.addedBins)
+  return _impl_.addedbins_.Mutable(index);
+}
+inline void ProcProto::set_addedbins(int index, const std::string& value) {
+  _impl_.addedbins_.Mutable(index)->assign(value);
+  // @@protoc_insertion_point(field_set:ProcProto.addedBins)
+}
+inline void ProcProto::set_addedbins(int index, std::string&& value) {
+  _impl_.addedbins_.Mutable(index)->assign(std::move(value));
+  // @@protoc_insertion_point(field_set:ProcProto.addedBins)
+}
+inline void ProcProto::set_addedbins(int index, const char* value) {
+  GOOGLE_DCHECK(value != nullptr);
+  _impl_.addedbins_.Mutable(index)->assign(value);
+  // @@protoc_insertion_point(field_set_char:ProcProto.addedBins)
+}
+inline void ProcProto::set_addedbins(int index, const char* value, size_t size) {
+  _impl_.addedbins_.Mutable(index)->assign(
+    reinterpret_cast<const char*>(value), size);
+  // @@protoc_insertion_point(field_set_pointer:ProcProto.addedBins)
+}
+inline std::string* ProcProto::_internal_add_addedbins() {
+  return _impl_.addedbins_.Add();
+}
+inline void ProcProto::add_addedbins(const std::string& value) {
+  _impl_.addedbins_.Add()->assign(value);
+  // @@protoc_insertion_point(field_add:ProcProto.addedBins)
+}
+inline void ProcProto::add_addedbins(std::string&& value) {
+  _impl_.addedbins_.Add(std::move(value));
+  // @@protoc_insertion_point(field_add:ProcProto.addedBins)
+}
+inline void ProcProto::add_addedbins(const char* value) {
+  GOOGLE_DCHECK(value != nullptr);
+  _impl_.addedbins_.Add()->assign(value);
+  // @@protoc_insertion_point(field_add_char:ProcProto.addedBins)
+}
+inline void ProcProto::add_addedbins(const char* value, size_t size) {
+  _impl_.addedbins_.Add()->assign(reinterpret_cast<const char*>(value), size);
+  // @@protoc_insertion_point(field_add_pointer:ProcProto.addedBins)
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string>&
+ProcProto::addedbins() const {
+  // @@protoc_insertion_point(field_list:ProcProto.addedBins)
+  return _impl_.addedbins_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string>*
+ProcProto::mutable_addedbins() {
+  // @@protoc_insertion_point(field_mutable_list:ProcProto.addedBins)
+  return &_impl_.addedbins_;
+}
+
+// map<string, string> env = 4;
 inline int ProcProto::_internal_env_size() const {
   return _impl_.env_.size();
 }
@@ -3368,7 +3469,7 @@ ProcProto::mutable_env() {
   return _internal_mutable_env();
 }
 
-// .Blob blob = 4;
+// .Blob blob = 5;
 inline bool ProcProto::_internal_has_blob() const {
   return this != internal_default_instance() && _impl_.blob_ != nullptr;
 }
@@ -3453,7 +3554,7 @@ inline void ProcProto::set_allocated_blob(::Blob* blob) {
   // @@protoc_insertion_point(field_set_allocated:ProcProto.blob)
 }
 
-// bytes bootScriptInput = 5;
+// bytes bootScriptInput = 6;
 inline void ProcProto::clear_bootscriptinput() {
   _impl_.bootscriptinput_.ClearToEmpty();
 }
@@ -3503,7 +3604,7 @@ inline void ProcProto::set_allocated_bootscriptinput(std::string* bootscriptinpu
   // @@protoc_insertion_point(field_set_allocated:ProcProto.bootScriptInput)
 }
 
-// uint32 typeInt = 6;
+// uint32 typeInt = 7;
 inline void ProcProto::clear_typeint() {
   _impl_.typeint_ = 0u;
 }
@@ -3523,7 +3624,7 @@ inline void ProcProto::set_typeint(uint32_t value) {
   // @@protoc_insertion_point(field_set:ProcProto.typeInt)
 }
 
-// bool runAfterBootScript = 7;
+// bool runAfterBootScript = 8;
 inline void ProcProto::clear_runafterbootscript() {
   _impl_.runafterbootscript_ = false;
 }
@@ -3543,7 +3644,7 @@ inline void ProcProto::set_runafterbootscript(bool value) {
   // @@protoc_insertion_point(field_set:ProcProto.runAfterBootScript)
 }
 
-// uint64 queueableResourcePoolID = 8;
+// uint64 queueableResourcePoolID = 9;
 inline void ProcProto::clear_queueableresourcepoolid() {
   _impl_.queueableresourcepoolid_ = uint64_t{0u};
 }
@@ -3563,7 +3664,7 @@ inline void ProcProto::set_queueableresourcepoolid(uint64_t value) {
   // @@protoc_insertion_point(field_set:ProcProto.queueableResourcePoolID)
 }
 
-// .ResourceReservationProto resourceRes = 9;
+// .ResourceReservationProto resourceRes = 10;
 inline bool ProcProto::_internal_has_resourceres() const {
   return this != internal_default_instance() && _impl_.resourceres_ != nullptr;
 }
@@ -3653,7 +3754,7 @@ inline void ProcProto::set_allocated_resourceres(::ResourceReservationProto* res
   // @@protoc_insertion_point(field_set_allocated:ProcProto.resourceRes)
 }
 
-// .ResourceReservationProto bootScriptResourceRes = 10;
+// .ResourceReservationProto bootScriptResourceRes = 11;
 inline bool ProcProto::_internal_has_bootscriptresourceres() const {
   return this != internal_default_instance() && _impl_.bootscriptresourceres_ != nullptr;
 }

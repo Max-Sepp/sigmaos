@@ -141,6 +141,7 @@ PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORIT
 PROTOBUF_CONSTEXPR ProcProto::ProcProto(
     ::_pbi::ConstantInitialized): _impl_{
     /*decltype(_impl_.args_)*/{}
+  , /*decltype(_impl_.addedbins_)*/{}
   , /*decltype(_impl_.env_)*/{::_pbi::ConstantInitialized()}
   , /*decltype(_impl_.bootscriptinput_)*/{&::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized{}}
   , /*decltype(_impl_.procenvproto_)*/nullptr
@@ -269,6 +270,7 @@ const uint32_t TableStruct_proc_2fproc_2eproto::offsets[] PROTOBUF_SECTION_VARIA
   ~0u,  // no _inlined_string_donated_
   PROTOBUF_FIELD_OFFSET(::ProcProto, _impl_.procenvproto_),
   PROTOBUF_FIELD_OFFSET(::ProcProto, _impl_.args_),
+  PROTOBUF_FIELD_OFFSET(::ProcProto, _impl_.addedbins_),
   PROTOBUF_FIELD_OFFSET(::ProcProto, _impl_.env_),
   PROTOBUF_FIELD_OFFSET(::ProcProto, _impl_.blob_),
   PROTOBUF_FIELD_OFFSET(::ProcProto, _impl_.bootscriptinput_),
@@ -331,17 +333,18 @@ const char descriptor_table_protodef_proc_2fproc_2eproto[] PROTOBUF_SECTION_VARI
   "ndpointProto:\0028\001\032\?\n\017SecretsMapEntry\022\013\n\003k"
   "ey\030\001 \001(\t\022\033\n\005value\030\002 \001(\0132\014.SecretProto:\0028"
   "\001\032G\n\024CachedEndpointsEntry\022\013\n\003key\030\001 \001(\t\022\036"
-  "\n\005value\030\002 \001(\0132\017.TendpointProto:\0028\001\"\362\002\n\tP"
+  "\n\005value\030\002 \001(\0132\017.TendpointProto:\0028\001\"\205\003\n\tP"
   "rocProto\022#\n\014procEnvProto\030\001 \001(\0132\r.ProcEnv"
-  "Proto\022\014\n\004args\030\002 \003(\t\022 \n\003env\030\003 \003(\0132\023.ProcP"
-  "roto.EnvEntry\022\023\n\004blob\030\004 \001(\0132\005.Blob\022\027\n\017bo"
-  "otScriptInput\030\005 \001(\014\022\017\n\007typeInt\030\006 \001(\r\022\032\n\022"
-  "runAfterBootScript\030\007 \001(\010\022\037\n\027queueableRes"
-  "ourcePoolID\030\010 \001(\004\022.\n\013resourceRes\030\t \001(\0132\031"
-  ".ResourceReservationProto\0228\n\025bootScriptR"
-  "esourceRes\030\n \001(\0132\031.ResourceReservationPr"
-  "oto\032*\n\010EnvEntry\022\013\n\003key\030\001 \001(\t\022\r\n\005value\030\002 "
-  "\001(\t:\0028\001B\016Z\014sigmaos/procb\006proto3"
+  "Proto\022\014\n\004args\030\002 \003(\t\022\021\n\taddedBins\030\003 \003(\t\022 "
+  "\n\003env\030\004 \003(\0132\023.ProcProto.EnvEntry\022\023\n\004blob"
+  "\030\005 \001(\0132\005.Blob\022\027\n\017bootScriptInput\030\006 \001(\014\022\017"
+  "\n\007typeInt\030\007 \001(\r\022\032\n\022runAfterBootScript\030\010 "
+  "\001(\010\022\037\n\027queueableResourcePoolID\030\t \001(\004\022.\n\013"
+  "resourceRes\030\n \001(\0132\031.ResourceReservationP"
+  "roto\0228\n\025bootScriptResourceRes\030\013 \001(\0132\031.Re"
+  "sourceReservationProto\032*\n\010EnvEntry\022\013\n\003ke"
+  "y\030\001 \001(\t\022\r\n\005value\030\002 \001(\t:\0028\001B\016Z\014sigmaos/pr"
+  "ocb\006proto3"
   ;
 static const ::_pbi::DescriptorTable* const descriptor_table_proc_2fproc_2eproto_deps[3] = {
   &::descriptor_table_google_2fprotobuf_2ftimestamp_2eproto,
@@ -350,7 +353,7 @@ static const ::_pbi::DescriptorTable* const descriptor_table_proc_2fproc_2eproto
 };
 static ::_pbi::once_flag descriptor_table_proc_2fproc_2eproto_once;
 const ::_pbi::DescriptorTable descriptor_table_proc_2fproc_2eproto = {
-    false, false, 1631, descriptor_table_protodef_proc_2fproc_2eproto,
+    false, false, 1650, descriptor_table_protodef_proc_2fproc_2eproto,
     "proc/proc.proto",
     &descriptor_table_proc_2fproc_2eproto_once, descriptor_table_proc_2fproc_2eproto_deps, 3, 8,
     schemas, file_default_instances, TableStruct_proc_2fproc_2eproto::offsets,
@@ -2584,6 +2587,7 @@ ProcProto::ProcProto(const ProcProto& from)
   ProcProto* const _this = this; (void)_this;
   new (&_impl_) Impl_{
       decltype(_impl_.args_){from._impl_.args_}
+    , decltype(_impl_.addedbins_){from._impl_.addedbins_}
     , /*decltype(_impl_.env_)*/{}
     , decltype(_impl_.bootscriptinput_){}
     , decltype(_impl_.procenvproto_){nullptr}
@@ -2629,6 +2633,7 @@ inline void ProcProto::SharedCtor(
   (void)is_message_owned;
   new (&_impl_) Impl_{
       decltype(_impl_.args_){arena}
+    , decltype(_impl_.addedbins_){arena}
     , /*decltype(_impl_.env_)*/{::_pbi::ArenaInitialized(), arena}
     , decltype(_impl_.bootscriptinput_){}
     , decltype(_impl_.procenvproto_){nullptr}
@@ -2659,6 +2664,7 @@ ProcProto::~ProcProto() {
 inline void ProcProto::SharedDtor() {
   GOOGLE_DCHECK(GetArenaForAllocation() == nullptr);
   _impl_.args_.~RepeatedPtrField();
+  _impl_.addedbins_.~RepeatedPtrField();
   _impl_.env_.Destruct();
   _impl_.env_.~MapField();
   _impl_.bootscriptinput_.Destroy();
@@ -2683,6 +2689,7 @@ void ProcProto::Clear() {
   (void) cached_has_bits;
 
   _impl_.args_.Clear();
+  _impl_.addedbins_.Clear();
   _impl_.env_.Clear();
   _impl_.bootscriptinput_.ClearToEmpty();
   if (GetArenaForAllocation() == nullptr && _impl_.procenvproto_ != nullptr) {
@@ -2736,71 +2743,86 @@ const char* ProcProto::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx
         } else
           goto handle_unusual;
         continue;
-      // map<string, string> env = 3;
+      // repeated string addedBins = 3;
       case 3:
         if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 26)) {
+          ptr -= 1;
+          do {
+            ptr += 1;
+            auto str = _internal_add_addedbins();
+            ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+            CHK_(ptr);
+            CHK_(::_pbi::VerifyUTF8(str, "ProcProto.addedBins"));
+            if (!ctx->DataAvailable(ptr)) break;
+          } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<26>(ptr));
+        } else
+          goto handle_unusual;
+        continue;
+      // map<string, string> env = 4;
+      case 4:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 34)) {
           ptr -= 1;
           do {
             ptr += 1;
             ptr = ctx->ParseMessage(&_impl_.env_, ptr);
             CHK_(ptr);
             if (!ctx->DataAvailable(ptr)) break;
-          } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<26>(ptr));
+          } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<34>(ptr));
         } else
           goto handle_unusual;
         continue;
-      // .Blob blob = 4;
-      case 4:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 34)) {
+      // .Blob blob = 5;
+      case 5:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 42)) {
           ptr = ctx->ParseMessage(_internal_mutable_blob(), ptr);
           CHK_(ptr);
         } else
           goto handle_unusual;
         continue;
-      // bytes bootScriptInput = 5;
-      case 5:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 42)) {
+      // bytes bootScriptInput = 6;
+      case 6:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 50)) {
           auto str = _internal_mutable_bootscriptinput();
           ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
           CHK_(ptr);
         } else
           goto handle_unusual;
         continue;
-      // uint32 typeInt = 6;
-      case 6:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 48)) {
+      // uint32 typeInt = 7;
+      case 7:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 56)) {
           _impl_.typeint_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
           CHK_(ptr);
         } else
           goto handle_unusual;
         continue;
-      // bool runAfterBootScript = 7;
-      case 7:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 56)) {
+      // bool runAfterBootScript = 8;
+      case 8:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 64)) {
           _impl_.runafterbootscript_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
           CHK_(ptr);
         } else
           goto handle_unusual;
         continue;
-      // uint64 queueableResourcePoolID = 8;
-      case 8:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 64)) {
+      // uint64 queueableResourcePoolID = 9;
+      case 9:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 72)) {
           _impl_.queueableresourcepoolid_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
           CHK_(ptr);
         } else
           goto handle_unusual;
         continue;
-      // .ResourceReservationProto resourceRes = 9;
-      case 9:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 74)) {
+      // .ResourceReservationProto resourceRes = 10;
+      case 10:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 82)) {
           ptr = ctx->ParseMessage(_internal_mutable_resourceres(), ptr);
           CHK_(ptr);
         } else
           goto handle_unusual;
         continue;
-      // .ResourceReservationProto bootScriptResourceRes = 10;
-      case 10:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 82)) {
+      // .ResourceReservationProto bootScriptResourceRes = 11;
+      case 11:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 90)) {
           ptr = ctx->ParseMessage(_internal_mutable_bootscriptresourceres(), ptr);
           CHK_(ptr);
         } else
@@ -2852,7 +2874,17 @@ uint8_t* ProcProto::_InternalSerialize(
     target = stream->WriteString(2, s, target);
   }
 
-  // map<string, string> env = 3;
+  // repeated string addedBins = 3;
+  for (int i = 0, n = this->_internal_addedbins_size(); i < n; i++) {
+    const auto& s = this->_internal_addedbins(i);
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+      s.data(), static_cast<int>(s.length()),
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE,
+      "ProcProto.addedBins");
+    target = stream->WriteString(3, s, target);
+  }
+
+  // map<string, string> env = 4;
   if (!this->_internal_env().empty()) {
     using MapType = ::_pb::Map<std::string, std::string>;
     using WireHelper = ProcProto_EnvEntry_DoNotUse::Funcs;
@@ -2871,59 +2903,59 @@ uint8_t* ProcProto::_InternalSerialize(
 
     if (stream->IsSerializationDeterministic() && map_field.size() > 1) {
       for (const auto& entry : ::_pbi::MapSorterPtr<MapType>(map_field)) {
-        target = WireHelper::InternalSerialize(3, entry.first, entry.second, target, stream);
+        target = WireHelper::InternalSerialize(4, entry.first, entry.second, target, stream);
         check_utf8(entry);
       }
     } else {
       for (const auto& entry : map_field) {
-        target = WireHelper::InternalSerialize(3, entry.first, entry.second, target, stream);
+        target = WireHelper::InternalSerialize(4, entry.first, entry.second, target, stream);
         check_utf8(entry);
       }
     }
   }
 
-  // .Blob blob = 4;
+  // .Blob blob = 5;
   if (this->_internal_has_blob()) {
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(4, _Internal::blob(this),
+      InternalWriteMessage(5, _Internal::blob(this),
         _Internal::blob(this).GetCachedSize(), target, stream);
   }
 
-  // bytes bootScriptInput = 5;
+  // bytes bootScriptInput = 6;
   if (!this->_internal_bootscriptinput().empty()) {
     target = stream->WriteBytesMaybeAliased(
-        5, this->_internal_bootscriptinput(), target);
+        6, this->_internal_bootscriptinput(), target);
   }
 
-  // uint32 typeInt = 6;
+  // uint32 typeInt = 7;
   if (this->_internal_typeint() != 0) {
     target = stream->EnsureSpace(target);
-    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(6, this->_internal_typeint(), target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(7, this->_internal_typeint(), target);
   }
 
-  // bool runAfterBootScript = 7;
+  // bool runAfterBootScript = 8;
   if (this->_internal_runafterbootscript() != 0) {
     target = stream->EnsureSpace(target);
-    target = ::_pbi::WireFormatLite::WriteBoolToArray(7, this->_internal_runafterbootscript(), target);
+    target = ::_pbi::WireFormatLite::WriteBoolToArray(8, this->_internal_runafterbootscript(), target);
   }
 
-  // uint64 queueableResourcePoolID = 8;
+  // uint64 queueableResourcePoolID = 9;
   if (this->_internal_queueableresourcepoolid() != 0) {
     target = stream->EnsureSpace(target);
-    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(8, this->_internal_queueableresourcepoolid(), target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(9, this->_internal_queueableresourcepoolid(), target);
   }
 
-  // .ResourceReservationProto resourceRes = 9;
+  // .ResourceReservationProto resourceRes = 10;
   if (this->_internal_has_resourceres()) {
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(9, _Internal::resourceres(this),
+      InternalWriteMessage(10, _Internal::resourceres(this),
         _Internal::resourceres(this).GetCachedSize(), target, stream);
   }
 
-  // .ResourceReservationProto bootScriptResourceRes = 10;
+  // .ResourceReservationProto bootScriptResourceRes = 11;
   if (this->_internal_has_bootscriptresourceres()) {
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(10, _Internal::bootscriptresourceres(this),
+      InternalWriteMessage(11, _Internal::bootscriptresourceres(this),
         _Internal::bootscriptresourceres(this).GetCachedSize(), target, stream);
   }
 
@@ -2951,7 +2983,15 @@ size_t ProcProto::ByteSizeLong() const {
       _impl_.args_.Get(i));
   }
 
-  // map<string, string> env = 3;
+  // repeated string addedBins = 3;
+  total_size += 1 *
+      ::PROTOBUF_NAMESPACE_ID::internal::FromIntSize(_impl_.addedbins_.size());
+  for (int i = 0, n = _impl_.addedbins_.size(); i < n; i++) {
+    total_size += ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+      _impl_.addedbins_.Get(i));
+  }
+
+  // map<string, string> env = 4;
   total_size += 1 *
       ::PROTOBUF_NAMESPACE_ID::internal::FromIntSize(this->_internal_env_size());
   for (::PROTOBUF_NAMESPACE_ID::Map< std::string, std::string >::const_iterator
@@ -2960,7 +3000,7 @@ size_t ProcProto::ByteSizeLong() const {
     total_size += ProcProto_EnvEntry_DoNotUse::Funcs::ByteSizeLong(it->first, it->second);
   }
 
-  // bytes bootScriptInput = 5;
+  // bytes bootScriptInput = 6;
   if (!this->_internal_bootscriptinput().empty()) {
     total_size += 1 +
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::BytesSize(
@@ -2974,38 +3014,38 @@ size_t ProcProto::ByteSizeLong() const {
         *_impl_.procenvproto_);
   }
 
-  // .Blob blob = 4;
+  // .Blob blob = 5;
   if (this->_internal_has_blob()) {
     total_size += 1 +
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
         *_impl_.blob_);
   }
 
-  // .ResourceReservationProto resourceRes = 9;
+  // .ResourceReservationProto resourceRes = 10;
   if (this->_internal_has_resourceres()) {
     total_size += 1 +
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
         *_impl_.resourceres_);
   }
 
-  // .ResourceReservationProto bootScriptResourceRes = 10;
+  // .ResourceReservationProto bootScriptResourceRes = 11;
   if (this->_internal_has_bootscriptresourceres()) {
     total_size += 1 +
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
         *_impl_.bootscriptresourceres_);
   }
 
-  // uint32 typeInt = 6;
+  // uint32 typeInt = 7;
   if (this->_internal_typeint() != 0) {
     total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(this->_internal_typeint());
   }
 
-  // bool runAfterBootScript = 7;
+  // bool runAfterBootScript = 8;
   if (this->_internal_runafterbootscript() != 0) {
     total_size += 1 + 1;
   }
 
-  // uint64 queueableResourcePoolID = 8;
+  // uint64 queueableResourcePoolID = 9;
   if (this->_internal_queueableresourcepoolid() != 0) {
     total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(this->_internal_queueableresourcepoolid());
   }
@@ -3029,6 +3069,7 @@ void ProcProto::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROT
   (void) cached_has_bits;
 
   _this->_impl_.args_.MergeFrom(from._impl_.args_);
+  _this->_impl_.addedbins_.MergeFrom(from._impl_.addedbins_);
   _this->_impl_.env_.MergeFrom(from._impl_.env_);
   if (!from._internal_bootscriptinput().empty()) {
     _this->_internal_set_bootscriptinput(from._internal_bootscriptinput());
@@ -3078,6 +3119,7 @@ void ProcProto::InternalSwap(ProcProto* other) {
   auto* rhs_arena = other->GetArenaForAllocation();
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
   _impl_.args_.InternalSwap(&other->_impl_.args_);
+  _impl_.addedbins_.InternalSwap(&other->_impl_.addedbins_);
   _impl_.env_.InternalSwap(&other->_impl_.env_);
   ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::InternalSwap(
       &_impl_.bootscriptinput_, lhs_arena,

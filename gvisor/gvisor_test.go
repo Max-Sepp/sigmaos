@@ -143,6 +143,8 @@ func TestEtcd(t *testing.T) {
 		fmt.Sprintf("http://127.0.0.1:%v", CLNT_PORT),
 		fmt.Sprintf("http://127.0.0.1:%v", CLNT_PORT),
 	})
+	// Add the etcd binary to be downloaded with the proc
+	p.AddBin("etcd-v1.0")
 	db.DPrintf(db.TEST, "Pre spawn")
 	err := mrts.GetRealm(test.REALM1).Spawn(p)
 	assert.Nil(t, err, "Spawn")

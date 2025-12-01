@@ -1,6 +1,7 @@
 package etcd
 
 import (
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -42,11 +43,13 @@ func RunEtcdShim(name string, peerUrls, clientUrls, listenClientUrls []string) e
 		db.DFatalf("Err Started: %v", err)
 		return err
 	}
+	db.DPrintf(db.ETCD, "Started shim and etcd")
 	// Wait for eviction
 	if err := ssrv.MemFs.SigmaClnt().WaitEvict(ssrv.SigmaClnt().ProcEnv().GetPID()); err != nil {
 		db.DFatalf("Err WaitEvict: %v", err)
 		return err
 	}
+	db.DPrintf(db.ETCD, "Evicted shim, killing etcd")
 	// Evicted, so kill etcd
 	if err := cmd.Process.Kill(); err != nil {
 		db.DFatalf("Err Kill: %v", err)
@@ -55,6 +58,7 @@ func RunEtcdShim(name string, peerUrls, clientUrls, listenClientUrls []string) e
 	if err := cmd.Wait(); err != nil {
 		db.DPrintf(db.ETCD, "Etcd exited with err: %v", err)
 	}
+	db.DPrintf(db.ETCD, "Exiting etcd shim")
 	return ssrv.SrvExit(proc.NewStatus(proc.StatusEvicted))
 }
 
@@ -72,6 +76,8 @@ func startEtcd(name string, peerUrls, clientUrls, listenClientUrls []string) (*e
 
 	// Create the etcd command
 	cmd := exec.Command("etcd-v1.0", args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 
 	// Start etcd in the background
 	if err := cmd.Start(); err != nil {

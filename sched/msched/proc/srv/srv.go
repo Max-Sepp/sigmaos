@@ -16,10 +16,12 @@ import (
 
 	"golang.org/x/sys/unix"
 
+	"k8s.io/client-go/kubernetes"
 	"sigmaos/api/fs"
 	"sigmaos/container"
 	db "sigmaos/debug"
 	"sigmaos/gvisor"
+	"sigmaos/k8s"
 	kernelclnt "sigmaos/kernel/clnt"
 	"sigmaos/proc"
 	spproxysrv "sigmaos/proxy/sigmap/srv"
@@ -94,6 +96,8 @@ type ProcSrv struct {
 	pq              *ProcQueue
 	nRunning        atomic.Int64
 	gvisor          bool
+	k8s             bool
+	k8sClnt         *kubernetes.Clientset
 }
 
 type ProcRPCSrv struct {
@@ -113,6 +117,16 @@ func RunProcSrv(kernelId string, dialproxy bool, gvisor bool, spproxydPID sp.Tpi
 		procs:           syncmap.NewSyncMap[int, *procEntry](),
 		pq:              newProcQueue(),
 		gvisor:          gvisor,
+		k8s:             true, // TODO: set from above
+	}
+
+	if ps.k8s && false {
+		// TODO: get kube config
+		clnt, err := k8s.NewClnt("kube-config-contents-TODO")
+		if err != nil {
+			db.DFatalf("Error new k8s clnt: %v", err)
+		}
+		ps.k8sClnt = clnt
 	}
 
 	// Set inner container IP as soon as uprocsrv starts up
@@ -415,20 +429,39 @@ func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 	db.DPrintf(db.PROCD, "[%v] nRunning: %v", uproc.GetProgram(), nRunning)
 	var ctr container.ProcContainer
 	var err error
-	if !ps.gvisor {
-		ctr, err = scontainer.StartSigmaContainer(uproc, ps.dialproxy)
-		if err != nil {
-			return err
-		}
-	} else {
+	if ps.k8s && false {
 		// Pre-download the proc binary
 		if err := ps.downloadFullBinary(uproc.GetVersionedProgram(), uproc.GetPid(), uproc.GetRealm(), uproc.GetSecrets()["s3"], uproc.GetSigmaPath(), uproc.GetNamedEndpoint()); err != nil {
 			db.DPrintf(db.ERROR, "Error download full binary for gVisor container")
 			return err
 		}
-		ctr, err = gvisor.StartGVisorContainer(uproc, ps.dialproxy, gvisor.BASE_BUNDLE_PATH, true)
+		ctr, err = k8s.StartK8sPod(uproc, ps.k8sClnt)
 		if err != nil {
 			return err
+		}
+	} else {
+		if !ps.gvisor {
+			ctr, err = scontainer.StartSigmaContainer(uproc, ps.dialproxy)
+			if err != nil {
+				return err
+			}
+		} else {
+			// Pre-download the proc binary
+			if err := ps.downloadFullBinary(uproc.GetVersionedProgram(), uproc.GetPid(), uproc.GetRealm(), uproc.GetSecrets()["s3"], uproc.GetSigmaPath(), uproc.GetNamedEndpoint()); err != nil {
+				db.DPrintf(db.ERROR, "Error download full binary for gVisor container")
+				return err
+			}
+			for _, prog := range uproc.GetAddedBins() {
+				db.DPrintf(db.PROCD, "[%v] Downloading added bin %v", uproc.GetPid(), prog)
+				if err := ps.downloadFullBinary(prog, uproc.GetPid(), uproc.GetRealm(), uproc.GetSecrets()["s3"], uproc.GetSigmaPath(), uproc.GetNamedEndpoint()); err != nil {
+					db.DPrintf(db.ERROR, "Error download full binary for gVisor container")
+					return err
+				}
+			}
+			ctr, err = gvisor.StartGVisorContainer(uproc, ps.dialproxy, gvisor.BASE_BUNDLE_PATH, true)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	pid := ctr.Pid()
