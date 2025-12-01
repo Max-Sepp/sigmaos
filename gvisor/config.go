@@ -37,7 +37,7 @@ func NewDefaultConfigBinPath(p *proc.Proc, binPn string) *Config {
 				},
 				Args: append([]string{binPn}, p.GetArgs()...),
 				Env:  p.GetEnv(),
-				Cwd:  "/",
+				Cwd:  "/home/sigmaos",
 				Capabilities: &ocirspec.LinuxCapabilities{
 					Bounding: []string{
 						"CAP_AUDIT_WRITE",
@@ -70,7 +70,7 @@ func NewDefaultConfigBinPath(p *proc.Proc, binPn string) *Config {
 			},
 			Root: &ocirspec.Root{
 				Path:     "rootfs",
-				Readonly: true,
+				Readonly: false,
 			},
 			Hostname: "runsc",
 			Mounts: []ocirspec.Mount{
