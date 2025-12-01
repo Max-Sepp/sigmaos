@@ -126,31 +126,30 @@ func TestHelloWorld(t *testing.T) {
 }
 
 func TestEtcd(t *testing.T) {
+	const (
+		PEER_PORT = 6380
+		CLNT_PORT = 6379
+	)
+
 	mrts, err1 := test.NewMultiRealmTstate(t, []sp.Trealm{test.REALM1})
 	if !assert.Nil(t, err1, "Error New Tstate: %v", err1) {
 		return
 	}
 	defer mrts.Shutdown()
 
-	const (
-		PEER_PORT = 6380
-		CLNT_PORT = 6379
-	)
-
-	a := proc.NewProc("etcd", []string{
-		fmt.Sprintf("--name=%v", "etcd-proc"),
-		fmt.Sprintf("--listen-peer-urls=http://127.0.0.1:%v", PEER_PORT),
-		fmt.Sprintf("--advertise-client-urls=http://127.0.0.1:%v", CLNT_PORT),
-		fmt.Sprintf("--listen-client-urls=http://127.0.0.1:%v", CLNT_PORT),
+	p := proc.NewProc("etcd-shim", []string{
+		"etcd-proc",
+		fmt.Sprintf("http://127.0.0.1:%v", PEER_PORT),
+		fmt.Sprintf("http://127.0.0.1:%v", CLNT_PORT),
+		fmt.Sprintf("http://127.0.0.1:%v", CLNT_PORT),
 	})
-	a.SetMcpu(1000)
 	db.DPrintf(db.TEST, "Pre spawn")
-	err := mrts.GetRealm(test.REALM1).Spawn(a)
+	err := mrts.GetRealm(test.REALM1).Spawn(p)
 	assert.Nil(t, err, "Spawn")
 	db.DPrintf(db.TEST, "Post spawn")
 
 	db.DPrintf(db.TEST, "Pre waitexit")
-	status, err := mrts.GetRealm(test.REALM1).WaitExit(a.GetPid())
+	status, err := mrts.GetRealm(test.REALM1).WaitExit(p.GetPid())
 	db.DPrintf(db.TEST, "Post waitexit")
 	assert.Nil(t, err, "WaitExit error")
 	assert.True(t, status != nil && status.IsStatusOK(), "Exit status wrong: %v", status)
