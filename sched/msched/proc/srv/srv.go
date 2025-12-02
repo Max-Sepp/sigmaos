@@ -446,15 +446,29 @@ func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 				return err
 			}
 		} else {
-			// Pre-download the proc binary
-			if err := ps.downloadFullBinary(uproc.GetVersionedProgram(), uproc.GetPid(), uproc.GetRealm(), uproc.GetSecrets()["s3"], uproc.GetSigmaPath(), uproc.GetNamedEndpoint()); err != nil {
-				db.DPrintf(db.ERROR, "Error download full binary for gVisor container")
-				return err
-			}
-			for _, prog := range uproc.GetAddedBins() {
-				db.DPrintf(db.PROCD, "[%v] Downloading added bin %v", uproc.GetPid(), prog)
-				if err := ps.downloadFullBinary(prog, uproc.GetPid(), uproc.GetRealm(), uproc.GetSecrets()["s3"], uproc.GetSigmaPath(), uproc.GetNamedEndpoint()); err != nil {
+			ch := make(chan error)
+			go func() {
+				// Pre-download the proc binary
+				if err := ps.downloadFullBinary(uproc.GetVersionedProgram(), uproc.GetPid(), uproc.GetRealm(), uproc.GetSecrets()["s3"], uproc.GetSigmaPath(), uproc.GetNamedEndpoint()); err != nil {
 					db.DPrintf(db.ERROR, "Error download full binary for gVisor container")
+					ch <- err
+				}
+				ch <- nil
+			}()
+			for _, prog := range uproc.GetAddedBins() {
+				go func(prog string) {
+					db.DPrintf(db.PROCD, "[%v] Downloading added bin %v", uproc.GetPid(), prog)
+					if err := ps.downloadFullBinary(prog, uproc.GetPid(), uproc.GetRealm(), uproc.GetSecrets()["s3"], uproc.GetSigmaPath(), uproc.GetNamedEndpoint()); err != nil {
+						db.DPrintf(db.ERROR, "Error download full binary for gVisor container")
+						ch <- err
+					}
+					ch <- nil
+				}(prog)
+			}
+			for i := 0; i < 1+len(uproc.GetAddedBins()); i++ {
+				err := <-ch
+				if err != nil {
+					db.DPrintf(db.ERROR, "Err download bin: %v", err)
 					return err
 				}
 			}
