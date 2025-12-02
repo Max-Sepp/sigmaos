@@ -24,7 +24,6 @@ pub fn boot(b: *mut c_char, buf_sz: usize) {
     let key = str::from_utf8(&buf[off..off + key_len]).unwrap();
     off += key_len;
     let kid = str::from_utf8(&buf[off..off + kid_len]).unwrap();
-    // Create a multi_get request for each server
     let mut get_req = s3::GetReq::new();
     get_req.bucket = bucket.to_string();
     get_req.key = key.to_string();
