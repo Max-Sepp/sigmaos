@@ -6,12 +6,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	clientv3 "go.etcd.io/etcd/client/v3"
 
+	"sigmaos/apps/etcd"
 	db "sigmaos/debug"
 	"sigmaos/proc"
 	sp "sigmaos/sigmap"
@@ -26,7 +28,7 @@ func TestGenSnapshot(t *testing.T) {
 		PEER_PORT = 6380
 		CLNT_PORT = 6379
 		SNAP_PATH = "/tmp/snapshot.db"
-		N_KV      = 10000
+		N_KV      = 100000
 	)
 
 	// Get the project root directory dynamically
@@ -40,7 +42,7 @@ func TestGenSnapshot(t *testing.T) {
 
 	// Start etcd server
 	etcdCmd := exec.Command(etcdBinary,
-		"--name", "test-etcd",
+		"--name", "etcd-proc",
 		"--initial-advertise-peer-urls", fmt.Sprintf("http://127.0.0.1:%d", PEER_PORT),
 		"--listen-peer-urls", fmt.Sprintf("http://127.0.0.1:%d", PEER_PORT),
 		"--advertise-client-urls", fmt.Sprintf("http://127.0.0.1:%d", CLNT_PORT),
@@ -109,9 +111,10 @@ func TestGenSnapshot(t *testing.T) {
 
 func TestEtcd(t *testing.T) {
 	const (
-		PEER_PORT = 6380
-		CLNT_PORT = 6379
-		SNAP_PATH = "/tmp/snapshot.db"
+		PEER_PORT      = 6380
+		CLNT_PORT      = 6379
+		SNAP_PATH      = "/tmp/snapshot.db"
+		USE_INITSCRIPT = true
 	)
 
 	// Only works when running with gVisor
@@ -125,20 +128,19 @@ func TestEtcd(t *testing.T) {
 	}
 	defer mrts.Shutdown()
 
-	// TODO: create snapshot file if it doesn't exist already
+	//	// Upload snapshot
+	//	snapUXPn := filepath.Join(sp.UX, sp.LOCAL, "snapshot.db")
+	//	if err := mrts.GetRealm(test.REALM1).UploadFile(SNAP_PATH, snapUXPn); !assert.Nil(t, err, "Err Upload snapshot: %v", err) {
+	//		return
+	//	}
+	//
+	//	// Find the resolved snapshot path
+	//	resolvedPn, err := mrts.GetRealm(test.REALM1).ResolveMounts(snapUXPn)
+	//	if !assert.Nil(t, err, "Err resolve path: %v") {
+	//		return
+	//	}
 
-	// Upload snapshot
-	snapUXPn := filepath.Join(sp.UX, sp.LOCAL, "snapshot.db")
-	if err := mrts.GetRealm(test.REALM1).UploadFile(SNAP_PATH, snapUXPn); !assert.Nil(t, err, "Err Upload snapshot: %v", err) {
-		return
-	}
-
-	// Find the resolved snapshot path
-	resolvedPn, err := mrts.GetRealm(test.REALM1).ResolveMounts(snapUXPn)
-	if !assert.Nil(t, err, "Err resolve path: %v") {
-		return
-	}
-
+	resolvedPn := "9ps3/snapshot.db"
 	db.DPrintf(db.TEST, "Resolved snapshot pathname: %v", resolvedPn)
 
 	p := proc.NewProc("etcd-shim", []string{
@@ -150,6 +152,21 @@ func TestEtcd(t *testing.T) {
 	})
 	// Add the etcd binary to be downloaded with the proc
 	p.AddBin("etcd-v1.0")
+	splitFN := strings.Split(resolvedPn, "/")
+	// Read the boot script
+	bootScript, err := etcd.GetBootScript(mrts.GetRealm(test.REALM1).SigmaClnt)
+	if !assert.Nil(t, err, "Err read bootscript: %v", err) {
+		return
+	}
+	// Construct the input to the bootscript
+	bootScriptInput, err := etcd.GetBootScriptInput(splitFN[0], filepath.Join(splitFN[1:]...), sp.LOCAL)
+	if !assert.Nil(t, err, "Err GetBootScriptInput: %v", err) {
+		return
+	}
+	p.GetProcEnv().UseSPProxy = USE_INITSCRIPT
+	p.SetBootScript(bootScript, bootScriptInput)
+	p.SetRunBootScript(USE_INITSCRIPT)
+
 	db.DPrintf(db.TEST, "Pre spawn")
 	err = mrts.GetRealm(test.REALM1).Spawn(p)
 	assert.Nil(t, err, "Spawn")

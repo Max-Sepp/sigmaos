@@ -3,6 +3,7 @@ package etcd
 import (
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -12,23 +13,33 @@ import (
 
 	db "sigmaos/debug"
 	"sigmaos/proc"
+	s3clnt "sigmaos/proxy/s3/clnt"
+	sp "sigmaos/sigmap"
 	"sigmaos/sigmasrv"
 )
 
 type EtcdShim struct {
-	clnt *clientv3.Client
-	ssrv *sigmasrv.SigmaSrv
+	clnt   *clientv3.Client
+	ssrv   *sigmasrv.SigmaSrv
+	s3Clnt *s3clnt.S3Clnt
 }
 
 func RunEtcdShim(snapPn, name string, peerUrls, clientUrls, listenClientUrls []string) error {
 	es := &EtcdShim{}
+	pe := proc.GetProcEnv()
 	// Otherwise, don't post EP (and instead post EP in the EP cache service)
-	ssrv, err := sigmasrv.NewSigmaSrv("", es, proc.GetProcEnv())
+	ssrv, err := sigmasrv.NewSigmaSrv("", es, pe)
 	if err != nil {
 		db.DFatalf("Err NewSigmaSrv: %v", err)
 		return err
 	}
 	es.ssrv = ssrv
+	// Create an S3 clnt
+	s3Clnt, err := s3clnt.NewS3Clnt(es.ssrv.SigmaClnt().FsLib, filepath.Join(sp.S3, pe.GetKernelID()))
+	if err != nil {
+		db.DFatalf("Err newS3Clnt: %v", err)
+	}
+	es.s3Clnt = s3Clnt
 	// Restore the snapshot to a fresh etcd directory
 	if err := es.restoreSnapshot(snapPn, name, peerUrls); err != nil {
 		db.DFatalf("Err restoreSnapshot: %v", err)
@@ -48,13 +59,13 @@ func RunEtcdShim(snapPn, name string, peerUrls, clientUrls, listenClientUrls []s
 	}
 	es.clnt = clnt
 	// Mark etcd as started
-	if err := ssrv.MemFs.SigmaClnt().Started(); err != nil {
+	if err := ssrv.SigmaClnt().Started(); err != nil {
 		db.DFatalf("Err Started: %v", err)
 		return err
 	}
 	db.DPrintf(db.ETCD, "Started shim and etcd")
 	// Wait for eviction
-	if err := ssrv.MemFs.SigmaClnt().WaitEvict(ssrv.SigmaClnt().ProcEnv().GetPID()); err != nil {
+	if err := ssrv.SigmaClnt().WaitEvict(ssrv.SigmaClnt().ProcEnv().GetPID()); err != nil {
 		db.DFatalf("Err WaitEvict: %v", err)
 		return err
 	}
@@ -72,12 +83,27 @@ func RunEtcdShim(snapPn, name string, peerUrls, clientUrls, listenClientUrls []s
 }
 
 func (es *EtcdShim) restoreSnapshot(snapPn string, name string, peerUrls []string) error {
-	// Download the snapshot file
-	b, err := es.ssrv.MemFs.SigmaClnt().GetFile(snapPn)
-	if err != nil {
-		db.DPrintf(db.ETCD_ERR, "Err GetFile: %v", err)
-		db.DPrintf(db.ERROR, "Err GetFile: %v", err)
-		return err
+	pn := strings.Split(snapPn, "/")
+	bucket := pn[0]
+	key := filepath.Join(pn[1:]...)
+	var b []byte
+	var err error
+	if es.ssrv.SigmaClnt().ProcEnv().GetRunBootScript() {
+		b, err = es.s3Clnt.DelegatedGetObject(0)
+		if err != nil {
+			db.DPrintf(db.ETCD_ERR, "Err DelegatedGetObject bucket:%v key:%v: %v", bucket, key, err)
+			db.DPrintf(db.ERROR, "Err DelegatedGetObject bucket:%v key:%v: %v", bucket, key, err)
+			return err
+		}
+		db.DPrintf(db.ETCD, "Done delegated get")
+	} else {
+		b, err = es.s3Clnt.GetObject(bucket, key)
+		if err != nil {
+			db.DPrintf(db.ETCD_ERR, "Err GetObject bucket:%v key:%v: %v", bucket, key, err)
+			db.DPrintf(db.ERROR, "Err GetObject bucket:%v key:%v: %v", bucket, key, err)
+			return err
+		}
+		db.DPrintf(db.ETCD, "Done direct get")
 	}
 	// Write the snapshot out
 	localSnapPn := "./snapshot.db"
