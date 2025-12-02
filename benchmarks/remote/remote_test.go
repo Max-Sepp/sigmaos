@@ -1540,7 +1540,7 @@ func TestImgProcess(t *testing.T) {
 	// Hotel benchmark configuration parameters
 	var (
 		nrounds        int    = 1
-		ntasks         int    = 50
+		ntasks         int    = 100
 		ninputsPerTask int    = 1
 		withInitScript []bool = []bool{
 			false,
@@ -1572,7 +1572,7 @@ func TestImgProcess(t *testing.T) {
 				UseSPProxy:           true,
 				UseBootScript:        initscript,
 				UseS3Clnt:            true,
-				WorkerBootScriptMcpu: proc.Tmcpu(25),
+				WorkerBootScriptMcpu: proc.Tmcpu(10),
 				WorkerBootScriptMem:  proc.Tmem(0),
 				FTTaskSrvMcpu:        proc.Tmcpu(50),
 			},
@@ -1581,5 +1581,109 @@ func TestImgProcess(t *testing.T) {
 			NInputsPerTask: ninputsPerTask,
 		}
 		ts.RunStandardBenchmark(benchName, driverVM, GetImgProcessCmd(imgCfg), numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost)
+	}
+}
+
+func TestStartLatency(t *testing.T) {
+	var (
+		benchNameBase string = "start_latency"
+		driverVM      int    = 12
+	)
+	// Cluster configuration parameters
+	var (
+		numNodes     int = 2
+		numFullNodes int = numNodes
+	)
+	const (
+		numCoresPerNode   uint = 4
+		numProcqOnlyNodes int  = 0
+		turboBoost        bool = false
+	)
+	// Benchmark configuration parameters
+	var (
+		withInitScript []bool = []bool{
+			false,
+			true,
+		}
+		apps []string = []string{
+			"cached",
+			"cossim",
+			"etcd",
+		}
+	)
+	ts, err := NewTstate(t)
+	if !assert.Nil(ts.t, err, "Creating test state: %v", err) {
+		return
+	}
+	if ts.BCfg.Overlays {
+		benchNameBase += "_overlays"
+	}
+	for _, app := range apps {
+		for _, initscript := range withInitScript {
+			benchName := benchNameBase + "_" + app
+			if initscript {
+				benchName += "_initscript"
+			}
+			db.DPrintf(db.ALWAYS, "Benchmark configuration:\n%v", ts)
+			startLatencyCfg := &benchmarks.StartLatencyBenchConfig{
+				App: app,
+			}
+			// Create default configs for each app
+			cacheBenchCfg := &benchmarks.CacheBenchConfig{
+				JobCfg: &benchmarks.CacheBenchConfig{
+					JobCfg: &cachegrpmgr.CacheJobConfig{
+						NSrv: 1,
+						MCPU: proc.Tmcpu(4000),
+						GC:   true,
+					},
+				},
+				CPP:          true,
+				UseEPCache:   true,
+				DelegateInit: initscript,
+				Autoscale:    false,
+				NKeys:        5000,
+				TopNShards:   0,
+				ManuallyScale: &benchmarks.ManualScalingConfig{
+					Svc:         "cached",
+					Scale:       true,
+					ScaleDelays: []time.Duration{5 * time.Second},
+					ScaleDeltas: []int{1},
+				},
+				Migrate: &benchmarks.MigrationConfig{
+					Svc:              "cached",
+					Migrate:          false,
+					MigrationDelays:  []time.Duration{},
+					MigrationTargets: []int{},
+				},
+			}
+			cossimCfg := &benchmarks.CosSimBenchConfig{
+				JobCfg: &cossimsrv.CosSimJobConfig{
+					Job:       "cossim-job",
+					InitNSrv:  1,
+					NVec:      10000,
+					VecDim:    128,
+					EagerInit: true,
+					SrvMcpu:   proc.Tmcpu(1000),
+					CacheCfg: &cachegrpmgr.CacheJobConfig{
+						NSrv: 1,
+						MCPU: proc.Tmcpu(1000),
+						GC:   true,
+					},
+					DelegateInitRPCs: initscript,
+				},
+			}
+			etcdCfg := &benchmarks.EtcdBenchConfig{
+				JobCfg: &etcd.EtcdJobConfig{
+					Job:           "etcd-job",
+					SnapshotPath:  "9ps3/snapshot-10MB.db",
+					Name:          "etcd-proc",
+					PeerPort:      6380,
+					ClientPort:    6379,
+					UseInitScript: initscript,
+				},
+			}
+			cmdFn := GetStartLatencyCmdConstructor(startLatencyCfg, cacheCfg, cossimCfg, etcdCfg, initscript)
+			ts.RunStandardBenchmark(benchName, driverVM, cmdFn, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost)
+		}
 	}
 }

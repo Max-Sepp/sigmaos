@@ -6,6 +6,7 @@ import (
 
 	cachegrpmgr "sigmaos/apps/cache/cachegrp/mgr"
 	cossimsrv "sigmaos/apps/cossim/srv"
+	"sigmaos/apps/etcd"
 	"sigmaos/apps/hotel"
 	"sigmaos/apps/imgresize"
 	"sigmaos/proc"
@@ -131,4 +132,19 @@ var DefaultImgBenchConfig = &ImgBenchConfig{
 	NInputsPerTask: 1,
 	Durs:           []time.Duration{10 * time.Second},
 	MaxRPS:         []int{100},
+}
+
+var DefaultEtcdBenchConfig = &EtcdBenchConfig{
+	JobCfg: &etcd.EtcdJobConfig{
+		Job:           "etcd-job",
+		SnapshotPath:  "9ps3/snapshot.db",
+		Name:          "etcd-proc",
+		PeerPort:      6380,
+		ClientPort:    6379,
+		UseInitScript: true,
+	},
+}
+
+var DefaultStartLatencyBenchConfig = &StartLatencyBenchConfig{
+	App: "etcd",
 }

@@ -7,6 +7,7 @@ import (
 
 	cachegrpmgr "sigmaos/apps/cache/cachegrp/mgr"
 	cossimsrv "sigmaos/apps/cossim/srv"
+	"sigmaos/apps/etcd"
 	"sigmaos/apps/hotel"
 	"sigmaos/apps/imgresize"
 )
@@ -115,6 +116,42 @@ func (cfg *ImgBenchConfig) GetJobConfig() *imgresize.ImgdJobConfig {
 }
 
 func (cfg *ImgBenchConfig) Marshal() (string, error) {
+	b, err := json.Marshal(cfg)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
+type EtcdBenchConfig struct {
+	JobCfg *etcd.EtcdJobConfig `json:"job_cfg"`
+}
+
+func (cfg *EtcdBenchConfig) String() string {
+	return fmt.Sprintf("&{ JobCfg:%v }", cfg.JobCfg)
+}
+
+func (cfg *EtcdBenchConfig) GetJobConfig() *etcd.EtcdJobConfig {
+	return cfg.JobCfg
+}
+
+func (cfg *EtcdBenchConfig) Marshal() (string, error) {
+	b, err := json.Marshal(cfg)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
+type StartLatencyBenchConfig struct {
+	App string `json:"app"`
+}
+
+func (cfg *StartLatencyBenchConfig) String() string {
+	return fmt.Sprintf("&{ App:%v }", cfg.App)
+}
+
+func (cfg *StartLatencyBenchConfig) Marshal() (string, error) {
 	b, err := json.Marshal(cfg)
 	if err != nil {
 		return "", err

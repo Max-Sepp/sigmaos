@@ -15,17 +15,23 @@ var CosSimBenchConfig *benchmarks.CosSimBenchConfig
 var CacheBenchConfig *benchmarks.CacheBenchConfig
 var HotelBenchConfig *benchmarks.HotelBenchConfig
 var ImgBenchConfig *benchmarks.ImgBenchConfig
+var EtcdBenchConfig *benchmarks.EtcdBenchConfig
+var StartLatencyBenchConfig *benchmarks.StartLatencyBenchConfig
 
 var cossimBenchCfgStr string
 var cacheBenchCfgStr string
 var hotelBenchCfgStr string
 var imgBenchCfgStr string
+var etcdBenchCfgStr string
+var startLatencyBenchCfgStr string
 
 func init() {
 	flag.StringVar(&cossimBenchCfgStr, "cossim_bench_cfg", sp.NOT_SET, "JSON string for CosSimBenchConfig")
 	flag.StringVar(&cacheBenchCfgStr, "cache_bench_cfg", sp.NOT_SET, "JSON string for CacheBenchConfig")
 	flag.StringVar(&hotelBenchCfgStr, "hotel_bench_cfg", sp.NOT_SET, "JSON string for HotelBenchConfig")
 	flag.StringVar(&imgBenchCfgStr, "img_bench_cfg", sp.NOT_SET, "JSON string for ImgBenchConfig")
+	flag.StringVar(&etcdBenchCfgStr, "etcd_bench_cfg", sp.NOT_SET, "JSON string for EtcdBenchConfig")
+	flag.StringVar(&startLatencyBenchCfgStr, "start_latency_bench_cfg", sp.NOT_SET, "JSON string for StartLatencyBenchConfig")
 }
 
 func TestMain(m *testing.M) {
@@ -79,6 +85,30 @@ func TestMain(m *testing.M) {
 		db.DPrintf(db.ALWAYS, "Loaded ImgBenchConfig")
 	}
 
+	// Parse EtcdBenchConfig
+	if etcdBenchCfgStr == sp.NOT_SET {
+		EtcdBenchConfig = benchmarks.DefaultEtcdBenchConfig
+		db.DPrintf(db.ALWAYS, "Using default EtcdBenchConfig")
+	} else {
+		err := json.Unmarshal([]byte(etcdBenchCfgStr), &EtcdBenchConfig)
+		if err != nil {
+			db.DFatalf("Error unmarshaling etcd_bench_cfg: %v", err)
+		}
+		db.DPrintf(db.ALWAYS, "Loaded EtcdBenchConfig")
+	}
+
+	// Parse StartLatencyBenchConfig
+	if startLatencyBenchCfgStr == sp.NOT_SET {
+		StartLatencyBenchConfig = benchmarks.DefaultStartLatencyBenchConfig
+		db.DPrintf(db.ALWAYS, "Using default StartLatencyBenchConfig")
+	} else {
+		err := json.Unmarshal([]byte(startLatencyBenchCfgStr), &StartLatencyBenchConfig)
+		if err != nil {
+			db.DFatalf("Error unmarshaling start_latency_bench_cfg: %v", err)
+		}
+		db.DPrintf(db.ALWAYS, "Loaded StartLatencyBenchConfig")
+	}
+
 	CosSimBenchConfig.JobCfg.CacheCfg = CacheBenchConfig.JobCfg
 	HotelBenchConfig.JobCfg.CacheCfg = CacheBenchConfig.JobCfg
 	HotelBenchConfig.CosSimBenchCfg = CosSimBenchConfig
@@ -88,6 +118,8 @@ func TestMain(m *testing.M) {
 	db.DPrintf(db.ALWAYS, "CosSimBenchConfig: %v", CosSimBenchConfig)
 	db.DPrintf(db.ALWAYS, "HotelBenchConfig: %v", HotelBenchConfig)
 	db.DPrintf(db.ALWAYS, "ImgBenchConfig: %v", ImgBenchConfig)
+	db.DPrintf(db.ALWAYS, "EtcdBenchConfig: %v", EtcdBenchConfig)
+	db.DPrintf(db.ALWAYS, "StartLatencyBenchConfig: %v", StartLatencyBenchConfig)
 
 	os.Exit(m.Run())
 }

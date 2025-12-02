@@ -768,3 +768,58 @@ func GetCachedScalerClientCmdConstructor(leader bool, numClients int, prewarm bo
 		)
 	}
 }
+
+func GetStartLatencyCmdConstructor(startLatencyCfg *benchmarks.StartLatencyBenchConfig, cacheCfg *benchmarks.CacheBenchConfig, cossimCfg *benchmarks.CosSimBenchConfig, etcdCfg *benchmarks.EtcdBenchConfig, initscript bool) GetBenchCmdFn {
+	return func(bcfg *BenchConfig, ccfg *ClusterConfig) string {
+		const (
+			debugSelectors string = "\"TEST;BENCH;SPAWN_LAT;\""
+			perfSelectors  string = "\"TEST_TPT;BENCH_TPT;\""
+		)
+		dialproxy := ""
+		if bcfg.NoNetproxy {
+			dialproxy = "--nodialproxy"
+		}
+		overlays := ""
+		if bcfg.Overlays {
+			overlays = "--overlays"
+		}
+		startLatencyCfgJSON, err := startLatencyCfg.Marshal()
+		if err != nil {
+			db.DFatalf("Err marshal start latency config: %v", err)
+		}
+		cacheCfgJSON, err := cacheCfg.Marshal()
+		if err != nil {
+			db.DFatalf("Err marshal cache config: %v", err)
+		}
+		cossimCfgJSON, err := cossimCfg.Marshal()
+		if err != nil {
+			db.DFatalf("Err marshal cossim config: %v", err)
+		}
+		etcdCfgJSON, err := etcdCfg.Marshal()
+		if err != nil {
+			db.DFatalf("Err marshal etcd config: %v", err)
+		}
+		return fmt.Sprintf("export SIGMADEBUG=%s; export SIGMAPERF=%s; go clean -testcache; "+
+			"ulimit -n 100000; "+
+			"./set-cores.sh --set 1 --start 2 --end 39 > /dev/null 2>&1 ; "+
+			"go test -v sigmaos/benchmarks -timeout 0 --no-shutdown %s %s --etcdIP %s --tag %s "+
+			"--run TestStartLatency "+
+			"--start_latency_bench_cfg='%s' "+
+			"--cache_bench_cfg='%s' "+
+			"--cossim_bench_cfg='%s' "+
+			"--etcd_bench_cfg='%s' "+
+			"--prewarm_realm "+
+			"> /tmp/bench.out 2>&1 ;",
+			debugSelectors,
+			perfSelectors,
+			dialproxy,
+			overlays,
+			ccfg.LeaderNodeIP,
+			bcfg.Tag,
+			startLatencyCfgJSON,
+			cacheCfgJSON,
+			cossimCfgJSON,
+			etcdCfgJSON,
+		)
+	}
+}
