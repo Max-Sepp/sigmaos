@@ -29,7 +29,7 @@ var tag string
 var EtcdIP string
 var useSPProxy bool
 var noDialProxy bool
-var useGVisor bool
+var UseGVisor bool
 var noBootDialProxy bool
 var Withs3pathclnt bool
 
@@ -48,7 +48,7 @@ func init() {
 	flag.BoolVar(&noShutdown, "no-shutdown", false, "Don't shut down the system")
 	flag.BoolVar(&useSPProxy, "usespproxy", false, "Use spproxy?")
 	flag.BoolVar(&noDialProxy, "nodialproxy", false, "Disable use of proxy for network dialing/listening?")
-	flag.BoolVar(&useGVisor, "usegvisor", false, "Isolate user procs with GVisor.")
+	flag.BoolVar(&UseGVisor, "usegvisor", false, "Isolate user procs with GVisor.")
 	flag.BoolVar(&noBootDialProxy, "no-boot-dialproxy", false, "Boot spproxy?")
 	flag.BoolVar(&Withs3pathclnt, "withs3pathclnt", false, "With s3clntpath?")
 	flag.StringVar(&projectRoot, "projectroot", "", "Path to project root")
@@ -204,7 +204,7 @@ func newSysClnt(t *testing.T, ntype bootclnt.Tboot) (*Tstate, error) {
 	var k *bootclnt.Kernel
 	if Start {
 		kernelid = bootclnt.GenKernelId()
-		_, err := bootclnt.Start(kernelid, sp.Tip(EtcdIP), pe, ntype, useDialProxy, useGVisor, homeDir, projectRoot, User, netname)
+		_, err := bootclnt.Start(kernelid, sp.Tip(EtcdIP), pe, ntype, useDialProxy, UseGVisor, homeDir, projectRoot, User, netname)
 		if err != nil {
 			db.DPrintf(db.ALWAYS, "Error start kernel: %v", err)
 			return nil, err
@@ -215,7 +215,7 @@ func newSysClnt(t *testing.T, ntype bootclnt.Tboot) (*Tstate, error) {
 	if !noBootDialProxy && (useSPProxy || useDialProxy) {
 		db.DPrintf(db.BOOT, "Booting spproxyd: usespproxyd %v usedialproxy %v asKernel %v", useSPProxy, useDialProxy, !runningInDocker)
 		var err error
-		if dpp, err = NewDialProxyProvider(pe, useDialProxy, useGVisor, !runningInDocker); err != nil {
+		if dpp, err = NewDialProxyProvider(pe, useDialProxy, UseGVisor, !runningInDocker); err != nil {
 			return nil, err
 		}
 	}
@@ -252,7 +252,7 @@ func (ts *Tstate) bootNode(n int, ntype bootclnt.Tboot) ([]string, error) {
 	// node
 	savedTstate = nil
 	for i := 0; i < n; i++ {
-		kclnt, err := bootclnt.NewKernelClntStart(sp.Tip(EtcdIP), ts.ProcEnv(), ntype, useDialProxy, useGVisor, homeDir, projectRoot, User, netname)
+		kclnt, err := bootclnt.NewKernelClntStart(sp.Tip(EtcdIP), ts.ProcEnv(), ntype, useDialProxy, UseGVisor, homeDir, projectRoot, User, netname)
 		if err != nil {
 			return nil, err
 		}
