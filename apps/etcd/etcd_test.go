@@ -140,7 +140,7 @@ func TestEtcd(t *testing.T) {
 	//		return
 	//	}
 
-	resolvedPn := "9ps3/snapshot.db"
+	resolvedPn := "9ps3/snapshot-10MB.db"
 	db.DPrintf(db.TEST, "Resolved snapshot pathname: %v", resolvedPn)
 
 	p := proc.NewProc("etcd-shim", []string{

@@ -13,18 +13,15 @@ import (
 )
 
 type EtcdJobConfig struct {
-	Job            string `json:"job"`
-	SnapshotPath   string `json:"snapshot_path"` // Path to snapshot file in SigmaOS
-	Name           string `json:"name"`          // Etcd node name
-	PeerPort       int    `json:"peer_port"`
-	ClientPort     int    `json:"client_port"`
-	UseInitScript  bool   `json:"use_init_script"`
-	SnapshotBucket string `json:"snapshot_bucket"` // S3 bucket for snapshot
-	SnapshotKey    string `json:"snapshot_key"`    // S3 key for snapshot
-	SnapshotKID    string `json:"snapshot_kid"`    // Key ID for S3
+	Job           string `json:"job"`
+	SnapshotPath  string `json:"snapshot_path"` // Path to snapshot file in SigmaOS
+	Name          string `json:"name"`          // Etcd node name
+	PeerPort      int    `json:"peer_port"`
+	ClientPort    int    `json:"client_port"`
+	UseInitScript bool   `json:"use_init_script"`
 }
 
-func NewEtcdJobConfig(job, snapshotPath, name string, peerPort, clientPort int, useInitScript bool, snapshotBucket, snapshotKey, snapshotKID string) *EtcdJobConfig {
+func NewEtcdJobConfig(job, snapshotPath, name string, peerPort, clientPort int, useInitScript bool) *EtcdJobConfig {
 	return &EtcdJobConfig{
 		Job:           job,
 		SnapshotPath:  snapshotPath,
@@ -157,6 +154,6 @@ func (j *EtcdJob) GetProc() *proc.Proc {
 }
 
 func (cfg *EtcdJobConfig) String() string {
-	return fmt.Sprintf("&{ job:%v snapshot:%v name:%v peerPort:%v clientPort:%v useInitScript:%v bucket:%v key:%v }",
+	return fmt.Sprintf("&{ job:%v snapshot:%v name:%v peerPort:%v clientPort:%v useInitScript:%v }",
 		cfg.Job, cfg.SnapshotPath, cfg.Name, cfg.PeerPort, cfg.ClientPort, cfg.UseInitScript)
 }
