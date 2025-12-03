@@ -291,3 +291,19 @@ func runImgResizeRPC(ts *test.RealmTstate, i interface{}) (time.Duration, float6
 	db.DPrintf(db.TEST, "[%v] Done cleaning up imgresize", ts.GetRealm())
 	return t, 1.0
 }
+
+func runStartLatency(ts *test.RealmTstate, i interface{}) (time.Duration, float64) {
+	ji := i.(*StartLatencyJobInstance)
+	ji.ready <- true
+	<-ji.ready
+	start := time.Now()
+	db.DPrintf(db.BENCH, "Start latency measurement for app: %v", ji.cfg.App)
+	// RunJob handles the start latency measurement internally
+	success := ji.RunJob(nil, false)
+	if !success {
+		db.DPrintf(db.BENCH, "Start latency job failed for app: %v", ji.cfg.App)
+		return time.Since(start), 0.0
+	}
+	db.DPrintf(db.BENCH, "Done start latency measurement for app: %v", ji.cfg.App)
+	return time.Since(start), 1.0
+}

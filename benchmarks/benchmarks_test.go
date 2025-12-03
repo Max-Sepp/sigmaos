@@ -1882,3 +1882,43 @@ func TestCachedScaler(t *testing.T) {
 		mrts.Shutdown()
 	}
 }
+
+func TestStartLatency(t *testing.T) {
+	const (
+		sigmaos = true
+	)
+	mrts, err1 := test.NewMultiRealmTstate(t, []sp.Trealm{REALM1})
+	if !assert.Nil(t, err1, "Error New Tstate: %v", err1) {
+		return
+	}
+	defer mrts.Shutdown()
+	const N = 3
+	err := mrts.GetRealm(REALM1).BootNode(N)
+	assert.Nil(t, err, "Boot node: %v", err)
+
+	ts1 := mrts.GetRealm(REALM1)
+
+	p := newRealmPerf(mrts.GetRealm(REALM1))
+	defer p.Done()
+
+	rs := benchmarks.NewResults(1, benchmarks.E2E)
+	jobs, ji := newStartLatencyJobs(mrts.GetRealm(REALM1), StartLatencyBenchConfig, CacheBenchConfig, CosSimBenchConfig, EtcdBenchConfig)
+	go func() {
+		for _, j := range jobs {
+			// Wait until ready
+			<-j.ready
+			// Ack to allow the job to proceed.
+			j.ready <- true
+		}
+	}()
+	if sigmaos {
+		p := newRealmPerf(ts1)
+		defer p.Done()
+		monitorCPUUtil(ts1, p)
+	}
+	db.DPrintf(db.TEST, "Run start latency job")
+	runOps(ts1, ji, runStartLatency, rs)
+	db.DPrintf(db.TEST, "Done run start latency job")
+	//	printResultSummary(rs)
+	mrts.Shutdown()
+}

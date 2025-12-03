@@ -808,7 +808,6 @@ func GetStartLatencyCmdConstructor(startLatencyCfg *benchmarks.StartLatencyBench
 			"--cache_bench_cfg='%s' "+
 			"--cossim_bench_cfg='%s' "+
 			"--etcd_bench_cfg='%s' "+
-			"--prewarm_realm "+
 			"> /tmp/bench.out 2>&1 ;",
 			debugSelectors,
 			perfSelectors,

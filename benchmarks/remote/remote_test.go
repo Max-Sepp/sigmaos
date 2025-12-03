@@ -12,6 +12,7 @@ import (
 
 	cachegrpmgr "sigmaos/apps/cache/cachegrp/mgr"
 	cossimsrv "sigmaos/apps/cossim/srv"
+	"sigmaos/apps/etcd"
 	"sigmaos/apps/hotel"
 	"sigmaos/apps/imgresize"
 	"sigmaos/benchmarks"
@@ -1591,7 +1592,7 @@ func TestStartLatency(t *testing.T) {
 	)
 	// Cluster configuration parameters
 	var (
-		numNodes     int = 2
+		numNodes     int = 6
 		numFullNodes int = numNodes
 	)
 	const (
@@ -1630,12 +1631,10 @@ func TestStartLatency(t *testing.T) {
 			}
 			// Create default configs for each app
 			cacheBenchCfg := &benchmarks.CacheBenchConfig{
-				JobCfg: &benchmarks.CacheBenchConfig{
-					JobCfg: &cachegrpmgr.CacheJobConfig{
-						NSrv: 1,
-						MCPU: proc.Tmcpu(4000),
-						GC:   true,
-					},
+				JobCfg: &cachegrpmgr.CacheJobConfig{
+					NSrv: 1,
+					MCPU: proc.Tmcpu(4000),
+					GC:   true,
 				},
 				CPP:          true,
 				UseEPCache:   true,
@@ -1682,7 +1681,7 @@ func TestStartLatency(t *testing.T) {
 					UseInitScript: initscript,
 				},
 			}
-			cmdFn := GetStartLatencyCmdConstructor(startLatencyCfg, cacheCfg, cossimCfg, etcdCfg, initscript)
+			cmdFn := GetStartLatencyCmdConstructor(startLatencyCfg, cacheBenchCfg, cossimCfg, etcdCfg, initscript)
 			ts.RunStandardBenchmark(benchName, driverVM, cmdFn, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost)
 		}
 	}

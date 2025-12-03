@@ -32,22 +32,6 @@ func NewEtcdJobConfig(job, snapshotPath, name string, peerPort, clientPort int, 
 	}
 }
 
-func JobDir(jobname string) string {
-	return filepath.Join("etcd", jobname)
-}
-
-func initFS(sc *sigmaclnt.SigmaClnt, jobname string) error {
-	if err := sc.MkDir("etcd", 0777); err != nil {
-		db.DPrintf(db.ERROR, "Mkdir etcd err %v", err)
-		return err
-	}
-	if err := sc.MkDir(JobDir(jobname), 0777); err != nil {
-		db.DPrintf(db.ERROR, "Mkdir %v err %v", JobDir(jobname), err)
-		return err
-	}
-	return nil
-}
-
 type EtcdJob struct {
 	mu   sync.Mutex
 	conf *EtcdJobConfig
@@ -58,12 +42,6 @@ type EtcdJob struct {
 }
 
 func NewEtcdJob(conf *EtcdJobConfig, sc *sigmaclnt.SigmaClnt) (*EtcdJob, error) {
-	// Init fs
-	if err := initFS(sc, conf.Job); err != nil {
-		db.DPrintf(db.ETCD_ERR, "Err initfs: %v", err)
-		return nil, err
-	}
-
 	var bootScript []byte
 	var bootScriptInput []byte
 	var err error
@@ -124,6 +102,10 @@ func (j *EtcdJob) Start(sigmaPath string) error {
 	}
 	j.p = p
 	db.DPrintf(db.ETCD, "Started etcd job with pid: %v", p.GetPid())
+	if err := j.WaitStart(p.GetPid()); err != nil {
+		db.DPrintf(db.ETCD_ERR, "Err WaitStart: %v", err)
+		return err
+	}
 	return nil
 }
 
