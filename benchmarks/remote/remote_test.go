@@ -1621,7 +1621,6 @@ func TestStartLatency(t *testing.T) {
 		numCoresPerNode   uint = 4
 		numProcqOnlyNodes int  = 0
 		turboBoost        bool = false
-		useGVisor         bool = false
 	)
 	// Benchmark configuration parameters
 	var (
@@ -1629,10 +1628,11 @@ func TestStartLatency(t *testing.T) {
 			false,
 			true,
 		}
-		apps []string = []string{
-			"cached",
-			"cossim",
-			"etcd",
+		// If true, run with gvisor
+		apps map[string]bool = map[string]bool{
+			"cached": false,
+			"cossim": false,
+			"etcd":   true,
 		}
 	)
 	ts, err := NewTstate(t)
@@ -1642,7 +1642,7 @@ func TestStartLatency(t *testing.T) {
 	if ts.BCfg.Overlays {
 		benchNameBase += "_overlays"
 	}
-	for _, app := range apps {
+	for app, useGVisor := range apps {
 		for _, initscript := range withInitScript {
 			benchName := benchNameBase + "_" + app
 			if initscript {
