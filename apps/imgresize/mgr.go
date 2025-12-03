@@ -229,8 +229,11 @@ func GetMkProcFn(serverId task.FtTaskSvcId, nrounds int, workerMcpu proc.Tmcpu, 
 		p.SetBootScript(bootScript, bootScriptInput)
 		p.SetRunBootScript(task.Data.UseBootScript)
 		if task.Data.UseBootScript {
-			// Run after boot script
-			p.SetRunAfterBootScript(true)
+			// Run after boot script, if we set a resource reservation for the boot
+			// script
+			if workerBootScriptMcpu > 0 || workerBootScriptMem > 0 {
+				p.SetRunAfterBootScript(true)
+			}
 			p.SetBootScriptMcpu(workerBootScriptMcpu)
 			p.SetBootScriptMem(workerBootScriptMem)
 		}
