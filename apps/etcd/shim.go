@@ -16,6 +16,7 @@ import (
 	s3clnt "sigmaos/proxy/s3/clnt"
 	sp "sigmaos/sigmap"
 	"sigmaos/sigmasrv"
+	"sigmaos/util/perf"
 )
 
 type EtcdShim struct {
@@ -27,6 +28,7 @@ type EtcdShim struct {
 func RunEtcdShim(snapPn, name string, peerUrls, clientUrls, listenClientUrls []string) error {
 	es := &EtcdShim{}
 	pe := proc.GetProcEnv()
+	perf.LogSpawnLatency("Setup.RuntimeInit+Isolation", pe.GetPID(), pe.GetSpawnTime(), perf.TIME_NOT_SET)
 	// Otherwise, don't post EP (and instead post EP in the EP cache service)
 	ssrv, err := sigmasrv.NewSigmaSrv("", es, pe)
 	if err != nil {
@@ -34,17 +36,21 @@ func RunEtcdShim(snapPn, name string, peerUrls, clientUrls, listenClientUrls []s
 		return err
 	}
 	es.ssrv = ssrv
+	start := time.Now()
 	// Create an S3 clnt
 	s3Clnt, err := s3clnt.NewS3Clnt(es.ssrv.SigmaClnt().FsLib, filepath.Join(sp.S3, pe.GetKernelID()))
 	if err != nil {
 		db.DFatalf("Err newS3Clnt: %v", err)
 	}
 	es.s3Clnt = s3Clnt
+	perf.LogSpawnLatency("Initialization.ConnectionSetup", pe.GetPID(), pe.GetSpawnTime(), start)
+	start = time.Now()
 	// Restore the snapshot to a fresh etcd directory
 	if err := es.restoreSnapshot(snapPn, name, peerUrls); err != nil {
 		db.DFatalf("Err restoreSnapshot: %v", err)
 		return err
 	}
+	perf.LogSpawnLatency("Initialization.LoadState", pe.GetPID(), pe.GetSpawnTime(), start)
 	// Start etcd
 	cmd, err := startEtcd(name, peerUrls, clientUrls, listenClientUrls)
 	if err != nil {

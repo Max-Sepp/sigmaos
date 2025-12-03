@@ -446,6 +446,7 @@ func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 				return err
 			}
 		} else {
+			start := time.Now()
 			ch := make(chan error)
 			go func() {
 				// Pre-download the proc binary
@@ -472,6 +473,7 @@ func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 					return err
 				}
 			}
+			perf.LogSpawnLatency("Setup.BinaryDownload", uproc.GetPid(), uproc.GetSpawnTime(), start)
 			ctr, err = gvisor.StartGVisorContainer(uproc, ps.dialproxy, gvisor.BASE_BUNDLE_PATH, true)
 			if err != nil {
 				return err
