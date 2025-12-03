@@ -52,6 +52,7 @@ func TestInitFS(t *testing.T) {
 		numFullNodes      int  = numNodes
 		numProcqOnlyNodes int  = 0
 		turboBoost        bool = false
+		useGVisor         bool = false
 	)
 	ts, err := NewTstate(t)
 	if !assert.Nil(ts.t, err, "Creating test state: %v", err) {
@@ -61,7 +62,7 @@ func TestInitFS(t *testing.T) {
 		return
 	}
 	db.DPrintf(db.ALWAYS, "Benchmark configuration:\n%v", ts)
-	ts.RunStandardBenchmark(benchName, driverVM, GetInitFSCmd, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost)
+	ts.RunStandardBenchmark(benchName, driverVM, GetInitFSCmd, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost, useGVisor)
 }
 
 // Example remote benchmark runner stub
@@ -79,6 +80,7 @@ func TestExample(t *testing.T) {
 		numFullNodes      int  = numNodes
 		numProcqOnlyNodes int  = 0
 		turboBoost        bool = false
+		useGVisor         bool = false
 	)
 	ts, err := NewTstate(t)
 	if !assert.Nil(ts.t, err, "Creating test state: %v", err) {
@@ -89,7 +91,7 @@ func TestExample(t *testing.T) {
 	}
 	db.DPrintf(db.ALWAYS, "Benchmark configuration:\n%v", ts)
 	getExampleCmd := GetExampleCmdConstructor(prewarmRealm, exampleFlag)
-	ts.RunStandardBenchmark(benchName, driverVM, getExampleCmd, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost)
+	ts.RunStandardBenchmark(benchName, driverVM, getExampleCmd, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost, useGVisor)
 }
 
 // Test SigmaOS cold-start.
@@ -105,6 +107,7 @@ func TestColdStart(t *testing.T) {
 		numFullNodes      int  = 1
 		numProcqOnlyNodes int  = 0
 		turboBoost        bool = true
+		useGVisor         bool = false
 	)
 	// Benchmark configuration parameters
 	var (
@@ -123,7 +126,7 @@ func TestColdStart(t *testing.T) {
 		return
 	}
 	db.DPrintf(db.ALWAYS, "Benchmark configuration:\n%v", ts)
-	ts.RunStandardBenchmark(benchName, driverVM, GetStartCmdConstructor(rps, dur, dummyProc, lcProc, prewarmRealm, skipStats), numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost)
+	ts.RunStandardBenchmark(benchName, driverVM, GetStartCmdConstructor(rps, dur, dummyProc, lcProc, prewarmRealm, skipStats), numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost, useGVisor)
 }
 
 // Test the single-node proc start bottleneck.
@@ -138,6 +141,7 @@ func TestSingleMachineMaxTpt(t *testing.T) {
 		numProcqOnlyNodes int  = 0
 		numFullNodes      int  = numNodes - numProcqOnlyNodes
 		turboBoost        bool = true
+		useGVisor         bool = false
 	)
 	ts, err := NewTstate(t)
 	if !assert.Nil(ts.t, err, "Creating test state: %v", err) {
@@ -160,7 +164,7 @@ func TestSingleMachineMaxTpt(t *testing.T) {
 	for _, nCores := range nCoresPerNode {
 		for _, r := range rps {
 			benchName := filepath.Join(benchNameBase, fmt.Sprintf("%v-cores-rps-%v", nCores, r))
-			ts.RunStandardBenchmark(benchName, driverVM, GetStartCmdConstructor(r, dur, dummyProc, lcProc, prewarmRealm, skipStats), numNodes, nCores, numFullNodes, numProcqOnlyNodes, turboBoost)
+			ts.RunStandardBenchmark(benchName, driverVM, GetStartCmdConstructor(r, dur, dummyProc, lcProc, prewarmRealm, skipStats), numNodes, nCores, numFullNodes, numProcqOnlyNodes, turboBoost, useGVisor)
 		}
 	}
 }
@@ -178,6 +182,7 @@ func TestSchedLCSchedMaxTpt(t *testing.T) {
 		numProcqOnlyNodes int  = 0
 		numFullNodes      int  = numNodes - numProcqOnlyNodes
 		turboBoost        bool = true
+		useGVisor         bool = false
 	)
 	ts, err := NewTstate(t)
 	if !assert.Nil(ts.t, err, "Creating test state: %v", err) {
@@ -198,7 +203,7 @@ func TestSchedLCSchedMaxTpt(t *testing.T) {
 	db.DPrintf(db.ALWAYS, "Benchmark configuration:\n%v", ts)
 	for _, r := range rps {
 		benchName := filepath.Join(benchNameBase, fmt.Sprintf("%v-vm-rps-%v", numNodes, r))
-		ts.RunStandardBenchmark(benchName, driverVM, GetStartCmdConstructor(r, dur, dummyProc, lcProc, prewarmRealm, skipStats), numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost)
+		ts.RunStandardBenchmark(benchName, driverVM, GetStartCmdConstructor(r, dur, dummyProc, lcProc, prewarmRealm, skipStats), numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost, useGVisor)
 	}
 }
 
@@ -215,6 +220,7 @@ func TestProcqSchedMaxTpt(t *testing.T) {
 		numProcqOnlyNodes int  = 1
 		numFullNodes      int  = numNodes - numProcqOnlyNodes
 		turboBoost        bool = true
+		useGVisor         bool = false
 	)
 	ts, err := NewTstate(t)
 	if !assert.Nil(ts.t, err, "Creating test state: %v", err) {
@@ -235,7 +241,7 @@ func TestProcqSchedMaxTpt(t *testing.T) {
 	db.DPrintf(db.ALWAYS, "Benchmark configuration:\n%v", ts)
 	for _, r := range rps {
 		benchName := filepath.Join(benchNameBase, fmt.Sprintf("%v-vm-rps-%v", numNodes, r))
-		ts.RunStandardBenchmark(benchName, driverVM, GetStartCmdConstructor(r, dur, dummyProc, lcProc, prewarmRealm, skipStats), numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost)
+		ts.RunStandardBenchmark(benchName, driverVM, GetStartCmdConstructor(r, dur, dummyProc, lcProc, prewarmRealm, skipStats), numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost, useGVisor)
 	}
 }
 
@@ -252,6 +258,7 @@ func TestSchedProcStartMaxTpt(t *testing.T) {
 		numProcqOnlyNodes int  = 1
 		numFullNodes      int  = numNodes - numProcqOnlyNodes
 		turboBoost        bool = true
+		useGVisor         bool = false
 	)
 	ts, err := NewTstate(t)
 	if !assert.Nil(ts.t, err, "Creating test state: %v", err) {
@@ -272,7 +279,7 @@ func TestSchedProcStartMaxTpt(t *testing.T) {
 	db.DPrintf(db.ALWAYS, "Benchmark configuration:\n%v", ts)
 	for _, r := range rps {
 		benchName := filepath.Join(benchNameBase, fmt.Sprintf("%v-vm-rps-%v", numNodes, r))
-		ts.RunStandardBenchmark(benchName, driverVM, GetStartCmdConstructor(r, dur, dummyProc, lcProc, prewarmRealm, skipStats), numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost)
+		ts.RunStandardBenchmark(benchName, driverVM, GetStartCmdConstructor(r, dur, dummyProc, lcProc, prewarmRealm, skipStats), numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost, useGVisor)
 	}
 }
 
@@ -286,6 +293,7 @@ func TestMR(t *testing.T) {
 		driverVM          int  = 0
 		numProcqOnlyNodes int  = 1
 		turboBoost        bool = true
+		useGVisor         bool = false
 	)
 	type MRExperimentConfig struct {
 		benchName       string
@@ -330,7 +338,7 @@ func TestMR(t *testing.T) {
 					benchName += "-perf"
 				}
 				numFullNodes := mrEP.numNodes - numProcqOnlyNodes
-				ts.RunStandardBenchmark(benchName, driverVM, GetMRCmdConstructor(mrEP.benchName, mrEP.memReq, prewarmRealm, measureTpt, perf), mrEP.numNodes, mrEP.numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost)
+				ts.RunStandardBenchmark(benchName, driverVM, GetMRCmdConstructor(mrEP.benchName, mrEP.memReq, prewarmRealm, measureTpt, perf), mrEP.numNodes, mrEP.numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost, useGVisor)
 			}
 		}
 	}
@@ -348,6 +356,7 @@ func TestCorral(t *testing.T) {
 		numFullNodes      int  = numNodes
 		numProcqOnlyNodes int  = 0
 		turboBoost        bool = true
+		useGVisor         bool = false
 	)
 	// Variable MR benchmark configuration parameters
 	var (
@@ -363,7 +372,7 @@ func TestCorral(t *testing.T) {
 	db.DPrintf(db.ALWAYS, "Benchmark configuration:\n%v", ts)
 	for _, corralApp := range corralApps {
 		benchName := filepath.Join(benchNameBase, corralApp)
-		ts.RunStandardBenchmark(benchName, driverVM, GetCorralCmdConstructor(), numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost)
+		ts.RunStandardBenchmark(benchName, driverVM, GetCorralCmdConstructor(), numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost, useGVisor)
 	}
 }
 
@@ -382,6 +391,7 @@ func TestHotelTailLatency(t *testing.T) {
 		numCoresPerNode   uint = 4
 		numProcqOnlyNodes int  = 0
 		turboBoost        bool = false
+		useGVisor         bool = false
 	)
 	// Hotel benchmark configuration parameters
 	var (
@@ -459,7 +469,7 @@ func TestHotelTailLatency(t *testing.T) {
 	}
 	getLeaderCmd := GetHotelClientCmdConstructor("Search", true, len(driverVMs), sleep, hotelCfg)
 	getFollowerCmd := GetHotelClientCmdConstructor("Search", false, len(driverVMs), sleep, hotelCfg)
-	ts.RunParallelClientBenchmark(benchName, driverVMs, getLeaderCmd, getFollowerCmd, startK8sHotelApp, stopK8sHotelApp, clientDelay, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost)
+	ts.RunParallelClientBenchmark(benchName, driverVMs, getLeaderCmd, getFollowerCmd, startK8sHotelApp, stopK8sHotelApp, clientDelay, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost, useGVisor)
 }
 
 // Test Hotel application's tail latency.
@@ -476,6 +486,7 @@ func TestHotelScaleGeo(t *testing.T) {
 		numFullNodes      int  = numNodes
 		numProcqOnlyNodes int  = 0
 		turboBoost        bool = false
+		useGVisor         bool = false
 	)
 	// Hotel benchmark configuration parameters
 	var (
@@ -564,7 +575,7 @@ func TestHotelScaleGeo(t *testing.T) {
 				}
 				getLeaderCmd := GetHotelClientCmdConstructor("Search", true, len(driverVMs), sleep, hotelCfg)
 				getFollowerCmd := GetHotelClientCmdConstructor("Search", false, len(driverVMs), sleep, hotelCfg)
-				ts.RunParallelClientBenchmark(benchName, driverVMs, getLeaderCmd, getFollowerCmd, startK8sHotelApp, stopK8sHotelApp, clientDelay, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost)
+				ts.RunParallelClientBenchmark(benchName, driverVMs, getLeaderCmd, getFollowerCmd, startK8sHotelApp, stopK8sHotelApp, clientDelay, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost, useGVisor)
 			}
 		}
 	}
@@ -584,6 +595,7 @@ func TestHotelGeoReqScaleGeo(t *testing.T) {
 		numFullNodes      int  = numNodes
 		numProcqOnlyNodes int  = 0
 		turboBoost        bool = false
+		useGVisor         bool = false
 	)
 	// Hotel benchmark configuration parameters
 	var (
@@ -675,7 +687,7 @@ func TestHotelGeoReqScaleGeo(t *testing.T) {
 				}
 				getLeaderCmd := GetHotelClientCmdConstructor("Geo", true, len(driverVMs), sleep, hotelCfg)
 				getFollowerCmd := GetHotelClientCmdConstructor("Geo", false, len(driverVMs), sleep, hotelCfg)
-				ran := ts.RunParallelClientBenchmark(benchName, driverVMs, getLeaderCmd, getFollowerCmd, startK8sHotelApp, stopK8sHotelApp, clientDelay, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost)
+				ran := ts.RunParallelClientBenchmark(benchName, driverVMs, getLeaderCmd, getFollowerCmd, startK8sHotelApp, stopK8sHotelApp, clientDelay, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost, useGVisor)
 				if oneByOne && ran {
 					return
 				}
@@ -697,6 +709,7 @@ func TestHotelScaleCache(t *testing.T) {
 		numFullNodes      int  = numNodes
 		numProcqOnlyNodes int  = 0
 		turboBoost        bool = false
+		useGVisor         bool = false
 	)
 	// Hotel benchmark configuration parameters
 	var (
@@ -783,7 +796,7 @@ func TestHotelScaleCache(t *testing.T) {
 				}
 				getLeaderCmd := GetHotelClientCmdConstructor("Search", true, len(driverVMs), sleep, hotelCfg)
 				getFollowerCmd := GetHotelClientCmdConstructor("Search", false, len(driverVMs), sleep, hotelCfg)
-				ts.RunParallelClientBenchmark(benchName, driverVMs, getLeaderCmd, getFollowerCmd, startK8sHotelApp, stopK8sHotelApp, clientDelay, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost)
+				ts.RunParallelClientBenchmark(benchName, driverVMs, getLeaderCmd, getFollowerCmd, startK8sHotelApp, stopK8sHotelApp, clientDelay, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost, useGVisor)
 			}
 		}
 	}
@@ -802,6 +815,7 @@ func TestSocialnetTailLatency(t *testing.T) {
 		numFullNodes      int  = numNodes
 		numProcqOnlyNodes int  = 0
 		turboBoost        bool = false
+		useGVisor         bool = false
 	)
 	// Socialnet benchmark configuration parameters
 	var (
@@ -822,7 +836,7 @@ func TestSocialnetTailLatency(t *testing.T) {
 	db.DPrintf(db.ALWAYS, "Benchmark configuration:\n%v", ts)
 	getLeaderCmd := GetSocialnetClientCmdConstructor(true, len(driverVMs), rps, dur)
 	getFollowerCmd := GetSocialnetClientCmdConstructor(false, len(driverVMs), rps, dur)
-	ts.RunParallelClientBenchmark(benchName, driverVMs, getLeaderCmd, getFollowerCmd, startK8sSocialnetApp, stopK8sSocialnetApp, clientDelay, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost)
+	ts.RunParallelClientBenchmark(benchName, driverVMs, getLeaderCmd, getFollowerCmd, startK8sSocialnetApp, stopK8sSocialnetApp, clientDelay, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost, useGVisor)
 }
 
 // Test multiplexing Best Effort ImgResize jobs.
@@ -838,6 +852,7 @@ func TestBEImgResizeMultiplexing(t *testing.T) {
 		numProcqOnlyNodes int  = 0
 		numFullNodes      int  = numNodes - numProcqOnlyNodes
 		turboBoost        bool = false
+		useGVisor         bool = false
 	)
 	ts, err := NewTstate(t)
 	if !assert.Nil(ts.t, err, "Creating test state: %v", err) {
@@ -847,7 +862,7 @@ func TestBEImgResizeMultiplexing(t *testing.T) {
 		return
 	}
 	db.DPrintf(db.ALWAYS, "Benchmark configuration:\n%v", ts)
-	ts.RunStandardBenchmark(benchName, driverVM, GetBEImgResizeMultiplexingCmd, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost)
+	ts.RunStandardBenchmark(benchName, driverVM, GetBEImgResizeMultiplexingCmd, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost, useGVisor)
 }
 
 // Test multiplexing Best Effort ImgResize jobs.
@@ -863,6 +878,7 @@ func TestBEImgResizeRPCMultiplexing(t *testing.T) {
 		numProcqOnlyNodes int  = 2
 		numFullNodes      int  = numNodes - numProcqOnlyNodes
 		turboBoost        bool = false
+		useGVisor         bool = false
 	)
 	ts, err := NewTstate(t)
 	if !assert.Nil(ts.t, err, "Creating test state: %v", err) {
@@ -872,7 +888,7 @@ func TestBEImgResizeRPCMultiplexing(t *testing.T) {
 		return
 	}
 	db.DPrintf(db.ALWAYS, "Benchmark configuration:\n%v", ts)
-	ts.RunStandardBenchmark(benchName, driverVM, GetBEImgResizeRPCMultiplexingCmd, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost)
+	ts.RunStandardBenchmark(benchName, driverVM, GetBEImgResizeRPCMultiplexingCmd, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost, useGVisor)
 }
 
 func TestLCBEHotelImgResizeMultiplexing(t *testing.T) {
@@ -887,6 +903,7 @@ func TestLCBEHotelImgResizeMultiplexing(t *testing.T) {
 		numFullNodes      int  = numNodes
 		numProcqOnlyNodes int  = 0
 		turboBoost        bool = false
+		useGVisor         bool = false
 	)
 	// Hotel benchmark configuration parameters
 	var (
@@ -980,7 +997,7 @@ func TestLCBEHotelImgResizeMultiplexing(t *testing.T) {
 	}
 	getLeaderCmd := GetLCBEHotelImgResizeMultiplexingCmdConstructor(len(driverVMs), rps, dur, cacheType, autoscaleCache, sleep, imgCfg)
 	getFollowerCmd := GetHotelClientCmdConstructor("Search", false, len(driverVMs), sleep, hotelCfg)
-	ts.RunParallelClientBenchmark(benchName, driverVMs, getLeaderCmd, getFollowerCmd, nil, nil, clientDelay, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost)
+	ts.RunParallelClientBenchmark(benchName, driverVMs, getLeaderCmd, getFollowerCmd, nil, nil, clientDelay, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost, useGVisor)
 }
 
 func TestLCBEHotelImgResizeRPCMultiplexing(t *testing.T) {
@@ -995,6 +1012,7 @@ func TestLCBEHotelImgResizeRPCMultiplexing(t *testing.T) {
 		numProcqOnlyNodes int  = 0
 		numFullNodes      int  = numNodes - numProcqOnlyNodes
 		turboBoost        bool = false
+		useGVisor         bool = false
 	)
 	// Hotel benchmark configuration parameters
 	var (
@@ -1088,7 +1106,7 @@ func TestLCBEHotelImgResizeRPCMultiplexing(t *testing.T) {
 	}
 	getLeaderCmd := GetLCBEHotelImgResizeRPCMultiplexingCmdConstructor(len(driverVMs), rps, dur, cacheType, autoscaleCache, sleep, imgCfg)
 	getFollowerCmd := GetHotelClientCmdConstructor("Search", false, len(driverVMs), sleep, hotelCfg)
-	ts.RunParallelClientBenchmark(benchName, driverVMs, getLeaderCmd, getFollowerCmd, nil, nil, clientDelay, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost)
+	ts.RunParallelClientBenchmark(benchName, driverVMs, getLeaderCmd, getFollowerCmd, nil, nil, clientDelay, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost, useGVisor)
 }
 
 // Test CosSim's application tail latency.
@@ -1104,6 +1122,7 @@ func TestScaleCosSim(t *testing.T) {
 		numFullNodes      int  = numNodes
 		numProcqOnlyNodes int  = 0
 		turboBoost        bool = false
+		useGVisor         bool = false
 	)
 	// CosSim benchmark configuration parameters
 	var (
@@ -1171,7 +1190,7 @@ func TestScaleCosSim(t *testing.T) {
 						}
 						getLeaderCmd := GetCosSimClientCmdConstructor("CosSim", true, len(driverVMs), sleep, cfg)
 						getFollowerCmd := GetCosSimClientCmdConstructor("CosSim", false, len(driverVMs), sleep, cfg)
-						ran := ts.RunParallelClientBenchmark(benchName, driverVMs, getLeaderCmd, getFollowerCmd, startK8sHotelApp, stopK8sHotelApp, clientDelay, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost)
+						ran := ts.RunParallelClientBenchmark(benchName, driverVMs, getLeaderCmd, getFollowerCmd, startK8sHotelApp, stopK8sHotelApp, clientDelay, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost, useGVisor)
 						if oneByOne && ran {
 							return
 						}
@@ -1195,6 +1214,7 @@ func TestScaleCachedScaler(t *testing.T) {
 		numFullNodes      int  = numNodes
 		numProcqOnlyNodes int  = 0
 		turboBoost        bool = false
+		useGVisor         bool = false
 	)
 	// Cached benchmark configuration parameters
 	var (
@@ -1273,7 +1293,7 @@ func TestScaleCachedScaler(t *testing.T) {
 					}
 					getLeaderCmd := GetCachedScalerClientCmdConstructor(true, len(driverVMs), prewarm, sleep, cacheBenchCfg, cosSimBenchCfg)
 					getFollowerCmd := GetCachedScalerClientCmdConstructor(false, len(driverVMs), prewarm, sleep, cacheBenchCfg, cosSimBenchCfg)
-					ran := ts.RunParallelClientBenchmark(benchName, driverVMs, getLeaderCmd, getFollowerCmd, startK8sHotelApp, stopK8sHotelApp, clientDelay, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost)
+					ran := ts.RunParallelClientBenchmark(benchName, driverVMs, getLeaderCmd, getFollowerCmd, startK8sHotelApp, stopK8sHotelApp, clientDelay, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost, useGVisor)
 					if oneByOne && ran {
 						return
 					}
@@ -1298,6 +1318,7 @@ func TestHotelMatchTailLatency(t *testing.T) {
 		numCoresPerNode   uint = 4
 		numProcqOnlyNodes int  = 0
 		turboBoost        bool = false
+		useGVisor         bool = false
 	)
 	// Hotel benchmark configuration parameters
 	var (
@@ -1516,7 +1537,7 @@ func TestHotelMatchTailLatency(t *testing.T) {
 			}
 			getLeaderCmd := GetHotelClientCmdConstructor("Match", true, len(driverVMs), sleep, hotelCfg)
 			getFollowerCmd := GetHotelClientCmdConstructor("Match", false, len(driverVMs), sleep, hotelCfg)
-			ts.RunParallelClientBenchmark(benchName, driverVMs, getLeaderCmd, getFollowerCmd, startK8sHotelApp, stopK8sHotelApp, clientDelay, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost)
+			ts.RunParallelClientBenchmark(benchName, driverVMs, getLeaderCmd, getFollowerCmd, startK8sHotelApp, stopK8sHotelApp, clientDelay, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost, useGVisor)
 		}
 	}
 }
@@ -1537,6 +1558,7 @@ func TestImgProcess(t *testing.T) {
 		numCoresPerNode   uint = 4
 		numProcqOnlyNodes int  = 0
 		turboBoost        bool = false
+		useGVisor         bool = false
 	)
 	// Hotel benchmark configuration parameters
 	var (
@@ -1581,7 +1603,7 @@ func TestImgProcess(t *testing.T) {
 			NTasks:         ntasks,
 			NInputsPerTask: ninputsPerTask,
 		}
-		ts.RunStandardBenchmark(benchName, driverVM, GetImgProcessCmd(imgCfg), numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost)
+		ts.RunStandardBenchmark(benchName, driverVM, GetImgProcessCmd(imgCfg), numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost, useGVisor)
 	}
 }
 
@@ -1599,6 +1621,7 @@ func TestStartLatency(t *testing.T) {
 		numCoresPerNode   uint = 4
 		numProcqOnlyNodes int  = 0
 		turboBoost        bool = false
+		useGVisor         bool = false
 	)
 	// Benchmark configuration parameters
 	var (
@@ -1682,7 +1705,7 @@ func TestStartLatency(t *testing.T) {
 				},
 			}
 			cmdFn := GetStartLatencyCmdConstructor(startLatencyCfg, cacheBenchCfg, cossimCfg, etcdCfg, initscript)
-			ts.RunStandardBenchmark(benchName, driverVM, cmdFn, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost)
+			ts.RunStandardBenchmark(benchName, driverVM, cmdFn, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost, useGVisor)
 		}
 	}
 }

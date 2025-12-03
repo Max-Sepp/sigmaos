@@ -18,9 +18,10 @@ type ClusterConfig struct {
 	NumFullNodes      int    `json:"num_full_nodes"`
 	NumProcqOnlyNodes int    `json:"num_besched_only_nodes"`
 	TurboBoost        bool   `json:"turbo_boost"`
+	UseGVisor         bool   `json:"use_gvisor"`
 }
 
-func NewClusterConfig(bcfg *BenchConfig, lcfg *LocalFSConfig, numNodes int, numCoresPerNode uint, numFullNodes int, numProcqOnlyNodes int, turboBoost bool) (*ClusterConfig, error) {
+func NewClusterConfig(bcfg *BenchConfig, lcfg *LocalFSConfig, numNodes int, numCoresPerNode uint, numFullNodes int, numProcqOnlyNodes int, turboBoost bool, useGVisor bool) (*ClusterConfig, error) {
 	ccfg := &ClusterConfig{
 		bcfg:              bcfg,
 		lcfg:              lcfg,
@@ -30,6 +31,7 @@ func NewClusterConfig(bcfg *BenchConfig, lcfg *LocalFSConfig, numNodes int, numC
 		NumFullNodes:      numFullNodes,
 		NumProcqOnlyNodes: numProcqOnlyNodes,
 		TurboBoost:        turboBoost,
+		UseGVisor:         useGVisor,
 	}
 	slIP, err := ccfg.getLeaderNodeIP()
 	if err != nil {
@@ -56,6 +58,9 @@ func (ccfg *ClusterConfig) StartSigmaOSCluster() error {
 	}
 	if ccfg.TurboBoost {
 		args = append(args, "--turbo")
+	}
+	if ccfg.UseGVisor {
+		args = append(args, "--usegvisor")
 	}
 	args = append(args, "--numfullnode", strconv.Itoa(ccfg.NumFullNodes))
 	args = append(args, "--numbeschednode", strconv.Itoa(ccfg.NumProcqOnlyNodes))
