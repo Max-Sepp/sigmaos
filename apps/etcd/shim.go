@@ -28,7 +28,6 @@ type EtcdShim struct {
 func RunEtcdShim(snapPn, name string, peerUrls, clientUrls, listenClientUrls []string) error {
 	es := &EtcdShim{}
 	pe := proc.GetProcEnv()
-	perf.LogSpawnLatency("Setup.RuntimeInit+Isolation", pe.GetPID(), pe.GetSpawnTime(), perf.TIME_NOT_SET)
 	// Otherwise, don't post EP (and instead post EP in the EP cache service)
 	ssrv, err := sigmasrv.NewSigmaSrv("", es, pe)
 	if err != nil {
@@ -51,12 +50,14 @@ func RunEtcdShim(snapPn, name string, peerUrls, clientUrls, listenClientUrls []s
 		return err
 	}
 	perf.LogSpawnLatency("Initialization.LoadState", pe.GetPID(), pe.GetSpawnTime(), start)
+	start = time.Now()
 	// Start etcd
 	cmd, err := startEtcd(name, peerUrls, clientUrls, listenClientUrls)
 	if err != nil {
 		db.DFatalf("Err startEtcd: %v", err)
 		return err
 	}
+	perf.LogSpawnLatency("Initialization.StartEtcd", pe.GetPID(), pe.GetSpawnTime(), start)
 	// Create a client to etcd
 	clnt, err := newEtcdClnt(clientUrls)
 	if err != nil {
@@ -64,6 +65,7 @@ func RunEtcdShim(snapPn, name string, peerUrls, clientUrls, listenClientUrls []s
 		return err
 	}
 	es.clnt = clnt
+	perf.LogSpawnLatency("Initialization.NewEtcdClnt", pe.GetPID(), pe.GetSpawnTime(), start)
 	// Mark etcd as started
 	if err := ssrv.SigmaClnt().Started(); err != nil {
 		db.DFatalf("Err Started: %v", err)

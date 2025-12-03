@@ -26,7 +26,7 @@ func LogRuntimeInitLatency(pid sp.Tpid, spawnTime time.Time) {
 		return
 	}
 	execTime := time.UnixMicro(execTimeMicro)
-	LogSpawnLatency("Initialization.RuntimeInit", pid, spawnTime, execTime)
+	LogSpawnLatency("Setup.RuntimeInit", pid, spawnTime, execTime)
 }
 
 // Some convenience functions for logging performance-related data

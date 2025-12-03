@@ -1583,7 +1583,8 @@ func TestImgProcess(t *testing.T) {
 	}
 	for _, sequential := range initscriptSequential {
 		for _, initscript := range withInitScript {
-			inputPath := "9ps3/img-save/1.jpg"
+			inputPath := "9ps3/img-save/7.jpg"
+			//			inputPath := "9ps3/img-save/1.jpg" // for more I/O-bound version
 			benchName := benchNameBase
 			if sequential {
 				benchName += "_sequential"
@@ -1591,15 +1592,17 @@ func TestImgProcess(t *testing.T) {
 			if initscript {
 				benchName += "_initscript"
 			}
-			bsMcpu := proc.Tmcpu(10)
-			if !sequential {
-				bsMcpu = proc.Tmcpu(0)
+			bsMcpu := proc.Tmcpu(0)
+			workerMcpu := proc.Tmcpu(2000)
+			if sequential {
+				bsMcpu = proc.Tmcpu(10)
+				workerMcpu = proc.Tmcpu(900)
 			}
 			db.DPrintf(db.ALWAYS, "Benchmark configuration:\n%v", ts)
 			imgCfg := &benchmarks.ImgBenchConfig{
 				JobCfg: &imgresize.ImgdJobConfig{
 					Job:                  "img-job",
-					WorkerMcpu:           proc.Tmcpu(900),
+					WorkerMcpu:           workerMcpu,
 					WorkerMem:            proc.Tmem(0),
 					Persist:              false,
 					NRounds:              nrounds,

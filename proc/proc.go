@@ -255,6 +255,7 @@ func (p *Proc) String() string {
 		"Type:%v "+
 		"ResourceRerervation:%v "+
 		"BootScriptResourceRerervation:%v "+
+		"Queueable:%v "+
 		"Kernels:%v "+
 		"}",
 		p.ProcEnvProto.Program,
@@ -274,6 +275,7 @@ func (p *Proc) String() string {
 		p.GetType(),
 		p.GetResourceReservation(),
 		p.GetBootScriptResourceReservation(),
+		p.GetIsQueueable(),
 		p.ProcEnvProto.Kernels,
 	)
 }

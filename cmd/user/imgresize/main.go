@@ -57,6 +57,19 @@ func main() {
 		s = ip.Work(i, output)
 		db.DPrintf(db.ALWAYS, "Time %v e2e resize[%v]: %v", os.Args, i, time.Since(start))
 	}
+	db.DPrintf(db.ALWAYS, "Total time to completion since spawn: %v", time.Since(pe.GetSpawnTime()))
+	execTimeStr := os.Getenv("SIGMA_EXEC_TIME")
+	// If not set, bail out
+	if execTimeStr == "" {
+		return
+	}
+	execTimeMicro, err := strconv.ParseInt(execTimeStr, 10, 64)
+	if err != nil {
+		db.DFatalf("Error parsing exec time 2: %v", err)
+		return
+	}
+	execTime := time.UnixMicro(execTimeMicro)
+	db.DPrintf(db.ALWAYS, "Total time to completion since exec: %v", time.Since(execTime))
 	ip.ClntExit(s)
 }
 
