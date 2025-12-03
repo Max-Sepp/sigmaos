@@ -137,17 +137,19 @@ GRAPH_OUT_DIR=$ROOT_DIR/benchmarks/results/graphs
 #  --output $GRAPH_OUT_DIR/imgprocess-cpu-util.pdf
 #echo "Done generating Imgresize CPU utilization comparison..."
 
-echo "Cached, no initscript"
+echo "..............................................Cached, no initscript.............................................."
 ./benchmarks/scripts/graph/start-latency-breakdown-setup-init.py --start --dir_path benchmarks/results/NEXT/start_latency_cached --proc_name cached-srv-cpp
-echo "Cached, initscript"
+echo "..............................................Cached, initscript............................................."
 ./benchmarks/scripts/graph/start-latency-breakdown-setup-init.py --start --dir_path benchmarks/results/NEXT/start_latency_cached_initscript --proc_name cached-srv-cpp
+printf "\n\n\n"
 
-echo "Cossim, no initscript"
+echo "..............................................Cossim, no initscript.............................................."
 ./benchmarks/scripts/graph/start-latency-breakdown-setup-init.py --start --dir_path benchmarks/results/NEXT/start_latency_cossim --proc_name cossim-srv-cpp
-echo "Cossim, initscript"
+echo "..............................................Cossim, initscript.............................................."
 ./benchmarks/scripts/graph/start-latency-breakdown-setup-init.py --start --dir_path benchmarks/results/NEXT/start_latency_cossim_initscript --proc_name cossim-srv-cpp
+printf "\n\n\n"
 
-echo "Etcd, no initscript"
-./benchmarks/scripts/graph/start-latency-breakdown-setup-init.py --start --dir_path benchmarks/results/NEXT/start_latency_etcd --proc_name etc-shim 
-echo "Etcd, initscript"
+echo "..............................................Etcd, no initscript.............................................."
+./benchmarks/scripts/graph/start-latency-breakdown-setup-init.py --start --dir_path benchmarks/results/NEXT/start_latency_etcd --proc_name etcd-shim 
+echo "..............................................Etcd, initscript.............................................."
 ./benchmarks/scripts/graph/start-latency-breakdown-setup-init.py --start --dir_path benchmarks/results/NEXT/start_latency_etcd_initscript --proc_name etcd-shim

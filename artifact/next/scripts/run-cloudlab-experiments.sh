@@ -88,15 +88,15 @@ mkdir -p $LOG_DIR
 #  echo "Done generating Match data..."
 #fi
 #
-#if [ $EXP == "all" ] || [ $EXP == "imgprocess" ]; then
-##  if [ $RERUN == "true" ]; then
-##    echo "Clearing any cached CosSim data..."
-##    rm -rf benchmarks/results/$VERSION/cos_sim_tail_latency_*
-##  fi
-#  echo "Generating ImgProcess data..."
-#  go clean -testcache; go test -v -timeout 0 sigmaos/benchmarks/remote --run TestImgProcess --parallelize --platform cloudlab --vpc none --build-tag $TAG --no-shutdown-after-test --bench-version $VERSION --branch $BRANCH 2>&1 | tee $LOG_DIR/cache-scaler.out
-#  echo "Done generating ImgProcess data..."
-#fi
+if [ $EXP == "all" ] || [ $EXP == "imgprocess" ]; then
+#  if [ $RERUN == "true" ]; then
+#    echo "Clearing any cached CosSim data..."
+#    rm -rf benchmarks/results/$VERSION/cos_sim_tail_latency_*
+#  fi
+  echo "Generating ImgProcess data..."
+  go clean -testcache; go test -v -timeout 0 sigmaos/benchmarks/remote --run TestImgProcess --parallelize --platform cloudlab --vpc none --build-tag $TAG --no-shutdown-after-test --bench-version $VERSION --branch $BRANCH 2>&1 | tee $LOG_DIR/cache-scaler.out
+  echo "Done generating ImgProcess data..."
+fi
 
 if [ $EXP == "all" ] || [ $EXP == "start-lat" ]; then
 #  if [ $RERUN == "true" ]; then

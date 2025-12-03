@@ -1562,9 +1562,13 @@ func TestImgProcess(t *testing.T) {
 	)
 	// Hotel benchmark configuration parameters
 	var (
-		nrounds        int    = 1
-		ntasks         int    = 100
-		ninputsPerTask int    = 1
+		nrounds              int    = 1
+		ntasks               int    = 100
+		ninputsPerTask       int    = 1
+		initscriptSequential []bool = []bool{
+			false,
+			true,
+		}
 		withInitScript []bool = []bool{
 			false,
 			true,
@@ -1577,33 +1581,42 @@ func TestImgProcess(t *testing.T) {
 	if ts.BCfg.Overlays {
 		benchNameBase += "_overlays"
 	}
-	for _, initscript := range withInitScript {
-		inputPath := "9ps3/img-save/1.jpg"
-		benchName := benchNameBase
-		if initscript {
-			benchName += "_initscript"
+	for _, sequential := range initscriptSequential {
+		for _, initscript := range withInitScript {
+			inputPath := "9ps3/img-save/1.jpg"
+			benchName := benchNameBase
+			if sequential {
+				benchName += "_sequential"
+			}
+			if initscript {
+				benchName += "_initscript"
+			}
+			bsMcpu := proc.Tmcpu(10)
+			if !sequential {
+				bsMcpu = proc.Tmcpu(0)
+			}
+			db.DPrintf(db.ALWAYS, "Benchmark configuration:\n%v", ts)
+			imgCfg := &benchmarks.ImgBenchConfig{
+				JobCfg: &imgresize.ImgdJobConfig{
+					Job:                  "img-job",
+					WorkerMcpu:           proc.Tmcpu(900),
+					WorkerMem:            proc.Tmem(0),
+					Persist:              false,
+					NRounds:              nrounds,
+					ImgdMcpu:             proc.Tmcpu(50),
+					UseSPProxy:           true,
+					UseBootScript:        initscript,
+					UseS3Clnt:            true,
+					WorkerBootScriptMcpu: bsMcpu,
+					WorkerBootScriptMem:  proc.Tmem(0),
+					FTTaskSrvMcpu:        proc.Tmcpu(50),
+				},
+				InputPath:      inputPath,
+				NTasks:         ntasks,
+				NInputsPerTask: ninputsPerTask,
+			}
+			ts.RunStandardBenchmark(benchName, driverVM, GetImgProcessCmd(imgCfg), numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost, useGVisor)
 		}
-		db.DPrintf(db.ALWAYS, "Benchmark configuration:\n%v", ts)
-		imgCfg := &benchmarks.ImgBenchConfig{
-			JobCfg: &imgresize.ImgdJobConfig{
-				Job:                  "img-job",
-				WorkerMcpu:           proc.Tmcpu(900),
-				WorkerMem:            proc.Tmem(0),
-				Persist:              false,
-				NRounds:              nrounds,
-				ImgdMcpu:             proc.Tmcpu(50),
-				UseSPProxy:           true,
-				UseBootScript:        initscript,
-				UseS3Clnt:            true,
-				WorkerBootScriptMcpu: proc.Tmcpu(10),
-				WorkerBootScriptMem:  proc.Tmem(0),
-				FTTaskSrvMcpu:        proc.Tmcpu(50),
-			},
-			InputPath:      inputPath,
-			NTasks:         ntasks,
-			NInputsPerTask: ninputsPerTask,
-		}
-		ts.RunStandardBenchmark(benchName, driverVM, GetImgProcessCmd(imgCfg), numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost, useGVisor)
 	}
 }
 
@@ -1663,7 +1676,7 @@ func TestStartLatency(t *testing.T) {
 				UseEPCache:   true,
 				DelegateInit: initscript,
 				Autoscale:    false,
-				NKeys:        15000,
+				NKeys:        75000,
 				TopNShards:   0,
 				ManuallyScale: &benchmarks.ManualScalingConfig{
 					Svc:         "cached",
