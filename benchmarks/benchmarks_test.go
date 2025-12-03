@@ -1892,9 +1892,9 @@ func TestStartLatency(t *testing.T) {
 		return
 	}
 	defer mrts.Shutdown()
-	const N = 3
-	err := mrts.GetRealm(REALM1).BootNode(N)
-	assert.Nil(t, err, "Boot node: %v", err)
+	//	const N = 3
+	//	err := mrts.GetRealm(REALM1).BootNode(N)
+	//	assert.Nil(t, err, "Boot node: %v", err)
 
 	ts1 := mrts.GetRealm(REALM1)
 
