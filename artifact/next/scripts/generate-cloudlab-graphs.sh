@@ -137,6 +137,13 @@ GRAPH_OUT_DIR=$ROOT_DIR/benchmarks/results/graphs
 #  --output $GRAPH_OUT_DIR/imgprocess-cpu-util.pdf
 #echo "Done generating Imgresize CPU utilization comparison..."
 
+echo "Generating imgresize time comparison..."
+ ./benchmarks/scripts/graph/imgresize-time.py \
+    --dir_path_noinitscripts $RES_OUT_DIR/img_process \
+    --dir_path_initscripts $RES_OUT_DIR/img_process_initscript \
+    --output $GRAPH_OUT_DIR/imgresize-time.pdf
+echo "Done generating imgresize time comparison..."
+
 echo "Generating start latency comparison..."
 ./benchmarks/scripts/graph/start-latency-initscript-bar-graph.py \
   --dir_path_etcd $RES_OUT_DIR/start_latency_etcd \

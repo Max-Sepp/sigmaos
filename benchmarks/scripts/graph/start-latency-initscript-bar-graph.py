@@ -271,6 +271,10 @@ def main():
     add_value_labels(bars1)
     add_value_labels(bars2)
 
+    # Add headroom at the top for labels
+    y_max = max(max(without_initscript), max(with_initscript))
+    ax.set_ylim(0, y_max * 1.15)
+
     plt.tight_layout()
     plt.savefig(args.output, dpi=300, bbox_inches='tight')
     print(f"Graph saved to {args.output}")
