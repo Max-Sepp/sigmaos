@@ -157,7 +157,6 @@ func (ji *StartLatencyJobInstance) RunJob(rs *benchmarks.Results, crash bool) bo
 			return false
 		}
 		db.DPrintf(db.BENCH, "Cached server started")
-
 	case "cossim":
 		// Add a cossim server
 		_, _, err := ji.cossimJob.AddSrvWithSigmaPath(chunk.ChunkdPath(ji.warmSrvKID))
@@ -165,23 +164,13 @@ func (ji *StartLatencyJobInstance) RunJob(rs *benchmarks.Results, crash bool) bo
 			return false
 		}
 		db.DPrintf(db.BENCH, "Cossim server started")
-
 	case "etcd":
 		// Start etcd
 		if err := ji.etcdJob.Start(chunk.ChunkdPath(ji.warmSrvKID)); !assert.Nil(ji.Ts.T, err, "Err start etcd: %v", err) {
 			return false
 		}
 		db.DPrintf(db.BENCH, "Etcd started")
-
-		// Clean up etcd
-		if err := ji.etcdJob.Stop(); !assert.Nil(ji.Ts.T, err, "Err stop etcd: %v", err) {
-			return false
-		}
 	}
-
-	// Signal ready
-	ji.ready <- true
-
 	return true
 }
 
