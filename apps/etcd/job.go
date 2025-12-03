@@ -94,6 +94,7 @@ func (j *EtcdJob) Start(sigmaPath string) error {
 	if sigmaPath != sp.NOT_SET {
 		p.PrependSigmaPath(sigmaPath)
 	}
+	db.DPrintf(db.TEST, "Scale %v", p.GetPid())
 	db.DPrintf(db.ETCD, "Spawning etcd shim proc")
 	err := j.Spawn(p)
 	if err != nil {
