@@ -61,6 +61,7 @@ func (ccfg *ClusterConfig) StartSigmaOSCluster() error {
 	}
 	if ccfg.UseGVisor {
 		args = append(args, "--usegvisor")
+		args = append(args, "--nodialproxy")
 	}
 	args = append(args, "--numfullnode", strconv.Itoa(ccfg.NumFullNodes))
 	args = append(args, "--numbeschednode", strconv.Itoa(ccfg.NumProcqOnlyNodes))

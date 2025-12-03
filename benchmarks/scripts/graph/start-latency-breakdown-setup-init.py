@@ -7,10 +7,12 @@ import re
 import sys
 
 
-def find_proc_pid(dir_path, proc_name, migrate=False):
+def find_proc_pid(dir_path, proc_name, migrate=False, start=False):
     """
     Search for log lines matching "Scale proc_name.*" or "Migrate proc_name.*"
-    in bench.out.* files and extract the proc_pid from the second matching line.
+    in bench.out.* files and extract the proc_pid from the matching line.
+    For migrate or start mode: uses first matching line
+    For scale mode (default): uses second matching line
     """
     action = "Migrate" if migrate else "Scale"
     pattern = f"{action} {re.escape(proc_name)}.*"
@@ -31,8 +33,8 @@ def find_proc_pid(dir_path, proc_name, migrate=False):
         except Exception as e:
             print(f"Warning: Could not read {bench_file}: {e}", file=sys.stderr)
 
-    # For migrate mode, use first matching line; for scale mode, use second
-    if migrate:
+    # For migrate or start mode, use first matching line; for scale mode, use second
+    if migrate or start:
         if len(matching_lines) < 1:
             print(f"Error: Found {len(matching_lines)} matching lines, need at least 1", file=sys.stderr)
             print(f"Pattern: {pattern}", file=sys.stderr)
@@ -165,11 +167,16 @@ def main():
         action="store_true",
         help="Look for 'Migrate proc_name' instead of 'Scale proc_name'"
     )
+    parser.add_argument(
+        "--start",
+        action="store_true",
+        help="Use the first 'Scale' matching line instead of requiring at least 2"
+    )
 
     args = parser.parse_args()
 
     # Find the proc_pid
-    proc_pid = find_proc_pid(args.dir_path, args.proc_name, args.migrate)
+    proc_pid = find_proc_pid(args.dir_path, args.proc_name, args.migrate, args.start)
     print(f"Found proc_pid: {proc_pid}")
     print()
 

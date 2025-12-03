@@ -1663,7 +1663,7 @@ func TestStartLatency(t *testing.T) {
 				UseEPCache:   true,
 				DelegateInit: initscript,
 				Autoscale:    false,
-				NKeys:        5000,
+				NKeys:        15000,
 				TopNShards:   0,
 				ManuallyScale: &benchmarks.ManualScalingConfig{
 					Svc:         "cached",
@@ -1682,7 +1682,7 @@ func TestStartLatency(t *testing.T) {
 				JobCfg: &cossimsrv.CosSimJobConfig{
 					Job:       "cossim-job",
 					InitNSrv:  1,
-					NVec:      10000,
+					NVec:      12000,
 					VecDim:    128,
 					EagerInit: true,
 					SrvMcpu:   proc.Tmcpu(1000),
@@ -1704,7 +1704,7 @@ func TestStartLatency(t *testing.T) {
 					UseInitScript: initscript,
 				},
 			}
-			cmdFn := GetStartLatencyCmdConstructor(startLatencyCfg, cacheBenchCfg, cossimCfg, etcdCfg, initscript)
+			cmdFn := GetStartLatencyCmdConstructor(startLatencyCfg, cacheBenchCfg, cossimCfg, etcdCfg, initscript, useGVisor)
 			ts.RunStandardBenchmark(benchName, driverVM, cmdFn, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost, useGVisor)
 		}
 	}

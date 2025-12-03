@@ -74,56 +74,80 @@ GRAPH_OUT_DIR=$ROOT_DIR/benchmarks/results/graphs
 ##  --xmin 45000 --xmax 50000 #--legend_on_right 
 #echo "Done generating cached scaling graphs..."
 
-if [ "" ] ; then
-# Hotel Match (slow load change)
-echo "Generating hotel match graph..."
-$GRAPH_SCRIPTS_DIR/aggregate-tpt-talk.py \
-  --input_load_label "hotel-wwwd" \
-  --measurement_dir_sigmaos $RES_OUT_DIR/hotel_match_tail_latency_csdi \
-  --measurement_dir_k8s     $RES_OUT_DIR/hotel_match_tail_latency \
-  --out $GRAPH_OUT_DIR/hotel_match.pdf \
-  --be_realm "" --hotel_realm benchrealm1 \
-  --units "Req/sec,InitScript,No InitScript" \
-  --title "x" --total_ncore 32 --prefix "imgresize-" #\
-#  --xmin 10000 --xmax 65000 #--legend_on_right 
-echo "Done generating hotel match graph..."
+# XXX good below
 
-# Hotel Match (fast load change)
-echo "Generating hotel match (fast) graph..."
-$GRAPH_SCRIPTS_DIR/aggregate-tpt-talk.py \
-  --input_load_label "hotel-wwwd" \
-  --measurement_dir_sigmaos $RES_OUT_DIR/hotel_match_tail_latency_fast_csdi \
-  --measurement_dir_k8s     $RES_OUT_DIR/hotel_match_tail_latency_fast \
-  --out $GRAPH_OUT_DIR/hotel_match_fast.pdf \
-  --be_realm "" --hotel_realm benchrealm1 \
-  --units "Req/sec,InitScript,No InitScript" \
-  --title "x" --total_ncore 32 --prefix "val.out" \
-  --client_tpt_step_size 10 --perf_step_size 10 \
-  --xmin 73000 --xmax 79000 #--legend_on_right 
-#  --client_tpt_step_size 10 --perf_step_size 10
-echo "Done generating hotel (fast) match graph..."
-
-echo "Generating hotel match (fast) cost graph..."
-$GRAPH_SCRIPTS_DIR/deployment-cost.py \
-  --input_load_label "hotel-wwwd" \
-  --measurement_dir_initscripts $RES_OUT_DIR/hotel_match_tail_latency_fast_csdi \
-  --measurement_dir_noinitscripts     $RES_OUT_DIR/hotel_match_tail_latency_fast \
-  --out $GRAPH_OUT_DIR/hotel_match_depcost_fast.pdf \
-  --xmin 74 --xmax 77 #--legend_on_right 
+#if [ "" ] ; then
+## Hotel Match (slow load change)
+#echo "Generating hotel match graph..."
+#$GRAPH_SCRIPTS_DIR/aggregate-tpt-talk.py \
+#  --input_load_label "hotel-wwwd" \
+#  --measurement_dir_sigmaos $RES_OUT_DIR/hotel_match_tail_latency_csdi \
+#  --measurement_dir_k8s     $RES_OUT_DIR/hotel_match_tail_latency \
+#  --out $GRAPH_OUT_DIR/hotel_match.pdf \
+#  --be_realm "" --hotel_realm benchrealm1 \
 #  --units "Req/sec,InitScript,No InitScript" \
-#  --title "x" --total_ncore 32 --prefix "imgresize-" \
+#  --title "x" --total_ncore 32 --prefix "imgresize-" #\
+##  --xmin 10000 --xmax 65000 #--legend_on_right 
+#echo "Done generating hotel match graph..."
+#
+## Hotel Match (fast load change)
+#echo "Generating hotel match (fast) graph..."
+#$GRAPH_SCRIPTS_DIR/aggregate-tpt-talk.py \
+#  --input_load_label "hotel-wwwd" \
+#  --measurement_dir_sigmaos $RES_OUT_DIR/hotel_match_tail_latency_fast_csdi \
+#  --measurement_dir_k8s     $RES_OUT_DIR/hotel_match_tail_latency_fast \
+#  --out $GRAPH_OUT_DIR/hotel_match_fast.pdf \
+#  --be_realm "" --hotel_realm benchrealm1 \
+#  --units "Req/sec,InitScript,No InitScript" \
+#  --title "x" --total_ncore 32 --prefix "val.out" \
 #  --client_tpt_step_size 10 --perf_step_size 10 \
-echo "Done generating hotel match (fast) cost graph..."
-fi
-
-echo "Generating hotel match cached hit rate graph..."
-$GRAPH_SCRIPTS_DIR/match-cached-miss-rate.py \
-  --measurement_dir_initscripts $RES_OUT_DIR/hotel_match_tail_latency_migrate_csdi \
-  --measurement_dir_noinitscripts     $RES_OUT_DIR/hotel_match_tail_latency_migrate \
-  --window_size 100000 \
-  --output $GRAPH_OUT_DIR/hotel_match_migrate_cached_miss_rate.pdf #\
+#  --xmin 73000 --xmax 79000 #--legend_on_right 
+##  --client_tpt_step_size 10 --perf_step_size 10
+#echo "Done generating hotel (fast) match graph..."
+#
+#echo "Generating hotel match (fast) cost graph..."
+#$GRAPH_SCRIPTS_DIR/deployment-cost.py \
+#  --input_load_label "hotel-wwwd" \
+#  --measurement_dir_initscripts $RES_OUT_DIR/hotel_match_tail_latency_fast_csdi \
+#  --measurement_dir_noinitscripts     $RES_OUT_DIR/hotel_match_tail_latency_fast \
+#  --out $GRAPH_OUT_DIR/hotel_match_depcost_fast.pdf \
 #  --xmin 74 --xmax 77 #--legend_on_right 
-#  --units "Req/sec,InitScript,No InitScript" \
-#  --title "x" --total_ncore 32 --prefix "imgresize-" \
-#  --client_tpt_step_size 10 --perf_step_size 10 \
-echo "Done generating hotel match cached hit rate graph..."
+##  --units "Req/sec,InitScript,No InitScript" \
+##  --title "x" --total_ncore 32 --prefix "imgresize-" \
+##  --client_tpt_step_size 10 --perf_step_size 10 \
+#echo "Done generating hotel match (fast) cost graph..."
+#
+#echo "Generating hotel match cached hit rate graph..."
+#$GRAPH_SCRIPTS_DIR/match-cached-miss-rate.py \
+#  --measurement_dir_initscripts $RES_OUT_DIR/hotel_match_tail_latency_migrate_csdi \
+#  --measurement_dir_noinitscripts     $RES_OUT_DIR/hotel_match_tail_latency_migrate \
+#  --window_size 5000 \
+#  --output $GRAPH_OUT_DIR/hotel_match_migrate_cached_miss_rate.pdf \
+#  --xmin 2.5 --xmax 3 #--legend_on_right 
+##  --units "Req/sec,InitScript,No InitScript" \
+##  --title "x" --total_ncore 32 --prefix "imgresize-" \
+##  --client_tpt_step_size 10 --perf_step_size 10 \
+#echo "Done generating hotel match cached hit rate graph..."
+#fi
+#
+#echo "Generating Imgresize CPU utilization comparison..."
+#$GRAPH_SCRIPTS_DIR/imgprocess-cpu-util.py \
+#  --initscript_dir $RES_OUT_DIR/img_process_initscript \
+#  --no_initscript_dir $RES_OUT_DIR/img_process \
+#  --output $GRAPH_OUT_DIR/imgprocess-cpu-util.pdf
+#echo "Done generating Imgresize CPU utilization comparison..."
+
+echo "Cached, no initscript"
+./benchmarks/scripts/graph/start-latency-breakdown-setup-init.py --start --dir_path benchmarks/results/NEXT/start_latency_cached --proc_name cached-srv-cpp
+echo "Cached, initscript"
+./benchmarks/scripts/graph/start-latency-breakdown-setup-init.py --start --dir_path benchmarks/results/NEXT/start_latency_cached_initscript --proc_name cached-srv-cpp
+
+echo "Cossim, no initscript"
+./benchmarks/scripts/graph/start-latency-breakdown-setup-init.py --start --dir_path benchmarks/results/NEXT/start_latency_cossim --proc_name cossim-srv-cpp
+echo "Cossim, initscript"
+./benchmarks/scripts/graph/start-latency-breakdown-setup-init.py --start --dir_path benchmarks/results/NEXT/start_latency_cossim_initscript --proc_name cossim-srv-cpp
+
+echo "Etcd, no initscript"
+./benchmarks/scripts/graph/start-latency-breakdown-setup-init.py --start --dir_path benchmarks/results/NEXT/start_latency_etcd --proc_name etc-shim 
+echo "Etcd, initscript"
+./benchmarks/scripts/graph/start-latency-breakdown-setup-init.py --start --dir_path benchmarks/results/NEXT/start_latency_etcd_initscript --proc_name etcd-shim

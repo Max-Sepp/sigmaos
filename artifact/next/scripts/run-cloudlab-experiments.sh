@@ -58,42 +58,52 @@ AWS_VPC_LARGE=vpc-0affa7f07bd923811
 
 mkdir -p $LOG_DIR
 
-if [ $EXP == "all" ] || [ $EXP == "cossim" ]; then
-#  if [ $RERUN == "true" ]; then
-#    echo "Clearing any cached CosSim data..."
-#    rm -rf benchmarks/results/$VERSION/cos_sim_tail_latency_*
-#  fi
-  echo "Generating CosSim data..."
-  go clean -testcache; go test -v -timeout 0 sigmaos/benchmarks/remote --run TestScaleCosSim --parallelize --platform cloudlab --vpc none --build-tag $TAG --no-shutdown-after-test --bench-version $VERSION --branch $BRANCH 2>&1 | tee $LOG_DIR/cossim.out
-  echo "Done generating CosSim data..."
-fi
+#if [ $EXP == "all" ] || [ $EXP == "cossim" ]; then
+##  if [ $RERUN == "true" ]; then
+##    echo "Clearing any cached CosSim data..."
+##    rm -rf benchmarks/results/$VERSION/cos_sim_tail_latency_*
+##  fi
+#  echo "Generating CosSim data..."
+#  go clean -testcache; go test -v -timeout 0 sigmaos/benchmarks/remote --run TestScaleCosSim --parallelize --platform cloudlab --vpc none --build-tag $TAG --no-shutdown-after-test --bench-version $VERSION --branch $BRANCH 2>&1 | tee $LOG_DIR/cossim.out
+#  echo "Done generating CosSim data..."
+#fi
+#
+#if [ $EXP == "all" ] || [ $EXP == "cached" ]; then
+##  if [ $RERUN == "true" ]; then
+##    echo "Clearing any cached CosSim data..."
+##    rm -rf benchmarks/results/$VERSION/cos_sim_tail_latency_*
+##  fi
+#  echo "Generating CachedScaler data..."
+#  go clean -testcache; go test -v -timeout 0 sigmaos/benchmarks/remote --run TestScaleCachedScaler --parallelize --platform cloudlab --vpc none --build-tag $TAG --no-shutdown-after-test --bench-version $VERSION --branch $BRANCH 2>&1 | tee $LOG_DIR/cache-scaler.out
+#  echo "Done generating CachedScaler data..."
+#fi
+#
+#if [ $EXP == "all" ] || [ $EXP == "match" ]; then
+##  if [ $RERUN == "true" ]; then
+##    echo "Clearing any cached CosSim data..."
+##    rm -rf benchmarks/results/$VERSION/cos_sim_tail_latency_*
+##  fi
+#  echo "Generating Match data..."
+#  go clean -testcache; go test -v -timeout 0 sigmaos/benchmarks/remote --run TestHotelMatchTailLatency --parallelize --platform cloudlab --vpc none --build-tag $TAG --no-shutdown-after-test --bench-version $VERSION --branch $BRANCH 2>&1 | tee $LOG_DIR/cache-scaler.out
+#  echo "Done generating Match data..."
+#fi
+#
+#if [ $EXP == "all" ] || [ $EXP == "imgprocess" ]; then
+##  if [ $RERUN == "true" ]; then
+##    echo "Clearing any cached CosSim data..."
+##    rm -rf benchmarks/results/$VERSION/cos_sim_tail_latency_*
+##  fi
+#  echo "Generating ImgProcess data..."
+#  go clean -testcache; go test -v -timeout 0 sigmaos/benchmarks/remote --run TestImgProcess --parallelize --platform cloudlab --vpc none --build-tag $TAG --no-shutdown-after-test --bench-version $VERSION --branch $BRANCH 2>&1 | tee $LOG_DIR/cache-scaler.out
+#  echo "Done generating ImgProcess data..."
+#fi
 
-if [ $EXP == "all" ] || [ $EXP == "cached" ]; then
+if [ $EXP == "all" ] || [ $EXP == "start-lat" ]; then
 #  if [ $RERUN == "true" ]; then
 #    echo "Clearing any cached CosSim data..."
 #    rm -rf benchmarks/results/$VERSION/cos_sim_tail_latency_*
 #  fi
-  echo "Generating CachedScaler data..."
-  go clean -testcache; go test -v -timeout 0 sigmaos/benchmarks/remote --run TestScaleCachedScaler --parallelize --platform cloudlab --vpc none --build-tag $TAG --no-shutdown-after-test --bench-version $VERSION --branch $BRANCH 2>&1 | tee $LOG_DIR/cache-scaler.out
-  echo "Done generating CachedScaler data..."
-fi
-
-if [ $EXP == "all" ] || [ $EXP == "match" ]; then
-#  if [ $RERUN == "true" ]; then
-#    echo "Clearing any cached CosSim data..."
-#    rm -rf benchmarks/results/$VERSION/cos_sim_tail_latency_*
-#  fi
-  echo "Generating Match data..."
-  go clean -testcache; go test -v -timeout 0 sigmaos/benchmarks/remote --run TestHotelMatchTailLatency --parallelize --platform cloudlab --vpc none --build-tag $TAG --no-shutdown-after-test --bench-version $VERSION --branch $BRANCH 2>&1 | tee $LOG_DIR/cache-scaler.out
-  echo "Done generating Match data..."
-fi
-
-if [ $EXP == "all" ] || [ $EXP == "imgprocess" ]; then
-#  if [ $RERUN == "true" ]; then
-#    echo "Clearing any cached CosSim data..."
-#    rm -rf benchmarks/results/$VERSION/cos_sim_tail_latency_*
-#  fi
-  echo "Generating ImgProcess data..."
-  go clean -testcache; go test -v -timeout 0 sigmaos/benchmarks/remote --run TestImgProcess --parallelize --platform cloudlab --vpc none --build-tag $TAG --no-shutdown-after-test --bench-version $VERSION --branch $BRANCH 2>&1 | tee $LOG_DIR/cache-scaler.out
-  echo "Done generating ImgProcess data..."
+  echo "Generating StartLatency data..."
+  go clean -testcache; go test -v -timeout 0 sigmaos/benchmarks/remote --run TestStartLatency --parallelize --platform cloudlab --vpc none --build-tag $TAG --no-shutdown-after-test --bench-version $VERSION --branch $BRANCH 2>&1 | tee $LOG_DIR/cache-scaler.out
+  echo "Done generating StartLatency data..."
 fi
