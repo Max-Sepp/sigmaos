@@ -604,14 +604,14 @@ func GetLCBEHotelImgResizeRPCMultiplexingCmdConstructor(numClients int, rps []in
 // Construct command string to run image processing benchmark
 //
 // - imgCfg specifies the image processing benchmark configuration
-func GetImgProcessCmd(imgCfg *benchmarks.ImgBenchConfig) GetBenchCmdFn {
+func GetImgProcessCmd(imgCfg *benchmarks.ImgBenchConfig, useGVisor bool) GetBenchCmdFn {
 	return func(bcfg *BenchConfig, ccfg *ClusterConfig) string {
 		const (
 			debugSelectors string = "\"TEST;BENCH;IMGD;GROUPMGR;SPAWN_LAT;\""
 			perfSelectors  string = "\"THUMBNAIL_TPT;TEST_TPT;BENCH_TPT;\""
 		)
 		dialproxy := ""
-		if bcfg.NoNetproxy {
+		if bcfg.NoNetproxy || useGVisor {
 			dialproxy = "--nodialproxy"
 		}
 		overlays := ""
