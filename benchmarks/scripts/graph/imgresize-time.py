@@ -155,11 +155,13 @@ def main():
         std_noinitscripts = np.std(times_noinitscripts)
         median_noinitscripts = np.median(times_noinitscripts)
         p90_noinitscripts = np.percentile(times_noinitscripts, 90)
+        max_noinitscripts = np.max(times_noinitscripts)
         print(f"Without Initscripts: {len(times_noinitscripts)} samples")
         print(f"  Avg:    {avg_noinitscripts:.2f}ms")
         print(f"  Median: {median_noinitscripts:.2f}ms")
         print(f"  StdDev: {std_noinitscripts:.2f}ms")
         print(f"  90th percentile: {p90_noinitscripts:.2f}ms")
+        print(f"  Max:    {max_noinitscripts:.2f}ms")
     else:
         print("Without Initscripts: No data")
 
@@ -170,11 +172,13 @@ def main():
         std_initscripts = np.std(times_initscripts)
         median_initscripts = np.median(times_initscripts)
         p90_initscripts = np.percentile(times_initscripts, 90)
+        max_initscripts = np.max(times_initscripts)
         print(f"With Initscripts:    {len(times_initscripts)} samples")
         print(f"  Avg:    {avg_initscripts:.2f}ms")
         print(f"  Median: {median_initscripts:.2f}ms")
         print(f"  StdDev: {std_initscripts:.2f}ms")
         print(f"  90th percentile: {p90_initscripts:.2f}ms")
+        print(f"  Max:    {max_initscripts:.2f}ms")
     else:
         print("With Initscripts: No data")
 
