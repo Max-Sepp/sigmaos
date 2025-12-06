@@ -162,7 +162,7 @@ func newTstate(mrts *test.MultiRealmTstate, persist bool, em *crash.TeventMap, u
 	ts.cleanup()
 
 	if useBootScript {
-		err := wasmer.UploadBootScriptRemote(mrts.GetRealm(test.REALM1).SigmaClnt, "imgprocess_boot")
+		err := wasmer.UploadBootScriptRemote(mrts.GetRealm(test.REALM1).SigmaClnt, "s3get_boot")
 		if !assert.Nil(mrts.T, err, "Err upload boot script: %v", err) {
 			return nil, err
 		}

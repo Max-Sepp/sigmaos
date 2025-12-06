@@ -11,7 +11,7 @@ import (
 
 // For now, reuse imgprocess boot script
 func GetBootScript(sc *sigmaclnt.SigmaClnt) ([]byte, error) {
-	return wasmer.ReadBootScript(sc, "imgprocess_boot")
+	return wasmer.ReadBootScript(sc, "s3get_boot")
 }
 
 func GetBootScriptInput(bucket, key, kid string) ([]byte, error) {

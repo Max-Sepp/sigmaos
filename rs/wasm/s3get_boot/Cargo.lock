@@ -3,7 +3,7 @@
 version = 4
 
 [[package]]
-name = "imgprocess_boot"
+name = "s3get_boot"
 version = "0.1.0"
 dependencies = [
  "proto",
