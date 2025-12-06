@@ -79,6 +79,6 @@ func (ra *S3RpcAPI) PutObject(ctx fs.CtxI, req proto.S3Req, rep *proto.S3Rep) er
 		db.DPrintf(db.ERROR, "Err PutObject: %v", err)
 		return err
 	}
-	db.DPrintf(db.S3, "PutObject RPC success: bucket:%v key:%v", req.Bucket, req.Key)
+	db.DPrintf(db.S3, "PutObject RPC success: bucket:%v key:%v len:%v", req.Bucket, req.Key, len(req.Blob.Iov[0]))
 	return nil
 }
