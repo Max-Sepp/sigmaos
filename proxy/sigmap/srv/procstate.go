@@ -70,11 +70,23 @@ func (psm *ProcStateMgr) DelProcState(p *proc.Proc) {
 
 	ps, ok := psm.ps[p.GetPid()]
 	if ok {
-		if err := ps.Destroy(); err != nil {
-			db.DFatalf("Err destroy proc state: %v", err)
-		}
+		go func(ps *procState) {
+			ps.WaitBootScriptCompletion()
+
+			// Wait for the boot script to complete, then destroy the proc state if
+			// it hasn't been destroyed already (need to re-check because we released
+			// the lock.
+			psm.mu.Lock()
+			defer psm.mu.Unlock()
+
+			if _, ok := psm.ps[p.GetPid()]; ok {
+				if err := ps.Destroy(); err != nil {
+					db.DFatalf("Err destroy proc state: %v", err)
+				}
+				delete(psm.ps, p.GetPid())
+			}
+		}(ps)
 	}
-	delete(psm.ps, p.GetPid())
 }
 
 func (psm *ProcStateMgr) WaitBootScriptCompletion(pid sp.Tpid) error {
