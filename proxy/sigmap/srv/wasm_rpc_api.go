@@ -2,6 +2,7 @@ package srv
 
 import (
 	"fmt"
+	"sync"
 
 	"google.golang.org/protobuf/proto"
 
@@ -17,6 +18,7 @@ import (
 )
 
 type WASMRPCProxy struct {
+	wg  sync.WaitGroup
 	spp *SPProxySrv
 	sc  *sigmaclnt.SigmaClnt
 	p   *proc.Proc
@@ -30,6 +32,10 @@ func NewWASMRPCProxy(spp *SPProxySrv, sc *sigmaclnt.SigmaClnt, p *proc.Proc) was
 	}
 }
 
+func (wp *WASMRPCProxy) WaitForOutstandingRPCs() {
+	wp.wg.Wait()
+}
+
 func (wp *WASMRPCProxy) Send(rpcIdx uint64, pn string, method string, b []byte, nOutIOV uint64) error {
 	// Copy the data, because the shared buffer pointed to by b may be
 	// overwritten by the next asynchronous RPC
@@ -41,9 +47,13 @@ func (wp *WASMRPCProxy) Send(rpcIdx uint64, pn string, method string, b []byte, 
 		db.DPrintf(db.SPPROXYSRV_ERR, "[%v] Error wrap & marshal WASM-proxied RPC request: %v", wp.p.GetPid(), err)
 		return err
 	}
+	wp.wg.Add(1)
 	// Run the delegated RPC asynchronously, and add an extra output IOVec slot
 	// for the RPC wrapper
-	go wp.spp.runDelegatedRPC(wp.sc, wp.p, rpcIdx, pn, iniov, nOutIOV+1)
+	go func() {
+		defer wp.wg.Done()
+		wp.spp.runDelegatedRPC(wp.sc, wp.p, rpcIdx, pn, iniov, nOutIOV+1)
+	}()
 	return nil
 }
 
@@ -82,8 +92,12 @@ func (wp *WASMRPCProxy) Forward(rpcIdx uint64, newRPCIdx uint64, pn string, nOut
 		db.DPrintf(db.SPPROXYSRV_ERR, "[%v] Error GetReply to forward for WASM-proxied RPC request: %v", wp.p.GetPid(), err)
 		return err
 	}
+	wp.wg.Add(1)
 	// Run the delegated RPC asynchronously, and add an extra output IOVec slot
 	// for the RPC wrapper
-	go wp.spp.runDelegatedRPC(wp.sc, wp.p, newRPCIdx, pn, iniov, nOutIOV+1)
+	go func() {
+		defer wp.wg.Done()
+		go wp.spp.runDelegatedRPC(wp.sc, wp.p, newRPCIdx, pn, iniov, nOutIOV+1)
+	}()
 	return nil
 }

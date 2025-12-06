@@ -352,7 +352,11 @@ func (ps *procState) createSigmaClnt(spps *SPProxySrv) {
 		ps.wrt = wasmrt.NewWasmerRuntime(rpcAPI)
 		perf.LogSpawnLatency("Create wasmRT", ps.pe.GetPID(), ps.pe.GetSpawnTime(), start)
 		go func() {
+			// Run the module
 			err := ps.wrt.RunModule(ps.p.GetPid(), ps.p.GetSpawnTime(), ps.p.GetBootScript(), ps.p.GetBootScriptInput())
+			// Wait for any outstanding RPCs it sent asynchronously
+			rpcAPI.(*WASMRPCProxy).WaitForOutstandingRPCs()
+			// Mark the script as done
 			ps.bootScriptDone(err)
 		}()
 	}
