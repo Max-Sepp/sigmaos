@@ -24,6 +24,7 @@ func newRPCAPI(fss3 *Fss3) *S3RpcAPI {
 }
 
 func (ra *S3RpcAPI) GetObject(ctx fs.CtxI, req proto.S3Req, rep *proto.S3Rep) error {
+	db.DPrintf(db.S3, "GetObject RPC: bucket:%v key:%v", req.Bucket, req.Key)
 	clnt, err1 := ra.fss3.getClient(ctx)
 	if err1 != nil {
 		db.DPrintf(db.S3_ERR, "Err getClient: %v", err1)
@@ -56,10 +57,12 @@ func (ra *S3RpcAPI) GetObject(ctx fs.CtxI, req proto.S3Req, rep *proto.S3Rep) er
 		db.DPrintf(db.ERROR, "Err Close: %v", err)
 		return err
 	}
+	db.DPrintf(db.S3, "GetObject RPC success: bucket:%v key:%v", req.Bucket, req.Key)
 	return nil
 }
 
 func (ra *S3RpcAPI) PutObject(ctx fs.CtxI, req proto.S3Req, rep *proto.S3Rep) error {
+	db.DPrintf(db.S3, "PutObject RPC: bucket:%v key:%v len:%v", req.Bucket, req.Key, len(req.Blob.Iov[0]))
 	clnt, err1 := ra.fss3.getClient(ctx)
 	if err1 != nil {
 		db.DPrintf(db.S3_ERR, "Err getClient: %v", err1)
@@ -76,5 +79,6 @@ func (ra *S3RpcAPI) PutObject(ctx fs.CtxI, req proto.S3Req, rep *proto.S3Rep) er
 		db.DPrintf(db.ERROR, "Err PutObject: %v", err)
 		return err
 	}
+	db.DPrintf(db.S3, "PutObject RPC success: bucket:%v key:%v", req.Bucket, req.Key)
 	return nil
 }
