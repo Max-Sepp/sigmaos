@@ -31,5 +31,5 @@ func (spp *SPProxySrv) runDelegatedRPC(sc *sigmaclnt.SigmaClnt, p *proc.Proc, rp
 		db.DFatalf("Err execute delegated RPC (%v): %v", pn, err)
 	}
 	db.DPrintf(db.SPPROXYSRV, "[%v] Done running delegated init RPC(%v)", p.GetPid(), rpcIdx)
-	spp.psm.InsertReply(p, uint64(rpcIdx), outiov, err, start)
+	spp.psm.InsertReply(p.GetProcEnv(), uint64(rpcIdx), outiov, err, start)
 }

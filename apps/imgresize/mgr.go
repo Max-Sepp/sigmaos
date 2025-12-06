@@ -30,18 +30,19 @@ const (
 )
 
 type ImgdJobConfig struct {
-	Job                  string     `json:"job"`
-	WorkerMcpu           proc.Tmcpu `json:"worker_mcpu"`
-	WorkerMem            proc.Tmem  `json:"worker_mem"`
-	Persist              bool       `json:"persist"`
-	NRounds              int        `json:"n_rounds"`
-	ImgdMcpu             proc.Tmcpu `json:"imgd_mcpu"`
-	UseSPProxy           bool       `json:"use_sp_proxy"`
-	UseBootScript        bool       `json:"use_boot_script"`
-	UseS3Clnt            bool       `json:"use_s3_clnt"`
-	WorkerBootScriptMcpu proc.Tmcpu `json:"worker_boot_script_mcpu"`
-	WorkerBootScriptMem  proc.Tmem  `json:"worker_boot_script_mem"`
-	FTTaskSrvMcpu        proc.Tmcpu `json:"ft_task_srv_mcpu"`
+	Job                   string     `json:"job"`
+	WorkerMcpu            proc.Tmcpu `json:"worker_mcpu"`
+	WorkerMem             proc.Tmem  `json:"worker_mem"`
+	Persist               bool       `json:"persist"`
+	NRounds               int        `json:"n_rounds"`
+	ImgdMcpu              proc.Tmcpu `json:"imgd_mcpu"`
+	UseSPProxy            bool       `json:"use_sp_proxy"`
+	UseBootScript         bool       `json:"use_boot_script"`
+	WriteOutViaBootScript bool       `json:"write_out_via_boot_script"`
+	UseS3Clnt             bool       `json:"use_s3_clnt"`
+	WorkerBootScriptMcpu  proc.Tmcpu `json:"worker_boot_script_mcpu"`
+	WorkerBootScriptMem   proc.Tmem  `json:"worker_boot_script_mem"`
+	FTTaskSrvMcpu         proc.Tmcpu `json:"ft_task_srv_mcpu"`
 }
 
 func NewImgdJobConfig(job string, workerMcpu proc.Tmcpu, workerMem proc.Tmem, persist bool, nrounds int, imgdMcpu proc.Tmcpu, useSPProxy bool, useBootScript bool, useS3Clnt bool, workerBootScriptMcpu proc.Tmcpu, workerBootScriptMem proc.Tmem, ftTaskSrvMcpu proc.Tmcpu) *ImgdJobConfig {
@@ -63,6 +64,10 @@ func NewImgdJobConfig(job string, workerMcpu proc.Tmcpu, workerMem proc.Tmem, pe
 
 func (cfg *ImgdJobConfig) String() string {
 	return fmt.Sprintf("&{ job:%v workerMcpu:%v workerMem:%v persist:%v nrounds:%v imgdMcpu:%v useSPProxy:%v useBootScript:%v useS3Clnt:%v workerBootScriptMcpu:%v workerBootScriptMem:%v ftTaskSrvMcpu:%v }", cfg.Job, cfg.WorkerMcpu, cfg.WorkerMem, cfg.Persist, cfg.NRounds, cfg.ImgdMcpu, cfg.UseSPProxy, cfg.UseBootScript, cfg.UseS3Clnt, cfg.WorkerBootScriptMcpu, cfg.WorkerBootScriptMem, cfg.FTTaskSrvMcpu)
+}
+
+func GetBootScriptWriteOut(sc *sigmaclnt.SigmaClnt) ([]byte, error) {
+	return wasmer.ReadBootScript(sc, "imgprocess_write_out_boot")
 }
 
 func GetBootScript(sc *sigmaclnt.SigmaClnt) ([]byte, error) {
@@ -101,16 +106,18 @@ func TaskSvcId(job string) string {
 }
 
 type Ttask struct {
-	FileName      string `json:"file"`
-	UseS3Clnt     bool   `json:"use_s3_clnt"`
-	UseBootScript bool   `json:"use_boot_script"`
+	FileName              string `json:"file"`
+	UseS3Clnt             bool   `json:"use_s3_clnt"`
+	UseBootScript         bool   `json:"use_boot_script"`
+	WriteOutViaBootScript bool   `json:"write_out_via_boot_script"`
 }
 
-func NewTask(fn string, useS3Clnt, useBootScript bool) *Ttask {
+func NewTask(fn string, useS3Clnt, useBootScript, writeOutViaBootScript bool) *Ttask {
 	return &Ttask{
-		FileName:      fn,
-		UseS3Clnt:     useS3Clnt,
-		UseBootScript: useBootScript,
+		FileName:              fn,
+		UseS3Clnt:             useS3Clnt,
+		UseBootScript:         useBootScript,
+		WriteOutViaBootScript: writeOutViaBootScript,
 	}
 }
 
@@ -137,7 +144,7 @@ func NewImgdMgr[Data any](sc *sigmaclnt.SigmaClnt, jobCfg *ImgdJobConfig, em *cr
 		return nil, err
 	}
 
-	cfg := procgroupmgr.NewProcGroupConfig(1, "imgresized", []string{strconv.Itoa(int(jobCfg.WorkerMcpu)), strconv.Itoa(int(jobCfg.WorkerMem)), strconv.Itoa(jobCfg.NRounds), TaskSvcId(imgd.job), strconv.FormatBool(jobCfg.UseSPProxy), strconv.FormatBool(jobCfg.UseBootScript), strconv.Itoa(int(jobCfg.WorkerBootScriptMcpu)), strconv.Itoa(int(jobCfg.WorkerBootScriptMem))}, jobCfg.ImgdMcpu, ImgSvcId(jobCfg.Job))
+	cfg := procgroupmgr.NewProcGroupConfig(1, "imgresized", []string{strconv.Itoa(int(jobCfg.WorkerMcpu)), strconv.Itoa(int(jobCfg.WorkerMem)), strconv.Itoa(jobCfg.NRounds), TaskSvcId(imgd.job), strconv.FormatBool(jobCfg.UseSPProxy), strconv.FormatBool(jobCfg.UseBootScript), strconv.Itoa(int(jobCfg.WorkerBootScriptMcpu)), strconv.Itoa(int(jobCfg.WorkerBootScriptMem)), strconv.FormatBool(jobCfg.WriteOutViaBootScript)}, jobCfg.ImgdMcpu, ImgSvcId(jobCfg.Job))
 
 	if jobCfg.Persist {
 		cfg.Persist(sc.FsLib)
@@ -212,11 +219,11 @@ func IsThumbNail(fn string) bool {
 	return strings.Contains(fn, "-thumb")
 }
 
-func GetMkProcFn(serverId task.FtTaskSvcId, nrounds int, workerMcpu proc.Tmcpu, workerMem proc.Tmem, workerBootScriptMcpu proc.Tmcpu, workerBootScriptMem proc.Tmem, bootScript []byte, useSPProxy bool) fttask_mgr.TnewProc[Ttask] {
+func GetMkProcFn(serverId task.FtTaskSvcId, nrounds int, workerMcpu proc.Tmcpu, workerMem proc.Tmem, workerBootScriptMcpu proc.Tmcpu, workerBootScriptMem proc.Tmem, bootScript []byte, bootScriptWriteOut []byte, useSPProxy bool) fttask_mgr.TnewProc[Ttask] {
 	return func(task fttask_clnt.Task[Ttask]) (*proc.Proc, error) {
 		db.DPrintf(db.IMGD, "mkProc %v", task)
 		fn := task.Data.FileName
-		p := proc.NewProcPid(sp.GenPid(string(serverId)), "imgresize", []string{fn, ThumbName(fn), strconv.Itoa(nrounds), strconv.FormatBool(task.Data.UseS3Clnt)})
+		p := proc.NewProcPid(sp.GenPid(string(serverId)), "imgresize", []string{fn, ThumbName(fn), strconv.Itoa(nrounds), strconv.FormatBool(task.Data.UseS3Clnt), strconv.FormatBool(task.Data.WriteOutViaBootScript)})
 		p.SetMcpu(workerMcpu)
 		p.SetMem(workerMem)
 		splitFN := strings.Split(fn, "/")
@@ -226,7 +233,11 @@ func GetMkProcFn(serverId task.FtTaskSvcId, nrounds int, workerMcpu proc.Tmcpu, 
 			return nil, err
 		}
 		p.GetProcEnv().UseSPProxy = useSPProxy
-		p.SetBootScript(bootScript, bootScriptInput)
+		if task.Data.WriteOutViaBootScript {
+			p.SetBootScript(bootScriptWriteOut, bootScriptInput)
+		} else {
+			p.SetBootScript(bootScript, bootScriptInput)
+		}
 		p.SetRunBootScript(task.Data.UseBootScript)
 		if task.Data.UseBootScript {
 			// Run after boot script, if we set a resource reservation for the boot

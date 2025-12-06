@@ -26,25 +26,27 @@ type AStat struct {
 }
 
 type ImgSrv struct {
-	sc                   *sigmaclnt.SigmaClnt
-	ftclnt               fttask_clnt.FtTaskClnt[imgresize.Ttask, any]
-	nrounds              int
-	workerMcpu           proc.Tmcpu
-	workerMem            proc.Tmem
-	workerBootScriptMcpu proc.Tmcpu
-	workerBootScriptMem  proc.Tmem
-	leaderclnt           *leaderclnt.LeaderClnt
-	imgSvcId             string
-	taskSvcId            task.FtTaskSvcId
-	ch                   chan error
-	bootScript           []byte
-	useSPProxy           bool
-	useBootScript        bool
+	sc                    *sigmaclnt.SigmaClnt
+	ftclnt                fttask_clnt.FtTaskClnt[imgresize.Ttask, any]
+	nrounds               int
+	workerMcpu            proc.Tmcpu
+	workerMem             proc.Tmem
+	workerBootScriptMcpu  proc.Tmcpu
+	workerBootScriptMem   proc.Tmem
+	leaderclnt            *leaderclnt.LeaderClnt
+	imgSvcId              string
+	taskSvcId             task.FtTaskSvcId
+	ch                    chan error
+	bootScript            []byte
+	bootScriptWriteOut    []byte
+	useSPProxy            bool
+	useBootScript         bool
+	writeOutViaBootScript bool
 	AStat
 }
 
 func NewImgSrv(args []string) (*ImgSrv, error) {
-	if len(args) != 9 {
+	if len(args) != 10 {
 		return nil, fmt.Errorf("NewImgSrv: wrong number of arguments: %v", args)
 	}
 	imgd := &ImgSrv{}
@@ -87,6 +89,11 @@ func NewImgSrv(args []string) (*ImgSrv, error) {
 		db.DFatalf("Error GetBootScript: %v", err)
 	}
 	imgd.bootScript = bootScript
+	bootScriptWriteOut, err := imgresize.GetBootScriptWriteOut(imgd.sc)
+	if err != nil {
+		db.DFatalf("Error GetBootScriptWriteOut: %v", err)
+	}
+	imgd.bootScriptWriteOut = bootScriptWriteOut
 	bsMcpu, err := strconv.Atoi(args[7])
 	if err != nil {
 		return nil, fmt.Errorf("NewImgSrv: Error parse MCPU %v", err)
@@ -97,6 +104,11 @@ func NewImgSrv(args []string) (*ImgSrv, error) {
 		return nil, fmt.Errorf("NewImgSrv: Error parse Mem %v", err)
 	}
 	imgd.workerBootScriptMem = proc.Tmem(bsMem)
+	writeOutViaBootScript, err := strconv.ParseBool(args[9])
+	if err != nil {
+		db.DFatalf("Error parse writeOutViaBootScript: %v", err)
+	}
+	imgd.writeOutViaBootScript = writeOutViaBootScript
 
 	imgd.sc.Started()
 
@@ -158,7 +170,7 @@ func (imgd *ImgSrv) Work() {
 
 	go imgd.processResults(ch)
 
-	ftc.ExecuteTasks(imgresize.GetMkProcFn(imgd.ftclnt.ServiceId(), imgd.nrounds, imgd.workerMcpu, imgd.workerMem, imgd.workerBootScriptMcpu, imgd.workerBootScriptMem, imgd.bootScript, imgd.useSPProxy))
+	ftc.ExecuteTasks(imgresize.GetMkProcFn(imgd.ftclnt.ServiceId(), imgd.nrounds, imgd.workerMcpu, imgd.workerMem, imgd.workerBootScriptMcpu, imgd.workerBootScriptMem, imgd.bootScript, imgd.bootScriptWriteOut, imgd.useSPProxy))
 	close(ch)
 
 	st := spstats.NewTcounterSnapshot()

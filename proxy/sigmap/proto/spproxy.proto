@@ -146,6 +146,11 @@ message SigmaExitedReq {
         string msg = 2;
 }
 
+message SigmaOutgoingDelegatedRPCReq {
+        uint64 rPCIdx = 1;
+        Blob blob = 2;
+}
+
 message SigmaDelegatedRPCReq {
         uint64 rPCIdx = 1;
         bool useShmem = 2;

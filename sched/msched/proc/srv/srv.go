@@ -433,7 +433,7 @@ func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 			if err != nil {
 				db.DPrintf(db.PSS_ERR, "Err GetPss spproxy post: %v", err)
 			}
-			db.DPrintf(db.PSS, "[%v] BootScript PSS: %vMB", uproc.GetPid(), pssPost-pssPre)
+			db.DPrintf(db.PSS, "[%v] BootScript PSS: %vKB", uproc.GetPid(), pssPost-pssPre)
 		}
 	}
 	if uproc.GetIsQueueable() {
@@ -513,7 +513,7 @@ func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 			if err != nil {
 				db.DPrintf(db.PSS_ERR, "Err GetPss: %v", err)
 			}
-			db.DPrintf(db.PSS, "[%v] PSS: %vMB", uproc.GetPid(), pss)
+			db.DPrintf(db.PSS, "[%v] PSS: %vKB", uproc.GetPid(), pss)
 		}(uproc, ctr)
 	}
 	err = ctr.Wait()

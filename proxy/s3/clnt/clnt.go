@@ -81,3 +81,22 @@ func (clnt *S3Clnt) PutObject(bucket, key string, b []byte) error {
 	db.DPrintf(db.S3CLNT2, "PutObject ok bucket:%v key:%v len:%v", bucket, key, len(b))
 	return nil
 }
+
+func (clnt *S3Clnt) DelegatedPutObject(rpcIdx uint64, bucket, key string, b []byte) error {
+	db.DPrintf(db.S3CLNT2, "DelegatedPutObject bucket:%v key:%v len:%v", bucket, key, len(b))
+	req := &proto.S3Req{
+		Bucket: bucket,
+		Key:    key,
+		Blob: &rpcproto.Blob{
+			Iov: [][]byte{b},
+		},
+	}
+	err := clnt.rpcc.OutgoingDelegatedRPC(rpcIdx, "S3RpcAPI.PutObject", req)
+	if err != nil {
+		db.DPrintf(db.S3CLNT2_ERR, "Err DelegatedPutObject: %v", err)
+		db.DPrintf(db.ERROR, "Err DelegatedPutObject: %v", err)
+		return err
+	}
+	db.DPrintf(db.S3CLNT2, "DelegatedPutObject ok bucket:%v key:%v len:%v", bucket, key, len(b))
+	return nil
+}

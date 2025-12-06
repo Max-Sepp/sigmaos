@@ -17,7 +17,7 @@ pub fn boot(b: *mut c_char, buf_sz: usize) {
     let rpc_bytes = hot_shards_req.write_to_bytes().unwrap();
     sigmaos::send_rpc(buf, 0, &pn, "CacheSrv.GetHotShards", &rpc_bytes, 1);
     // Await the reply
-    let rep_nbyte = sigmaos::recv_rpc(0) as usize;
+    let rep_nbyte = sigmaos::recv_rpc(0, true) as usize;
     // Resize the buffer
     let hot_shards_rep = cache::HotShardsRep::parse_from_bytes(&buf[0..rep_nbyte]).unwrap();
     // TODO: check hot shards len isn't 0

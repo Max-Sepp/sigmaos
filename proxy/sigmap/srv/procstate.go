@@ -134,12 +134,12 @@ func (psm *ProcStateMgr) GetShmemAllocator(pid sp.Tpid) (malloc.Allocator, error
 	return ps.GetShmemAllocator(), nil
 }
 
-func (psm *ProcStateMgr) InsertReply(p *proc.Proc, rpcIdx uint64, iov *sessp.IoVec, err error, start time.Time) {
-	db.DPrintf(db.SPPROXYSRV, "[%v] DelegatedRPC.InsertReply(%v) lat=%v", p.GetPid(), rpcIdx, time.Since(start))
-	perf.LogSpawnLatency("DelegatedRPC(%v)", p.GetPid(), p.GetSpawnTime(), start, rpcIdx)
-	ps, ok := psm.getProcState(p.GetPid())
+func (psm *ProcStateMgr) InsertReply(pe *proc.ProcEnv, rpcIdx uint64, iov *sessp.IoVec, err error, start time.Time) {
+	db.DPrintf(db.SPPROXYSRV, "[%v] DelegatedRPC.InsertReply(%v) lat=%v", pe.GetPID(), rpcIdx, time.Since(start))
+	perf.LogSpawnLatency("DelegatedRPC(%v)", pe.GetPID(), pe.GetSpawnTime(), start, rpcIdx)
+	ps, ok := psm.getProcState(pe.GetPID())
 	if !ok {
-		db.DPrintf(db.SPPROXYSRV_ERR, "Try to insert delegated RPC reply for unknown proc: %v", p.GetPid())
+		db.DPrintf(db.SPPROXYSRV_ERR, "Try to insert delegated RPC reply for unknown proc: %v", pe.GetPID())
 		return
 	}
 	ps.rpcReps.InsertReply(rpcIdx, iov, err)

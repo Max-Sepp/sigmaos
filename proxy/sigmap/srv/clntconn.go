@@ -533,3 +533,14 @@ func (sca *SPProxySrvAPI) GetMultiDelegatedRPCReplies(ctx fs.CtxI, req scproto.S
 	db.DPrintf(db.SPPROXYSRV, "%v: GetMultiDelegatedRPCReply done totalLen %v req %v", sca.sc.ClntId(), totalLen, req)
 	return nil
 }
+
+func (sca *SPProxySrvAPI) OutgoingDelegatedRPC(ctx fs.CtxI, req scproto.SigmaOutgoingDelegatedRPCReq, rep *scproto.SigmaErrRep) error {
+	db.DPrintf(db.SPPROXYSRV, "%v: OutgoingDelegatedRPC(%v)", sca.sc.ClntId(), req.RPCIdx)
+	iov := req.Blob.GetIoVec()
+	start := time.Now()
+	// Insert the reply in the table
+	sca.spps.psm.InsertReply(sca.sc.ProcEnv(), uint64(req.RPCIdx), iov, nil, start)
+	db.DPrintf(db.SPPROXYSRV, "%v: OutgoingDelegatedRPC(%v) done", sca.sc.ClntId(), req.RPCIdx)
+	rep.Err = sca.setErr(nil)
+	return nil
+}

@@ -1547,6 +1547,61 @@ func (x *SigmaExitedReq) GetMsg() string {
 	return ""
 }
 
+type SigmaOutgoingDelegatedRPCReq struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	RPCIdx uint64      `protobuf:"varint,1,opt,name=rPCIdx,proto3" json:"rPCIdx,omitempty"`
+	Blob   *proto.Blob `protobuf:"bytes,2,opt,name=blob,proto3" json:"blob,omitempty"`
+}
+
+func (x *SigmaOutgoingDelegatedRPCReq) Reset() {
+	*x = SigmaOutgoingDelegatedRPCReq{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_proxy_sigmap_proto_spproxy_proto_msgTypes[27]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *SigmaOutgoingDelegatedRPCReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SigmaOutgoingDelegatedRPCReq) ProtoMessage() {}
+
+func (x *SigmaOutgoingDelegatedRPCReq) ProtoReflect() protoreflect.Message {
+	mi := &file_proxy_sigmap_proto_spproxy_proto_msgTypes[27]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SigmaOutgoingDelegatedRPCReq.ProtoReflect.Descriptor instead.
+func (*SigmaOutgoingDelegatedRPCReq) Descriptor() ([]byte, []int) {
+	return file_proxy_sigmap_proto_spproxy_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *SigmaOutgoingDelegatedRPCReq) GetRPCIdx() uint64 {
+	if x != nil {
+		return x.RPCIdx
+	}
+	return 0
+}
+
+func (x *SigmaOutgoingDelegatedRPCReq) GetBlob() *proto.Blob {
+	if x != nil {
+		return x.Blob
+	}
+	return nil
+}
+
 type SigmaDelegatedRPCReq struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -1559,7 +1614,7 @@ type SigmaDelegatedRPCReq struct {
 func (x *SigmaDelegatedRPCReq) Reset() {
 	*x = SigmaDelegatedRPCReq{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_proxy_sigmap_proto_spproxy_proto_msgTypes[27]
+		mi := &file_proxy_sigmap_proto_spproxy_proto_msgTypes[28]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1572,7 +1627,7 @@ func (x *SigmaDelegatedRPCReq) String() string {
 func (*SigmaDelegatedRPCReq) ProtoMessage() {}
 
 func (x *SigmaDelegatedRPCReq) ProtoReflect() protoreflect.Message {
-	mi := &file_proxy_sigmap_proto_spproxy_proto_msgTypes[27]
+	mi := &file_proxy_sigmap_proto_spproxy_proto_msgTypes[28]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1585,7 +1640,7 @@ func (x *SigmaDelegatedRPCReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SigmaDelegatedRPCReq.ProtoReflect.Descriptor instead.
 func (*SigmaDelegatedRPCReq) Descriptor() ([]byte, []int) {
-	return file_proxy_sigmap_proto_spproxy_proto_rawDescGZIP(), []int{27}
+	return file_proxy_sigmap_proto_spproxy_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *SigmaDelegatedRPCReq) GetRPCIdx() uint64 {
@@ -1617,7 +1672,7 @@ type SigmaDelegatedRPCRep struct {
 func (x *SigmaDelegatedRPCRep) Reset() {
 	*x = SigmaDelegatedRPCRep{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_proxy_sigmap_proto_spproxy_proto_msgTypes[28]
+		mi := &file_proxy_sigmap_proto_spproxy_proto_msgTypes[29]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1630,7 +1685,7 @@ func (x *SigmaDelegatedRPCRep) String() string {
 func (*SigmaDelegatedRPCRep) ProtoMessage() {}
 
 func (x *SigmaDelegatedRPCRep) ProtoReflect() protoreflect.Message {
-	mi := &file_proxy_sigmap_proto_spproxy_proto_msgTypes[28]
+	mi := &file_proxy_sigmap_proto_spproxy_proto_msgTypes[29]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1643,7 +1698,7 @@ func (x *SigmaDelegatedRPCRep) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SigmaDelegatedRPCRep.ProtoReflect.Descriptor instead.
 func (*SigmaDelegatedRPCRep) Descriptor() ([]byte, []int) {
-	return file_proxy_sigmap_proto_spproxy_proto_rawDescGZIP(), []int{28}
+	return file_proxy_sigmap_proto_spproxy_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *SigmaDelegatedRPCRep) GetBlob() *proto.Blob {
@@ -1692,7 +1747,7 @@ type SigmaMultiDelegatedRPCReq struct {
 func (x *SigmaMultiDelegatedRPCReq) Reset() {
 	*x = SigmaMultiDelegatedRPCReq{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_proxy_sigmap_proto_spproxy_proto_msgTypes[29]
+		mi := &file_proxy_sigmap_proto_spproxy_proto_msgTypes[30]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1705,7 +1760,7 @@ func (x *SigmaMultiDelegatedRPCReq) String() string {
 func (*SigmaMultiDelegatedRPCReq) ProtoMessage() {}
 
 func (x *SigmaMultiDelegatedRPCReq) ProtoReflect() protoreflect.Message {
-	mi := &file_proxy_sigmap_proto_spproxy_proto_msgTypes[29]
+	mi := &file_proxy_sigmap_proto_spproxy_proto_msgTypes[30]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1718,7 +1773,7 @@ func (x *SigmaMultiDelegatedRPCReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SigmaMultiDelegatedRPCReq.ProtoReflect.Descriptor instead.
 func (*SigmaMultiDelegatedRPCReq) Descriptor() ([]byte, []int) {
-	return file_proxy_sigmap_proto_spproxy_proto_rawDescGZIP(), []int{29}
+	return file_proxy_sigmap_proto_spproxy_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *SigmaMultiDelegatedRPCReq) GetRPCIdxs() []uint64 {
@@ -1741,7 +1796,7 @@ type SigmaMultiDelegatedRPCRep struct {
 func (x *SigmaMultiDelegatedRPCRep) Reset() {
 	*x = SigmaMultiDelegatedRPCRep{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_proxy_sigmap_proto_spproxy_proto_msgTypes[30]
+		mi := &file_proxy_sigmap_proto_spproxy_proto_msgTypes[31]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1754,7 +1809,7 @@ func (x *SigmaMultiDelegatedRPCRep) String() string {
 func (*SigmaMultiDelegatedRPCRep) ProtoMessage() {}
 
 func (x *SigmaMultiDelegatedRPCRep) ProtoReflect() protoreflect.Message {
-	mi := &file_proxy_sigmap_proto_spproxy_proto_msgTypes[30]
+	mi := &file_proxy_sigmap_proto_spproxy_proto_msgTypes[31]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1767,7 +1822,7 @@ func (x *SigmaMultiDelegatedRPCRep) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SigmaMultiDelegatedRPCRep.ProtoReflect.Descriptor instead.
 func (*SigmaMultiDelegatedRPCRep) Descriptor() ([]byte, []int) {
-	return file_proxy_sigmap_proto_spproxy_proto_rawDescGZIP(), []int{30}
+	return file_proxy_sigmap_proto_spproxy_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *SigmaMultiDelegatedRPCRep) GetBlob() *proto.Blob {
@@ -1925,34 +1980,39 @@ var file_proxy_sigmap_proto_spproxy_proto_rawDesc = []byte{
 	0x69, 0x74, 0x65, 0x64, 0x52, 0x65, 0x71, 0x12, 0x16, 0x0a, 0x06, 0x73, 0x74, 0x61, 0x74, 0x75,
 	0x73, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x06, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x12,
 	0x10, 0x0a, 0x03, 0x6d, 0x73, 0x67, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x6d, 0x73,
-	0x67, 0x22, 0x4a, 0x0a, 0x14, 0x53, 0x69, 0x67, 0x6d, 0x61, 0x44, 0x65, 0x6c, 0x65, 0x67, 0x61,
-	0x74, 0x65, 0x64, 0x52, 0x50, 0x43, 0x52, 0x65, 0x71, 0x12, 0x16, 0x0a, 0x06, 0x72, 0x50, 0x43,
-	0x49, 0x64, 0x78, 0x18, 0x01, 0x20, 0x01, 0x28, 0x04, 0x52, 0x06, 0x72, 0x50, 0x43, 0x49, 0x64,
-	0x78, 0x12, 0x1a, 0x0a, 0x08, 0x75, 0x73, 0x65, 0x53, 0x68, 0x6d, 0x65, 0x6d, 0x18, 0x02, 0x20,
-	0x01, 0x28, 0x08, 0x52, 0x08, 0x75, 0x73, 0x65, 0x53, 0x68, 0x6d, 0x65, 0x6d, 0x22, 0x9c, 0x01,
-	0x0a, 0x14, 0x53, 0x69, 0x67, 0x6d, 0x61, 0x44, 0x65, 0x6c, 0x65, 0x67, 0x61, 0x74, 0x65, 0x64,
-	0x52, 0x50, 0x43, 0x52, 0x65, 0x70, 0x12, 0x19, 0x0a, 0x04, 0x62, 0x6c, 0x6f, 0x62, 0x18, 0x01,
-	0x20, 0x01, 0x28, 0x0b, 0x32, 0x05, 0x2e, 0x42, 0x6c, 0x6f, 0x62, 0x52, 0x04, 0x62, 0x6c, 0x6f,
-	0x62, 0x12, 0x19, 0x0a, 0x03, 0x65, 0x72, 0x72, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x07,
-	0x2e, 0x52, 0x65, 0x72, 0x72, 0x6f, 0x72, 0x52, 0x03, 0x65, 0x72, 0x72, 0x12, 0x1a, 0x0a, 0x08,
-	0x75, 0x73, 0x65, 0x53, 0x68, 0x6d, 0x65, 0x6d, 0x18, 0x03, 0x20, 0x01, 0x28, 0x08, 0x52, 0x08,
-	0x75, 0x73, 0x65, 0x53, 0x68, 0x6d, 0x65, 0x6d, 0x12, 0x18, 0x0a, 0x07, 0x73, 0x68, 0x6d, 0x4f,
-	0x66, 0x66, 0x73, 0x18, 0x04, 0x20, 0x03, 0x28, 0x04, 0x52, 0x07, 0x73, 0x68, 0x6d, 0x4f, 0x66,
-	0x66, 0x73, 0x12, 0x18, 0x0a, 0x07, 0x73, 0x68, 0x6d, 0x4c, 0x65, 0x6e, 0x73, 0x18, 0x05, 0x20,
-	0x03, 0x28, 0x04, 0x52, 0x07, 0x73, 0x68, 0x6d, 0x4c, 0x65, 0x6e, 0x73, 0x22, 0x35, 0x0a, 0x19,
-	0x53, 0x69, 0x67, 0x6d, 0x61, 0x4d, 0x75, 0x6c, 0x74, 0x69, 0x44, 0x65, 0x6c, 0x65, 0x67, 0x61,
-	0x74, 0x65, 0x64, 0x52, 0x50, 0x43, 0x52, 0x65, 0x71, 0x12, 0x18, 0x0a, 0x07, 0x72, 0x50, 0x43,
-	0x49, 0x64, 0x78, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x04, 0x52, 0x07, 0x72, 0x50, 0x43, 0x49,
-	0x64, 0x78, 0x73, 0x22, 0x69, 0x0a, 0x19, 0x53, 0x69, 0x67, 0x6d, 0x61, 0x4d, 0x75, 0x6c, 0x74,
-	0x69, 0x44, 0x65, 0x6c, 0x65, 0x67, 0x61, 0x74, 0x65, 0x64, 0x52, 0x50, 0x43, 0x52, 0x65, 0x70,
-	0x12, 0x19, 0x0a, 0x04, 0x62, 0x6c, 0x6f, 0x62, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x05,
-	0x2e, 0x42, 0x6c, 0x6f, 0x62, 0x52, 0x04, 0x62, 0x6c, 0x6f, 0x62, 0x12, 0x14, 0x0a, 0x05, 0x6e,
-	0x49, 0x4f, 0x56, 0x73, 0x18, 0x02, 0x20, 0x03, 0x28, 0x04, 0x52, 0x05, 0x6e, 0x49, 0x4f, 0x56,
-	0x73, 0x12, 0x1b, 0x0a, 0x04, 0x65, 0x72, 0x72, 0x73, 0x18, 0x03, 0x20, 0x03, 0x28, 0x0b, 0x32,
-	0x07, 0x2e, 0x52, 0x65, 0x72, 0x72, 0x6f, 0x72, 0x52, 0x04, 0x65, 0x72, 0x72, 0x73, 0x42, 0x1c,
-	0x5a, 0x1a, 0x73, 0x69, 0x67, 0x6d, 0x61, 0x6f, 0x73, 0x2f, 0x70, 0x72, 0x6f, 0x78, 0x79, 0x2f,
-	0x73, 0x69, 0x67, 0x6d, 0x61, 0x70, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x06, 0x70, 0x72,
-	0x6f, 0x74, 0x6f, 0x33,
+	0x67, 0x22, 0x51, 0x0a, 0x1c, 0x53, 0x69, 0x67, 0x6d, 0x61, 0x4f, 0x75, 0x74, 0x67, 0x6f, 0x69,
+	0x6e, 0x67, 0x44, 0x65, 0x6c, 0x65, 0x67, 0x61, 0x74, 0x65, 0x64, 0x52, 0x50, 0x43, 0x52, 0x65,
+	0x71, 0x12, 0x16, 0x0a, 0x06, 0x72, 0x50, 0x43, 0x49, 0x64, 0x78, 0x18, 0x01, 0x20, 0x01, 0x28,
+	0x04, 0x52, 0x06, 0x72, 0x50, 0x43, 0x49, 0x64, 0x78, 0x12, 0x19, 0x0a, 0x04, 0x62, 0x6c, 0x6f,
+	0x62, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x05, 0x2e, 0x42, 0x6c, 0x6f, 0x62, 0x52, 0x04,
+	0x62, 0x6c, 0x6f, 0x62, 0x22, 0x4a, 0x0a, 0x14, 0x53, 0x69, 0x67, 0x6d, 0x61, 0x44, 0x65, 0x6c,
+	0x65, 0x67, 0x61, 0x74, 0x65, 0x64, 0x52, 0x50, 0x43, 0x52, 0x65, 0x71, 0x12, 0x16, 0x0a, 0x06,
+	0x72, 0x50, 0x43, 0x49, 0x64, 0x78, 0x18, 0x01, 0x20, 0x01, 0x28, 0x04, 0x52, 0x06, 0x72, 0x50,
+	0x43, 0x49, 0x64, 0x78, 0x12, 0x1a, 0x0a, 0x08, 0x75, 0x73, 0x65, 0x53, 0x68, 0x6d, 0x65, 0x6d,
+	0x18, 0x02, 0x20, 0x01, 0x28, 0x08, 0x52, 0x08, 0x75, 0x73, 0x65, 0x53, 0x68, 0x6d, 0x65, 0x6d,
+	0x22, 0x9c, 0x01, 0x0a, 0x14, 0x53, 0x69, 0x67, 0x6d, 0x61, 0x44, 0x65, 0x6c, 0x65, 0x67, 0x61,
+	0x74, 0x65, 0x64, 0x52, 0x50, 0x43, 0x52, 0x65, 0x70, 0x12, 0x19, 0x0a, 0x04, 0x62, 0x6c, 0x6f,
+	0x62, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x05, 0x2e, 0x42, 0x6c, 0x6f, 0x62, 0x52, 0x04,
+	0x62, 0x6c, 0x6f, 0x62, 0x12, 0x19, 0x0a, 0x03, 0x65, 0x72, 0x72, 0x18, 0x02, 0x20, 0x01, 0x28,
+	0x0b, 0x32, 0x07, 0x2e, 0x52, 0x65, 0x72, 0x72, 0x6f, 0x72, 0x52, 0x03, 0x65, 0x72, 0x72, 0x12,
+	0x1a, 0x0a, 0x08, 0x75, 0x73, 0x65, 0x53, 0x68, 0x6d, 0x65, 0x6d, 0x18, 0x03, 0x20, 0x01, 0x28,
+	0x08, 0x52, 0x08, 0x75, 0x73, 0x65, 0x53, 0x68, 0x6d, 0x65, 0x6d, 0x12, 0x18, 0x0a, 0x07, 0x73,
+	0x68, 0x6d, 0x4f, 0x66, 0x66, 0x73, 0x18, 0x04, 0x20, 0x03, 0x28, 0x04, 0x52, 0x07, 0x73, 0x68,
+	0x6d, 0x4f, 0x66, 0x66, 0x73, 0x12, 0x18, 0x0a, 0x07, 0x73, 0x68, 0x6d, 0x4c, 0x65, 0x6e, 0x73,
+	0x18, 0x05, 0x20, 0x03, 0x28, 0x04, 0x52, 0x07, 0x73, 0x68, 0x6d, 0x4c, 0x65, 0x6e, 0x73, 0x22,
+	0x35, 0x0a, 0x19, 0x53, 0x69, 0x67, 0x6d, 0x61, 0x4d, 0x75, 0x6c, 0x74, 0x69, 0x44, 0x65, 0x6c,
+	0x65, 0x67, 0x61, 0x74, 0x65, 0x64, 0x52, 0x50, 0x43, 0x52, 0x65, 0x71, 0x12, 0x18, 0x0a, 0x07,
+	0x72, 0x50, 0x43, 0x49, 0x64, 0x78, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x04, 0x52, 0x07, 0x72,
+	0x50, 0x43, 0x49, 0x64, 0x78, 0x73, 0x22, 0x69, 0x0a, 0x19, 0x53, 0x69, 0x67, 0x6d, 0x61, 0x4d,
+	0x75, 0x6c, 0x74, 0x69, 0x44, 0x65, 0x6c, 0x65, 0x67, 0x61, 0x74, 0x65, 0x64, 0x52, 0x50, 0x43,
+	0x52, 0x65, 0x70, 0x12, 0x19, 0x0a, 0x04, 0x62, 0x6c, 0x6f, 0x62, 0x18, 0x01, 0x20, 0x01, 0x28,
+	0x0b, 0x32, 0x05, 0x2e, 0x42, 0x6c, 0x6f, 0x62, 0x52, 0x04, 0x62, 0x6c, 0x6f, 0x62, 0x12, 0x14,
+	0x0a, 0x05, 0x6e, 0x49, 0x4f, 0x56, 0x73, 0x18, 0x02, 0x20, 0x03, 0x28, 0x04, 0x52, 0x05, 0x6e,
+	0x49, 0x4f, 0x56, 0x73, 0x12, 0x1b, 0x0a, 0x04, 0x65, 0x72, 0x72, 0x73, 0x18, 0x03, 0x20, 0x03,
+	0x28, 0x0b, 0x32, 0x07, 0x2e, 0x52, 0x65, 0x72, 0x72, 0x6f, 0x72, 0x52, 0x04, 0x65, 0x72, 0x72,
+	0x73, 0x42, 0x1c, 0x5a, 0x1a, 0x73, 0x69, 0x67, 0x6d, 0x61, 0x6f, 0x73, 0x2f, 0x70, 0x72, 0x6f,
+	0x78, 0x79, 0x2f, 0x73, 0x69, 0x67, 0x6d, 0x61, 0x70, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62,
+	0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -1967,79 +2027,81 @@ func file_proxy_sigmap_proto_spproxy_proto_rawDescGZIP() []byte {
 	return file_proxy_sigmap_proto_spproxy_proto_rawDescData
 }
 
-var file_proxy_sigmap_proto_spproxy_proto_msgTypes = make([]protoimpl.MessageInfo, 31)
+var file_proxy_sigmap_proto_spproxy_proto_msgTypes = make([]protoimpl.MessageInfo, 32)
 var file_proxy_sigmap_proto_spproxy_proto_goTypes = []interface{}{
-	(*SigmaWaitBootScriptReq)(nil),    // 0: SigmaWaitBootScriptReq
-	(*SigmaInformProcReq)(nil),        // 1: SigmaInformProcReq
-	(*SigmaInitReq)(nil),              // 2: SigmaInitReq
-	(*SigmaNullReq)(nil),              // 3: SigmaNullReq
-	(*SigmaRealmReq)(nil),             // 4: SigmaRealmReq
-	(*SigmaCloseReq)(nil),             // 5: SigmaCloseReq
-	(*SigmaErrRep)(nil),               // 6: SigmaErrRep
-	(*SigmaPathReq)(nil),              // 7: SigmaPathReq
-	(*SigmaStatRep)(nil),              // 8: SigmaStatRep
-	(*SigmaCreateReq)(nil),            // 9: SigmaCreateReq
-	(*SigmaFdRep)(nil),                // 10: SigmaFdRep
-	(*SigmaRenameReq)(nil),            // 11: SigmaRenameReq
-	(*SigmaDataRep)(nil),              // 12: SigmaDataRep
-	(*SigmaPutFileReq)(nil),           // 13: SigmaPutFileReq
-	(*SigmaSizeRep)(nil),              // 14: SigmaSizeRep
-	(*SigmaReadReq)(nil),              // 15: SigmaReadReq
-	(*SigmaWriteReq)(nil),             // 16: SigmaWriteReq
-	(*SigmaSeekReq)(nil),              // 17: SigmaSeekReq
-	(*SigmaClntIdRep)(nil),            // 18: SigmaClntIdRep
-	(*SigmaFenceReq)(nil),             // 19: SigmaFenceReq
-	(*SigmaMountTreeReq)(nil),         // 20: SigmaMountTreeReq
-	(*SigmaLastMountRep)(nil),         // 21: SigmaLastMountRep
-	(*SigmaMountReq)(nil),             // 22: SigmaMountReq
-	(*SigmaMountRep)(nil),             // 23: SigmaMountRep
-	(*SigmaMountsRep)(nil),            // 24: SigmaMountsRep
-	(*SigmaRegisterEPReq)(nil),        // 25: SigmaRegisterEPReq
-	(*SigmaExitedReq)(nil),            // 26: SigmaExitedReq
-	(*SigmaDelegatedRPCReq)(nil),      // 27: SigmaDelegatedRPCReq
-	(*SigmaDelegatedRPCRep)(nil),      // 28: SigmaDelegatedRPCRep
-	(*SigmaMultiDelegatedRPCReq)(nil), // 29: SigmaMultiDelegatedRPCReq
-	(*SigmaMultiDelegatedRPCRep)(nil), // 30: SigmaMultiDelegatedRPCRep
-	(*proc.ProcProto)(nil),            // 31: ProcProto
-	(*proc.ProcEnvProto)(nil),         // 32: ProcEnvProto
-	(*sigmap.Rerror)(nil),             // 33: Rerror
-	(*sigmap.TstatProto)(nil),         // 34: TstatProto
-	(*sigmap.TfenceProto)(nil),        // 35: TfenceProto
-	(*proto.Blob)(nil),                // 36: Blob
-	(*sigmap.TendpointProto)(nil),     // 37: TendpointProto
+	(*SigmaWaitBootScriptReq)(nil),       // 0: SigmaWaitBootScriptReq
+	(*SigmaInformProcReq)(nil),           // 1: SigmaInformProcReq
+	(*SigmaInitReq)(nil),                 // 2: SigmaInitReq
+	(*SigmaNullReq)(nil),                 // 3: SigmaNullReq
+	(*SigmaRealmReq)(nil),                // 4: SigmaRealmReq
+	(*SigmaCloseReq)(nil),                // 5: SigmaCloseReq
+	(*SigmaErrRep)(nil),                  // 6: SigmaErrRep
+	(*SigmaPathReq)(nil),                 // 7: SigmaPathReq
+	(*SigmaStatRep)(nil),                 // 8: SigmaStatRep
+	(*SigmaCreateReq)(nil),               // 9: SigmaCreateReq
+	(*SigmaFdRep)(nil),                   // 10: SigmaFdRep
+	(*SigmaRenameReq)(nil),               // 11: SigmaRenameReq
+	(*SigmaDataRep)(nil),                 // 12: SigmaDataRep
+	(*SigmaPutFileReq)(nil),              // 13: SigmaPutFileReq
+	(*SigmaSizeRep)(nil),                 // 14: SigmaSizeRep
+	(*SigmaReadReq)(nil),                 // 15: SigmaReadReq
+	(*SigmaWriteReq)(nil),                // 16: SigmaWriteReq
+	(*SigmaSeekReq)(nil),                 // 17: SigmaSeekReq
+	(*SigmaClntIdRep)(nil),               // 18: SigmaClntIdRep
+	(*SigmaFenceReq)(nil),                // 19: SigmaFenceReq
+	(*SigmaMountTreeReq)(nil),            // 20: SigmaMountTreeReq
+	(*SigmaLastMountRep)(nil),            // 21: SigmaLastMountRep
+	(*SigmaMountReq)(nil),                // 22: SigmaMountReq
+	(*SigmaMountRep)(nil),                // 23: SigmaMountRep
+	(*SigmaMountsRep)(nil),               // 24: SigmaMountsRep
+	(*SigmaRegisterEPReq)(nil),           // 25: SigmaRegisterEPReq
+	(*SigmaExitedReq)(nil),               // 26: SigmaExitedReq
+	(*SigmaOutgoingDelegatedRPCReq)(nil), // 27: SigmaOutgoingDelegatedRPCReq
+	(*SigmaDelegatedRPCReq)(nil),         // 28: SigmaDelegatedRPCReq
+	(*SigmaDelegatedRPCRep)(nil),         // 29: SigmaDelegatedRPCRep
+	(*SigmaMultiDelegatedRPCReq)(nil),    // 30: SigmaMultiDelegatedRPCReq
+	(*SigmaMultiDelegatedRPCRep)(nil),    // 31: SigmaMultiDelegatedRPCRep
+	(*proc.ProcProto)(nil),               // 32: ProcProto
+	(*proc.ProcEnvProto)(nil),            // 33: ProcEnvProto
+	(*sigmap.Rerror)(nil),                // 34: Rerror
+	(*sigmap.TstatProto)(nil),            // 35: TstatProto
+	(*sigmap.TfenceProto)(nil),           // 36: TfenceProto
+	(*proto.Blob)(nil),                   // 37: Blob
+	(*sigmap.TendpointProto)(nil),        // 38: TendpointProto
 }
 var file_proxy_sigmap_proto_spproxy_proto_depIdxs = []int32{
-	31, // 0: SigmaInformProcReq.procProto:type_name -> ProcProto
-	32, // 1: SigmaInitReq.procEnvProto:type_name -> ProcEnvProto
-	33, // 2: SigmaErrRep.err:type_name -> Rerror
-	34, // 3: SigmaStatRep.stat:type_name -> TstatProto
-	33, // 4: SigmaStatRep.err:type_name -> Rerror
-	35, // 5: SigmaCreateReq.fence:type_name -> TfenceProto
-	33, // 6: SigmaFdRep.err:type_name -> Rerror
-	36, // 7: SigmaDataRep.blob:type_name -> Blob
-	33, // 8: SigmaDataRep.err:type_name -> Rerror
-	36, // 9: SigmaPutFileReq.blob:type_name -> Blob
-	33, // 10: SigmaSizeRep.err:type_name -> Rerror
-	35, // 11: SigmaWriteReq.fence:type_name -> TfenceProto
-	36, // 12: SigmaWriteReq.blob:type_name -> Blob
-	33, // 13: SigmaClntIdRep.err:type_name -> Rerror
-	35, // 14: SigmaFenceReq.Fence:type_name -> TfenceProto
-	37, // 15: SigmaMountTreeReq.Endpoint:type_name -> TendpointProto
-	33, // 16: SigmaLastMountRep.err:type_name -> Rerror
-	37, // 17: SigmaMountReq.endpoint:type_name -> TendpointProto
-	37, // 18: SigmaMountRep.endpoint:type_name -> TendpointProto
-	33, // 19: SigmaMountRep.err:type_name -> Rerror
-	33, // 20: SigmaMountsRep.err:type_name -> Rerror
-	37, // 21: SigmaRegisterEPReq.endpoint:type_name -> TendpointProto
-	36, // 22: SigmaDelegatedRPCRep.blob:type_name -> Blob
-	33, // 23: SigmaDelegatedRPCRep.err:type_name -> Rerror
-	36, // 24: SigmaMultiDelegatedRPCRep.blob:type_name -> Blob
-	33, // 25: SigmaMultiDelegatedRPCRep.errs:type_name -> Rerror
-	26, // [26:26] is the sub-list for method output_type
-	26, // [26:26] is the sub-list for method input_type
-	26, // [26:26] is the sub-list for extension type_name
-	26, // [26:26] is the sub-list for extension extendee
-	0,  // [0:26] is the sub-list for field type_name
+	32, // 0: SigmaInformProcReq.procProto:type_name -> ProcProto
+	33, // 1: SigmaInitReq.procEnvProto:type_name -> ProcEnvProto
+	34, // 2: SigmaErrRep.err:type_name -> Rerror
+	35, // 3: SigmaStatRep.stat:type_name -> TstatProto
+	34, // 4: SigmaStatRep.err:type_name -> Rerror
+	36, // 5: SigmaCreateReq.fence:type_name -> TfenceProto
+	34, // 6: SigmaFdRep.err:type_name -> Rerror
+	37, // 7: SigmaDataRep.blob:type_name -> Blob
+	34, // 8: SigmaDataRep.err:type_name -> Rerror
+	37, // 9: SigmaPutFileReq.blob:type_name -> Blob
+	34, // 10: SigmaSizeRep.err:type_name -> Rerror
+	36, // 11: SigmaWriteReq.fence:type_name -> TfenceProto
+	37, // 12: SigmaWriteReq.blob:type_name -> Blob
+	34, // 13: SigmaClntIdRep.err:type_name -> Rerror
+	36, // 14: SigmaFenceReq.Fence:type_name -> TfenceProto
+	38, // 15: SigmaMountTreeReq.Endpoint:type_name -> TendpointProto
+	34, // 16: SigmaLastMountRep.err:type_name -> Rerror
+	38, // 17: SigmaMountReq.endpoint:type_name -> TendpointProto
+	38, // 18: SigmaMountRep.endpoint:type_name -> TendpointProto
+	34, // 19: SigmaMountRep.err:type_name -> Rerror
+	34, // 20: SigmaMountsRep.err:type_name -> Rerror
+	38, // 21: SigmaRegisterEPReq.endpoint:type_name -> TendpointProto
+	37, // 22: SigmaOutgoingDelegatedRPCReq.blob:type_name -> Blob
+	37, // 23: SigmaDelegatedRPCRep.blob:type_name -> Blob
+	34, // 24: SigmaDelegatedRPCRep.err:type_name -> Rerror
+	37, // 25: SigmaMultiDelegatedRPCRep.blob:type_name -> Blob
+	34, // 26: SigmaMultiDelegatedRPCRep.errs:type_name -> Rerror
+	27, // [27:27] is the sub-list for method output_type
+	27, // [27:27] is the sub-list for method input_type
+	27, // [27:27] is the sub-list for extension type_name
+	27, // [27:27] is the sub-list for extension extendee
+	0,  // [0:27] is the sub-list for field type_name
 }
 
 func init() { file_proxy_sigmap_proto_spproxy_proto_init() }
@@ -2373,7 +2435,7 @@ func file_proxy_sigmap_proto_spproxy_proto_init() {
 			}
 		}
 		file_proxy_sigmap_proto_spproxy_proto_msgTypes[27].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SigmaDelegatedRPCReq); i {
+			switch v := v.(*SigmaOutgoingDelegatedRPCReq); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2385,7 +2447,7 @@ func file_proxy_sigmap_proto_spproxy_proto_init() {
 			}
 		}
 		file_proxy_sigmap_proto_spproxy_proto_msgTypes[28].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SigmaDelegatedRPCRep); i {
+			switch v := v.(*SigmaDelegatedRPCReq); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2397,7 +2459,7 @@ func file_proxy_sigmap_proto_spproxy_proto_init() {
 			}
 		}
 		file_proxy_sigmap_proto_spproxy_proto_msgTypes[29].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SigmaMultiDelegatedRPCReq); i {
+			switch v := v.(*SigmaDelegatedRPCRep); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2409,6 +2471,18 @@ func file_proxy_sigmap_proto_spproxy_proto_init() {
 			}
 		}
 		file_proxy_sigmap_proto_spproxy_proto_msgTypes[30].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*SigmaMultiDelegatedRPCReq); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_proxy_sigmap_proto_spproxy_proto_msgTypes[31].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*SigmaMultiDelegatedRPCRep); i {
 			case 0:
 				return &v.state
@@ -2427,7 +2501,7 @@ func file_proxy_sigmap_proto_spproxy_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_proxy_sigmap_proto_spproxy_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   31,
+			NumMessages:   32,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

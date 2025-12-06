@@ -47,11 +47,15 @@ func (wp *WASMRPCProxy) Send(rpcIdx uint64, pn string, method string, b []byte, 
 	return nil
 }
 
-func (wp *WASMRPCProxy) Recv(rpcIdx uint64) ([]byte, error) {
+func (wp *WASMRPCProxy) Recv(rpcIdx uint64, getData bool) ([]byte, error) {
 	outiov, err := wp.spp.psm.GetReply(wp.p.GetPid(), rpcIdx)
 	if err != nil {
 		db.DPrintf(db.SPPROXYSRV_ERR, "[%v] Err GetReply(%v) in WasmRPCRecv: %v", wp.p.GetPid(), err)
 		return nil, err
+	}
+	// If the wasm module doesn't want the data back, bail out
+	if !getData {
+		return nil, nil
 	}
 	// Remove the RPC wrapper
 	rep := &rpcproto.Rep{}
@@ -69,4 +73,17 @@ func (wp *WASMRPCProxy) Recv(rpcIdx uint64) ([]byte, error) {
 		return nil, serr.NewErrError(fmt.Errorf("Err unexpected outiov len: %v", outiov.Len()))
 	}
 	return outiov.GetFrame(1).GetBuf(), nil
+}
+
+func (wp *WASMRPCProxy) Forward(rpcIdx uint64, newRPCIdx uint64, pn string, nOutIOV uint64) error {
+	// Get the RPC to forward
+	iniov, err := wp.spp.psm.GetReply(wp.p.GetPid(), rpcIdx)
+	if err != nil {
+		db.DPrintf(db.SPPROXYSRV_ERR, "[%v] Error GetReply to forward for WASM-proxied RPC request: %v", wp.p.GetPid(), err)
+		return err
+	}
+	// Run the delegated RPC asynchronously, and add an extra output IOVec slot
+	// for the RPC wrapper
+	go wp.spp.runDelegatedRPC(wp.sc, wp.p, newRPCIdx, pn, iniov, nOutIOV+1)
+	return nil
 }

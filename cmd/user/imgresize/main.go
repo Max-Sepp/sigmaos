@@ -75,17 +75,18 @@ func main() {
 
 type ImgProcess struct {
 	*sigmaclnt.SigmaClnt
-	inputs    []string
-	output    string
-	ctx       fs.CtxI
-	nrounds   int
-	p         *perf.Perf
-	useS3Clnt bool
-	s3Clnt    *s3clnt.S3Clnt
+	inputs                []string
+	output                string
+	ctx                   fs.CtxI
+	nrounds               int
+	p                     *perf.Perf
+	useS3Clnt             bool
+	writeOutViaBootScript bool
+	s3Clnt                *s3clnt.S3Clnt
 }
 
 func NewImgProcess(pe *proc.ProcEnv, args []string, p *perf.Perf) (*ImgProcess, error) {
-	if len(args) != 5 {
+	if len(args) != 6 {
 		return nil, fmt.Errorf("NewImgProcess: wrong number of arguments: %v", args)
 	}
 	ip := &ImgProcess{
@@ -100,7 +101,12 @@ func NewImgProcess(pe *proc.ProcEnv, args []string, p *perf.Perf) (*ImgProcess, 
 	if err != nil {
 		db.DFatalf("Err parse useS3Clnt: %v", err)
 	}
+	writeOutViaBootScript, err := strconv.ParseBool(args[5])
+	if err != nil {
+		db.DFatalf("Err parse useS3Clnt: %v", err)
+	}
 	ip.useS3Clnt = useS3Clnt
+	ip.writeOutViaBootScript = writeOutViaBootScript
 	ip.SigmaClnt = sc
 	ip.inputs = strings.Split(args[1], ",")
 	db.DPrintf(db.ALWAYS, "Args {%v} inputs {%v} fail {%v}", args[1], ip.inputs, proc.GetSigmaFail())
@@ -211,8 +217,14 @@ func (ip *ImgProcess) Work(i int, output string) *proc.Status {
 		pn := strings.Split(output, "/")
 		bucket := pn[0]
 		key := filepath.Join(pn[1:]...)
-		if err := ip.s3Clnt.PutObject(bucket, key, outbuf.Bytes()); err != nil {
-			return proc.NewStatusErr(fmt.Sprintf("Err PutObject bucket:%v key:%v", bucket, key), err)
+		if ip.writeOutViaBootScript {
+			if err := ip.s3Clnt.DelegatedPutObject(1, bucket, key, outbuf.Bytes()); err != nil {
+				return proc.NewStatusErr(fmt.Sprintf("Err PutObjectViaBootScript bucket:%v key:%v", bucket, key), err)
+			}
+		} else {
+			if err := ip.s3Clnt.PutObject(bucket, key, outbuf.Bytes()); err != nil {
+				return proc.NewStatusErr(fmt.Sprintf("Err PutObject bucket:%v key:%v", bucket, key), err)
+			}
 		}
 	}
 	return proc.NewStatus(proc.StatusOK)

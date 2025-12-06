@@ -160,6 +160,29 @@ func (rpcc *RPCClnt) rpc(delegate bool, method string, arg proto.Message, res pr
 	return nil
 }
 
+// OutgoingDelegatedRPC sends an RPC to the boot script via the SPProxySrv
+func (rpcc *RPCClnt) OutgoingDelegatedRPC(rpcIdx uint64, method string, arg proto.Message) error {
+	iniov, err := WrapRPCRequest(method, arg)
+	if err != nil {
+		return err
+	}
+	blob := &rpcproto.Blob{}
+	blob.SetIoVec(iniov)
+	req := &spproxyproto.SigmaOutgoingDelegatedRPCReq{
+		RPCIdx: rpcIdx,
+		Blob:   blob,
+	}
+	rep := &spproxyproto.SigmaErrRep{}
+	if err := rpcc.rpc(true, "SPProxySrvAPI.OutgoingDelegatedRPC", req, rep); err != nil {
+		db.DPrintf(db.ERROR, "Err OutgoingDelegatedRPC(%v): %v", err)
+		return err
+	}
+	if rep.Err.ErrCode != 0 {
+		return sp.NewErr(rep.Err)
+	}
+	return nil
+}
+
 // DelegatedRPC handles a delegated RPC (requesting the response from
 // SPProxySrv via the delegated RPC channel), retreiving a res that contains a
 // Blob specially: it removes the blob from the message and pass it down in an

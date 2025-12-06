@@ -64,7 +64,7 @@ func TestResizeProc(t *testing.T) {
 	in := filepath.Join(sp.S3, sp.LOCAL, "9ps3/img-save/8.jpg")
 	out := filepath.Join(sp.S3, sp.LOCAL, "9ps3/img/8-thumb-xxx.jpg")
 	mrts.GetRealm(test.REALM1).Remove(out)
-	p := proc.NewProc("imgresize", []string{in, out, "1", "false"})
+	p := proc.NewProc("imgresize", []string{in, out, "1", "false", "false"})
 	err := mrts.GetRealm(test.REALM1).Spawn(p)
 	assert.Nil(t, err, "Spawn")
 	err = mrts.GetRealm(test.REALM1).WaitStart(p.GetPid())
@@ -74,7 +74,7 @@ func TestResizeProc(t *testing.T) {
 	assert.True(t, status.IsStatusOK(), "WaitExit status error: %v", status)
 }
 
-func TestResizeProcInitScript(t *testing.T) {
+func TestResizeProcInitScriptSimple(t *testing.T) {
 	mrts, err1 := test.NewMultiRealmTstate(t, []sp.Trealm{test.REALM1})
 	if !assert.Nil(t, err1, "Error New Tstate: %v", err1) {
 		return
@@ -94,12 +94,48 @@ func TestResizeProcInitScript(t *testing.T) {
 	if !assert.Nil(t, err, "Err construct bootscript input: %v", err) {
 		return
 	}
-	p := proc.NewProc("imgresize", []string{inS3, outS3, "1", "true"})
+	p := proc.NewProc("imgresize", []string{inS3, outS3, "1", "true", "false"})
 	p.GetProcEnv().UseSPProxy = true
 	p.SetBootScript(bootScript, bootScriptInput)
 	p.SetRunBootScript(true)
 	// Run after boot script
 	p.SetRunAfterBootScript(true)
+	p.SetMcpu(1000)
+	err = mrts.GetRealm(test.REALM1).Spawn(p)
+	assert.Nil(t, err, "Spawn")
+	err = mrts.GetRealm(test.REALM1).WaitStart(p.GetPid())
+	assert.Nil(t, err, "WaitStart error")
+	status, err := mrts.GetRealm(test.REALM1).WaitExit(p.GetPid())
+	assert.Nil(t, err, "WaitExit error %v", err)
+	assert.True(t, status.IsStatusOK(), "WaitExit status error: %v", status)
+}
+
+func TestResizeProcInitScriptWriteBack(t *testing.T) {
+	mrts, err1 := test.NewMultiRealmTstate(t, []sp.Trealm{test.REALM1})
+	if !assert.Nil(t, err1, "Error New Tstate: %v", err1) {
+		return
+	}
+	defer mrts.Shutdown()
+
+	inS3 := "9ps3/img-save/8.jpg"
+	outS3 := "9ps3/img/8-thumb-xxx.jpg"
+	out := filepath.Join(sp.S3, sp.LOCAL, outS3)
+	mrts.GetRealm(test.REALM1).Remove(out)
+
+	bootScript, err := imgresize.GetBootScriptWriteOut(mrts.GetRealm(test.REALM1).SigmaClnt)
+	if !assert.Nil(t, err, "Err read bootscript: %v", err) {
+		return
+	}
+	bootScriptInput, err := imgresize.GetBootScriptInput("9ps3", "img-save/8.jpg", sp.LOCAL)
+	if !assert.Nil(t, err, "Err construct bootscript input: %v", err) {
+		return
+	}
+	p := proc.NewProc("imgresize", []string{inS3, outS3, "1", "true", "true"})
+	p.GetProcEnv().UseSPProxy = true
+	p.SetBootScript(bootScript, bootScriptInput)
+	p.SetRunBootScript(true)
+	// Run after boot script
+	p.SetRunAfterBootScript(false)
 	p.SetMcpu(1000)
 	err = mrts.GetRealm(test.REALM1).Spawn(p)
 	assert.Nil(t, err, "Spawn")
@@ -321,7 +357,7 @@ func TestImgdResizeRPCS3ClntBootScript(t *testing.T) {
 func (ts *Tstate) doJob(paths []string) *spstats.TcounterSnapshot {
 	tasks := make([]*fttask_clnt.Task[imgresize.Ttask], len(paths))
 	for i, pn := range paths {
-		tasks[i] = &fttask_clnt.Task[imgresize.Ttask]{Id: fttask_clnt.TaskId(i), Data: *imgresize.NewTask(pn, false, false)}
+		tasks[i] = &fttask_clnt.Task[imgresize.Ttask]{Id: fttask_clnt.TaskId(i), Data: *imgresize.NewTask(pn, false, false, false)}
 	}
 	err := ts.clnt.SubmitTasks(tasks)
 	assert.Nil(ts.mrts.T, err)
@@ -442,7 +478,7 @@ func TestImgdRestart(t *testing.T) {
 
 	fn := filepath.Join(sp.S3, sp.LOCAL, "9ps3/img-save/8.jpg")
 
-	err := ts.clnt.SubmitTasks([]*fttask_clnt.Task[imgresize.Ttask]{{Id: 0, Data: *imgresize.NewTask(fn, false, false)}})
+	err := ts.clnt.SubmitTasks([]*fttask_clnt.Task[imgresize.Ttask]{{Id: 0, Data: *imgresize.NewTask(fn, false, false, false)}})
 	assert.Nil(ts.mrts.T, err)
 
 	err = ts.clnt.SubmittedLastTask()
