@@ -15,6 +15,7 @@ import (
 	"sigmaos/proc"
 	"sigmaos/sched/msched/proc/srv/binsrv"
 	sp "sigmaos/sigmap"
+	"sigmaos/util/linux/mem"
 	"sigmaos/util/perf"
 )
 
@@ -28,6 +29,10 @@ func (upc *uprocCmd) Wait() error {
 
 func (upc *uprocCmd) Pid() int {
 	return upc.cmd.Process.Pid
+}
+
+func (upc *uprocCmd) GetPSS() (proc.Tmem, error) {
+	return mem.GetAggregatePSS(upc.cmd.Process.Pid)
 }
 
 // Contain user procs using uproc-trampoline trampoline

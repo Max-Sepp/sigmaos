@@ -1576,6 +1576,10 @@ func TestImgProcess(t *testing.T) {
 			false,
 			true,
 		}
+		measurePSS []bool = []bool{
+			false,
+			true,
+		}
 	)
 	ts, err := NewTstate(t)
 	if !assert.Nil(ts.t, err, "Creating test state: %v", err) {
@@ -1587,45 +1591,58 @@ func TestImgProcess(t *testing.T) {
 	for _, useGVisor := range withGVisor {
 		for _, sequential := range initscriptSequential {
 			for _, initscript := range withInitScript {
-				inputPath := "9ps3/img-save/7.jpg"
-				//			inputPath := "9ps3/img-save/1.jpg" // for more I/O-bound version
-				benchName := benchNameBase
-				if sequential {
-					benchName += "_sequential"
+				for _, pss := range measurePSS {
+					inputPath := "9ps3/img-save/7.jpg"
+					//			inputPath := "9ps3/img-save/1.jpg" // for more I/O-bound version
+					benchName := benchNameBase
+					if sequential {
+						benchName += "_sequential"
+					}
+					if useGVisor {
+						benchName += "_gvisor"
+					}
+					if initscript {
+						benchName += "_initscript"
+					}
+					if pss {
+						benchName += "_pss"
+						// If measuring PSS, only do so when using gVisor, initscripts, and
+						// sequential execution
+						if !useGVisor || !sequential || !initscript {
+							continue
+						}
+					}
+					bsMcpu := proc.Tmcpu(0)
+					workerMcpu := proc.Tmcpu(2000)
+					if sequential {
+						bsMcpu = proc.Tmcpu(10)
+						workerMcpu = proc.Tmcpu(900)
+					}
+					if pss {
+						workerMcpu = proc.Tmcpu(3100)
+					}
+					db.DPrintf(db.ALWAYS, "Benchmark configuration:\n%v", ts)
+					imgCfg := &benchmarks.ImgBenchConfig{
+						JobCfg: &imgresize.ImgdJobConfig{
+							Job:                  "img-job",
+							WorkerMcpu:           workerMcpu,
+							WorkerMem:            proc.Tmem(0),
+							Persist:              false,
+							NRounds:              nrounds,
+							ImgdMcpu:             proc.Tmcpu(50),
+							UseSPProxy:           true,
+							UseBootScript:        initscript,
+							UseS3Clnt:            true,
+							WorkerBootScriptMcpu: bsMcpu,
+							WorkerBootScriptMem:  proc.Tmem(0),
+							FTTaskSrvMcpu:        proc.Tmcpu(50),
+						},
+						InputPath:      inputPath,
+						NTasks:         ntasks,
+						NInputsPerTask: ninputsPerTask,
+					}
+					ts.RunStandardBenchmark(benchName, driverVM, GetImgProcessCmd(imgCfg, useGVisor), numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost, useGVisor)
 				}
-				if useGVisor {
-					benchName += "_gvisor"
-				}
-				if initscript {
-					benchName += "_initscript"
-				}
-				bsMcpu := proc.Tmcpu(0)
-				workerMcpu := proc.Tmcpu(2000)
-				if sequential {
-					bsMcpu = proc.Tmcpu(10)
-					workerMcpu = proc.Tmcpu(900)
-				}
-				db.DPrintf(db.ALWAYS, "Benchmark configuration:\n%v", ts)
-				imgCfg := &benchmarks.ImgBenchConfig{
-					JobCfg: &imgresize.ImgdJobConfig{
-						Job:                  "img-job",
-						WorkerMcpu:           workerMcpu,
-						WorkerMem:            proc.Tmem(0),
-						Persist:              false,
-						NRounds:              nrounds,
-						ImgdMcpu:             proc.Tmcpu(50),
-						UseSPProxy:           true,
-						UseBootScript:        initscript,
-						UseS3Clnt:            true,
-						WorkerBootScriptMcpu: bsMcpu,
-						WorkerBootScriptMem:  proc.Tmem(0),
-						FTTaskSrvMcpu:        proc.Tmcpu(50),
-					},
-					InputPath:      inputPath,
-					NTasks:         ntasks,
-					NInputsPerTask: ninputsPerTask,
-				}
-				ts.RunStandardBenchmark(benchName, driverVM, GetImgProcessCmd(imgCfg, useGVisor), numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost, useGVisor)
 			}
 		}
 	}

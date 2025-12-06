@@ -12,6 +12,7 @@ import (
 
 	db "sigmaos/debug"
 	"sigmaos/proc"
+	"sigmaos/util/linux/mem"
 )
 
 type GVisorContainer struct {
@@ -125,6 +126,10 @@ func (gc *GVisorContainer) GetGoferPid() int {
 		gc.cond.Wait()
 	}
 	return gc.goferPid
+}
+
+func (gc *GVisorContainer) GetPSS() (proc.Tmem, error) {
+	return mem.GetAggregatePSS(gc.runCmd.Process.Pid)
 }
 
 func (gc *GVisorContainer) String() string {

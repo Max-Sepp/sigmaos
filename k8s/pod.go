@@ -110,6 +110,11 @@ func (pod *K8sPod) Pid() int {
 	return 0
 }
 
+func (pod *K8sPod) GetPSS() (proc.Tmem, error) {
+	db.DFatalf("Unimplemented")
+	return 0, nil
+}
+
 func (pod *K8sPod) String() string {
 	return fmt.Sprintf("&{pid: %v, podName: %v, NAMESPACE: %v}", pod.p.GetPid(), pod.podName, NAMESPACE)
 }

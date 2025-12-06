@@ -20,6 +20,7 @@ import (
 	"sigmaos/sigmaclnt"
 	"sigmaos/sigmaclnt/fidclnt"
 	sp "sigmaos/sigmap"
+	"sigmaos/util/linux/mem"
 	"sigmaos/util/perf"
 )
 
@@ -180,6 +181,10 @@ type SPProxySrvCmd struct {
 // to create a sigmaclnt for it.
 func (sppsc *SPProxySrvCmd) InformIncomingProc(p *proc.Proc) error {
 	return sppsc.cc.InformIncomingProc(p)
+}
+
+func (sppsc *SPProxySrvCmd) GetPSS() (proc.Tmem, error) {
+	return mem.GetAggregatePSS(sppsc.cmd.Process.Pid)
 }
 
 func (sppsc *SPProxySrvCmd) InformProcDone(p *proc.Proc) error {

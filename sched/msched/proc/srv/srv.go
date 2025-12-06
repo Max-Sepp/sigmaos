@@ -40,6 +40,10 @@ import (
 	"sigmaos/util/syncmap"
 )
 
+const (
+	PSS_SLEEP = 100 * time.Millisecond
+)
+
 // Lookup may try to read proc in a proc's procEntry before procsrv
 // has set it.  To handle this case, procEntry has a condition
 // varialble on which Lookup sleeps until procsrv sets proc.
@@ -368,6 +372,7 @@ func (ps *ProcSrv) prefetchProcFileStat(realm sp.Trealm, upid sp.Tpid, prog stri
 // Run a proc inside of an sigma container
 func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 	uproc := proc.NewProcFromProto(req.ProcProto)
+	recordPSS := db.WillBePrinted(db.PSS) && uproc.GetProgram() == "imgresize"
 	db.DPrintf(db.PROCD, "Run uproc %v", uproc)
 	perf.LogSpawnLatency("ProcSrv.Run recvd proc", uproc.GetPid(), uproc.GetSpawnTime(), perf.TIME_NOT_SET)
 	// Spawn, but don't actually run the dummy proc
@@ -405,6 +410,14 @@ func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 	}
 	// If proc should only run after boot script completes, wait for it
 	if uproc.GetRunAfterBootScript() && uproc.GetProcEnv().UseSPProxy {
+		var pssPre proc.Tmem
+		var err error
+		if recordPSS {
+			pssPre, err = ps.spc.GetPSS()
+			if err != nil {
+				db.DPrintf(db.PSS_ERR, "Err GetPss spproxy: %v", err)
+			}
+		}
 		// Wait to make sure spproxy has heard about the proc we are going to wait
 		// for
 		informedWG.Wait()
@@ -415,6 +428,13 @@ func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 		}
 		db.DPrintf(db.PROCD, "[%v] Done waiting for bootscript completion", uproc.GetPid())
 		perf.LogSpawnLatency("ProcSrv.Run WaitBootScriptCompletion", uproc.GetPid(), uproc.GetSpawnTime(), start)
+		if recordPSS {
+			pssPost, err := ps.spc.GetPSS()
+			if err != nil {
+				db.DPrintf(db.PSS_ERR, "Err GetPss spproxy post: %v", err)
+			}
+			db.DPrintf(db.PSS, "[%v] BootScript PSS: %vMB", uproc.GetPid(), pssPost-pssPre)
+		}
 	}
 	if uproc.GetIsQueueable() {
 		start := time.Now()
@@ -485,6 +505,16 @@ func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 	pe, alloc := ps.procs.Alloc(pid, newProcEntry(uproc))
 	if !alloc { // it was already inserted
 		pe.insertSignal(uproc)
+	}
+	if recordPSS {
+		go func(uproc *proc.Proc, ctr container.ProcContainer) {
+			time.Sleep(PSS_SLEEP)
+			pss, err := ctr.GetPSS()
+			if err != nil {
+				db.DPrintf(db.PSS_ERR, "Err GetPss: %v", err)
+			}
+			db.DPrintf(db.PSS, "[%v] PSS: %vMB", uproc.GetPid(), pss)
+		}(uproc, ctr)
 	}
 	err = ctr.Wait()
 	if err != nil {

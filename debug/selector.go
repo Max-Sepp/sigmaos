@@ -159,6 +159,11 @@ const (
 	K8S_ERR    Tselector = "K8S" + ERR
 )
 
+const (
+	PSS     Tselector = "PSS"
+	PSS_ERR Tselector = PSS + ERR
+)
+
 // Named
 const (
 	NAMED     Tselector = "NAMED"
