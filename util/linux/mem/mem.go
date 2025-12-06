@@ -135,7 +135,7 @@ func getChildPIDs(linuxPID int) ([]int, error) {
 	return children, nil
 }
 
-// GetAggregatePSS calculates the aggregate PSS size (in MB) for a process and all of its children.
+// GetAggregatePSS calculates the aggregate PSS size (in KB) for a process and all of its children.
 // It recursively finds all descendant processes and sums their PSS values.
 func GetAggregatePSS(linuxPID int) (proc.Tmem, error) {
 	// Check if the process exists
@@ -187,6 +187,5 @@ func GetAggregatePSS(linuxPID int) (proc.Tmem, error) {
 	}
 
 	// Convert KB to MB
-	totalPSSMB := proc.Tmem(totalPSSKB / 1024)
-	return totalPSSMB, nil
+	return proc.Tmem(totalPSSKB), nil
 }
