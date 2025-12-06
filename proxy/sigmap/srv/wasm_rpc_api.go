@@ -97,7 +97,7 @@ func (wp *WASMRPCProxy) Forward(rpcIdx uint64, newRPCIdx uint64, pn string, nOut
 	// for the RPC wrapper
 	go func() {
 		defer wp.wg.Done()
-		go wp.spp.runDelegatedRPC(wp.sc, wp.p, newRPCIdx, pn, iniov, nOutIOV+1)
+		wp.spp.runDelegatedRPC(wp.sc, wp.p, newRPCIdx, pn, iniov, nOutIOV+1)
 	}()
 	return nil
 }
