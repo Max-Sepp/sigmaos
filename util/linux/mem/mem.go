@@ -166,6 +166,7 @@ func GetAggregatePSS(linuxPID int) (proc.Tmem, error) {
 
 		children, err := getChildPIDs(currentPID)
 		if err != nil {
+			db.DPrintf(db.ALWAYS, "Warning: Error getting child PIDs for PID: %d: %v", currentPID, err)
 			continue
 		}
 
