@@ -449,6 +449,7 @@ func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 	db.DPrintf(db.PROCD, "[%v] nRunning: %v", uproc.GetProgram(), nRunning)
 	var ctr container.ProcContainer
 	var err error
+	ctrStart := time.Now()
 	if ps.k8s && false {
 		// Pre-download the proc binary
 		if err := ps.downloadFullBinary(uproc.GetVersionedProgram(), uproc.GetPid(), uproc.GetRealm(), uproc.GetSecrets()["s3"], uproc.GetSigmaPath(), uproc.GetNamedEndpoint()); err != nil {
@@ -494,6 +495,7 @@ func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 				}
 			}
 			perf.LogSpawnLatency("Setup.BinaryDownload", uproc.GetPid(), uproc.GetSpawnTime(), start)
+			ctrStart = time.Now()
 			ctr, err = gvisor.StartGVisorContainer(uproc, ps.dialproxy, gvisor.BASE_BUNDLE_PATH, true)
 			if err != nil {
 				return err
@@ -517,6 +519,7 @@ func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 		}(uproc, ctr)
 	}
 	err = ctr.Wait()
+	db.DPrintf(db.SPAWN_LAT, "[%v] Container execution time: %v", uproc.GetPid(), time.Since(ctrStart))
 	if err != nil {
 		db.DPrintf(db.PROCD, "[%v] Proc Run ctr.Wait err %v", uproc.GetPid(), err)
 	}
