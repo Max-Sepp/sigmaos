@@ -41,7 +41,8 @@ RUN apt-get update && \
     apt-transport-https \
     ca-certificates \
     curl \
-    gnupg
+    gnupg \
+    libevent-dev
 
 # Install gVisor in user container
 RUN curl -fsSL https://gvisor.dev/archive.key | gpg --dearmor -o /usr/share/keyrings/gvisor-archive-keyring.gpg

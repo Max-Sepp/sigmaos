@@ -106,6 +106,12 @@ const (
 	ETCD_ERR           = ETCD + ERR
 )
 
+// Memcached
+const (
+	MEMCACHED     Tselector = "MEMCACHED"
+	MEMCACHED_ERR           = MEMCACHED + ERR
+)
+
 // Img
 const (
 	IMGD     Tselector = "IMGD"
