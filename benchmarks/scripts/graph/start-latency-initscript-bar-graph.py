@@ -208,6 +208,16 @@ def main():
         help="Path to cached with initscript benchmark output directory"
     )
     parser.add_argument(
+        "--dir_path_memcached",
+        required=True,
+        help="Path to memcached benchmark output directory"
+    )
+    parser.add_argument(
+        "--dir_path_memcached_initscript",
+        required=True,
+        help="Path to memcached with initscript benchmark output directory"
+    )
+    parser.add_argument(
         "--output",
         default="start-latency-initscript-comparison.png",
         help="Output filename for the graph (default: start-latency-initscript-comparison.png)"
@@ -228,6 +238,10 @@ def main():
         'cached-srv-cpp': {
             'without_initscript': get_last_init_time(args.dir_path_cached, 'cached-srv-cpp'),
             'with_initscript': get_last_init_time(args.dir_path_cached_initscript, 'cached-srv-cpp')
+        },
+        'memcached-shim': {
+            'without_initscript': get_last_init_time(args.dir_path_memcached, 'memcached-shim'),
+            'with_initscript': get_last_init_time(args.dir_path_memcached_initscript, 'memcached-shim')
         }
     }
 
@@ -237,8 +251,8 @@ def main():
         sys.exit(1)
 
     # Prepare data for plotting
-    procs = ['etcd-shim', 'cossim-srv-cpp', 'cached-srv-cpp']
-    proc_labels = ['Etcd', 'VecDB', 'Cached']
+    procs = ['etcd-shim', 'cossim-srv-cpp', 'cached-srv-cpp', 'memcached-shim']
+    proc_labels = ['Etcd', 'VecDB', 'Cached', 'Memcached']
 
     without_initscript = [data[proc]['without_initscript'] if data[proc]['without_initscript'] is not None else 0 for proc in procs]
     with_initscript = [data[proc]['with_initscript'] if data[proc]['with_initscript'] is not None else 0 for proc in procs]
