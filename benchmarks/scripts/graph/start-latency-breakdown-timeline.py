@@ -354,7 +354,7 @@ def main():
     # Create legend
     from matplotlib.patches import Patch
     legend_elements = [Patch(facecolor=op_colors[op], label=op) for op in all_ops]
-    ax.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(1, 1), fontsize=8)
+    ax.legend(handles=legend_elements, loc='lower left', bbox_to_anchor=(1, 0), fontsize=8)
 
     ax.grid(axis='x', alpha=0.3, linestyle='--')
 
