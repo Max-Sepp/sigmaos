@@ -187,7 +187,7 @@ func TestMemcached(t *testing.T) {
 	db.DPrintf(db.TEST, "Resolved snapshot pathname: %v", SNAP_PATH)
 
 	// Create memcached job config
-	conf := memcached.NewMemcachedJobConfig("memcached-job", SNAP_PATH, PORT, USE_INITSCRIPT)
+	conf := memcached.NewMemcachedJobConfig("memcached-job", SNAP_PATH, PORT, USE_INITSCRIPT, proc.Tmcpu(1000))
 	db.DPrintf(db.TEST, "Created memcached job config: %v", conf)
 
 	// Create memcached job
