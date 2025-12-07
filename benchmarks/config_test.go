@@ -129,13 +129,48 @@ func TestMain(m *testing.M) {
 	HotelBenchConfig.CosSimBenchCfg = CosSimBenchConfig
 	HotelBenchConfig.CacheBenchCfg = CacheBenchConfig
 
-	db.DPrintf(db.ALWAYS, "CacheBenchConfig: %v", CacheBenchConfig)
-	db.DPrintf(db.ALWAYS, "CosSimBenchConfig: %v", CosSimBenchConfig)
-	db.DPrintf(db.ALWAYS, "HotelBenchConfig: %v", HotelBenchConfig)
-	db.DPrintf(db.ALWAYS, "ImgBenchConfig: %v", ImgBenchConfig)
-	db.DPrintf(db.ALWAYS, "EtcdBenchConfig: %v", EtcdBenchConfig)
-	db.DPrintf(db.ALWAYS, "MemcachedBenchConfig: %v", MemcachedBenchConfig)
-	db.DPrintf(db.ALWAYS, "StartLatencyBenchConfig: %v", StartLatencyBenchConfig)
+	// Pretty-print configs as JSON
+	cacheJSON, err := json.MarshalIndent(CacheBenchConfig, "", "  ")
+	if err != nil {
+		db.DFatalf("Error marshaling CacheBenchConfig: %v", err)
+	}
+	db.DPrintf(db.ALWAYS, "CacheBenchConfig:\n%s", string(cacheJSON))
+
+	cossimJSON, err := json.MarshalIndent(CosSimBenchConfig, "", "  ")
+	if err != nil {
+		db.DFatalf("Error marshaling CosSimBenchConfig: %v", err)
+	}
+	db.DPrintf(db.ALWAYS, "CosSimBenchConfig:\n%s", string(cossimJSON))
+
+	hotelJSON, err := json.MarshalIndent(HotelBenchConfig, "", "  ")
+	if err != nil {
+		db.DFatalf("Error marshaling HotelBenchConfig: %v", err)
+	}
+	db.DPrintf(db.ALWAYS, "HotelBenchConfig:\n%s", string(hotelJSON))
+
+	imgJSON, err := json.MarshalIndent(ImgBenchConfig, "", "  ")
+	if err != nil {
+		db.DFatalf("Error marshaling ImgBenchConfig: %v", err)
+	}
+	db.DPrintf(db.ALWAYS, "ImgBenchConfig:\n%s", string(imgJSON))
+
+	etcdJSON, err := json.MarshalIndent(EtcdBenchConfig, "", "  ")
+	if err != nil {
+		db.DFatalf("Error marshaling EtcdBenchConfig: %v", err)
+	}
+	db.DPrintf(db.ALWAYS, "EtcdBenchConfig:\n%s", string(etcdJSON))
+
+	memcachedJSON, err := json.MarshalIndent(MemcachedBenchConfig, "", "  ")
+	if err != nil {
+		db.DFatalf("Error marshaling MemcachedBenchConfig: %v", err)
+	}
+	db.DPrintf(db.ALWAYS, "MemcachedBenchConfig:\n%s", string(memcachedJSON))
+
+	startLatencyJSON, err := json.MarshalIndent(StartLatencyBenchConfig, "", "  ")
+	if err != nil {
+		db.DFatalf("Error marshaling StartLatencyBenchConfig: %v", err)
+	}
+	db.DPrintf(db.ALWAYS, "StartLatencyBenchConfig:\n%s", string(startLatencyJSON))
 
 	os.Exit(m.Run())
 }
