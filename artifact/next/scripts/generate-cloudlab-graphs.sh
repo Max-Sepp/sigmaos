@@ -195,13 +195,13 @@ echo "Done generating cached start latency breakdown graph..."
 
 echo "Generating memcached start latency breakdown graph..."
 ./benchmarks/scripts/graph/start-latency-breakdown-timeline.py \
-  --dir_path_1 benchmarks/results/NEXT/start_memlatency_cached \
+  --dir_path_1 benchmarks/results/NEXT/start_latency_memcached \
   --proc_name_1 memcached-shim \
   --label_1 "Memcached" \
   --dir_path_2 benchmarks/results/NEXT/start_latency_memcached_initscript \
   --proc_name_2 memcached-shim \
   --label_2 "Memcached (initscript)" \
-  --output $GRAPH_OUT_DIR/cached-start-latency-breakdown-timeline.pdf
+  --output $GRAPH_OUT_DIR/memcached-start-latency-breakdown-timeline.pdf
 echo "Done generating memcached start latency breakdown graph..."
 
 
