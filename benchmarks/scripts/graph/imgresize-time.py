@@ -134,7 +134,7 @@ def main():
         height = bar.get_height()
         if height > 0:
             ax.text(bar.get_x() + bar.get_width()/2., height,
-                   f'{height:.1f}ms',
+                   f'{height:.0f}ms',
                    ha='center', va='bottom', fontsize=10)
 
     # Add headroom at the top for labels
