@@ -14,18 +14,20 @@ import (
 )
 
 type MemcachedJobConfig struct {
-	Job           string `json:"job"`
-	SnapshotPath  string `json:"snapshot_path"` // Path to snapshot file in SigmaOS
-	Port          int    `json:"port"`
-	UseInitScript bool   `json:"use_init_script"`
+	Job           string     `json:"job"`
+	SnapshotPath  string     `json:"snapshot_path"` // Path to snapshot file in SigmaOS
+	Port          int        `json:"port"`
+	UseInitScript bool       `json:"use_init_script"`
+	Mcpu          proc.Tmcpu `json:"mcpu"`
 }
 
-func NewMemcachedJobConfig(job, snapshotPath string, port int, useInitScript bool) *MemcachedJobConfig {
+func NewMemcachedJobConfig(job, snapshotPath string, port int, useInitScript bool, mcpu proc.Tmcpu) *MemcachedJobConfig {
 	return &MemcachedJobConfig{
 		Job:           job,
 		SnapshotPath:  snapshotPath,
 		Port:          port,
 		UseInitScript: useInitScript,
+		Mcpu:          mcpu,
 	}
 }
 
@@ -80,6 +82,8 @@ func (j *MemcachedJob) Start(sigmaPath string) error {
 	})
 	// Add the memcached binary to be downloaded with the proc
 	p.AddBin("memcached-v1.0")
+	// Set MCPU
+	p.SetMcpu(j.conf.Mcpu)
 	// Configure proc environment
 	p.GetProcEnv().UseSPProxy = j.conf.UseInitScript
 	p.SetBootScript(j.bootScript, j.bootScriptInput)
@@ -131,6 +135,6 @@ func (j *MemcachedJob) GetProc() *proc.Proc {
 }
 
 func (cfg *MemcachedJobConfig) String() string {
-	return fmt.Sprintf("&{ job:%v snapshot:%v port:%v useInitScript:%v }",
-		cfg.Job, cfg.SnapshotPath, cfg.Port, cfg.UseInitScript)
+	return fmt.Sprintf("&{ job:%v snapshot:%v port:%v useInitScript:%v mcpu:%v }",
+		cfg.Job, cfg.SnapshotPath, cfg.Port, cfg.UseInitScript, cfg.Mcpu)
 }

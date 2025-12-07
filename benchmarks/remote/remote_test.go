@@ -1746,6 +1746,7 @@ func TestStartLatency(t *testing.T) {
 					PeerPort:      6380,
 					ClientPort:    6379,
 					UseInitScript: initscript,
+					Mcpu:          proc.Tmcpu(4000),
 				},
 			}
 			memcachedCfg := &benchmarks.MemcachedBenchConfig{
@@ -1754,6 +1755,7 @@ func TestStartLatency(t *testing.T) {
 					SnapshotPath:  "9ps3/memcached-snapshot-40M",
 					Port:          11211,
 					UseInitScript: initscript,
+					Mcpu:          proc.Tmcpu(4000),
 				},
 			}
 			cmdFn := GetStartLatencyCmdConstructor(startLatencyCfg, cacheBenchCfg, cossimCfg, etcdCfg, memcachedCfg, initscript, useGVisor)

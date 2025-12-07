@@ -144,6 +144,7 @@ var DefaultEtcdBenchConfig = &EtcdBenchConfig{
 		PeerPort:      6380,
 		ClientPort:    6379,
 		UseInitScript: true,
+		Mcpu:          proc.Tmcpu(1000),
 	},
 }
 
@@ -153,6 +154,7 @@ var DefaultMemcachedBenchConfig = &MemcachedBenchConfig{
 		SnapshotPath:  "9ps3/memcached-snapshot-40M",
 		Port:          11211,
 		UseInitScript: false,
+		Mcpu:          proc.Tmcpu(1000),
 	},
 }
 

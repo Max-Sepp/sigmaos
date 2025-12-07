@@ -13,15 +13,16 @@ import (
 )
 
 type EtcdJobConfig struct {
-	Job           string `json:"job"`
-	SnapshotPath  string `json:"snapshot_path"` // Path to snapshot file in SigmaOS
-	Name          string `json:"name"`          // Etcd node name
-	PeerPort      int    `json:"peer_port"`
-	ClientPort    int    `json:"client_port"`
-	UseInitScript bool   `json:"use_init_script"`
+	Job           string      `json:"job"`
+	SnapshotPath  string      `json:"snapshot_path"` // Path to snapshot file in SigmaOS
+	Name          string      `json:"name"`          // Etcd node name
+	PeerPort      int         `json:"peer_port"`
+	ClientPort    int         `json:"client_port"`
+	UseInitScript bool        `json:"use_init_script"`
+	Mcpu          proc.Tmcpu  `json:"mcpu"`
 }
 
-func NewEtcdJobConfig(job, snapshotPath, name string, peerPort, clientPort int, useInitScript bool) *EtcdJobConfig {
+func NewEtcdJobConfig(job, snapshotPath, name string, peerPort, clientPort int, useInitScript bool, mcpu proc.Tmcpu) *EtcdJobConfig {
 	return &EtcdJobConfig{
 		Job:           job,
 		SnapshotPath:  snapshotPath,
@@ -29,6 +30,7 @@ func NewEtcdJobConfig(job, snapshotPath, name string, peerPort, clientPort int, 
 		PeerPort:      peerPort,
 		ClientPort:    clientPort,
 		UseInitScript: useInitScript,
+		Mcpu:          mcpu,
 	}
 }
 
@@ -86,6 +88,8 @@ func (j *EtcdJob) Start(sigmaPath string) error {
 	})
 	// Add the etcd binary to be downloaded with the proc
 	p.AddBin("etcd-v1.0")
+	// Set MCPU
+	p.SetMcpu(j.conf.Mcpu)
 	// Configure proc environment
 	p.GetProcEnv().UseSPProxy = j.conf.UseInitScript
 	p.SetBootScript(j.bootScript, j.bootScriptInput)
@@ -137,6 +141,6 @@ func (j *EtcdJob) GetProc() *proc.Proc {
 }
 
 func (cfg *EtcdJobConfig) String() string {
-	return fmt.Sprintf("&{ job:%v snapshot:%v name:%v peerPort:%v clientPort:%v useInitScript:%v }",
-		cfg.Job, cfg.SnapshotPath, cfg.Name, cfg.PeerPort, cfg.ClientPort, cfg.UseInitScript)
+	return fmt.Sprintf("&{ job:%v snapshot:%v name:%v peerPort:%v clientPort:%v useInitScript:%v mcpu:%v }",
+		cfg.Job, cfg.SnapshotPath, cfg.Name, cfg.PeerPort, cfg.ClientPort, cfg.UseInitScript, cfg.Mcpu)
 }
