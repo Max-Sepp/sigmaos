@@ -96,6 +96,7 @@ func (es *EtcdShim) restoreSnapshot(snapPn string, name string, peerUrls []strin
 	key := filepath.Join(pn[1:]...)
 	var b []byte
 	var err error
+	start := time.Now()
 	if es.ssrv.SigmaClnt().ProcEnv().GetRunBootScript() {
 		b, err = es.s3Clnt.DelegatedGetObject(0)
 		if err != nil {
@@ -113,6 +114,7 @@ func (es *EtcdShim) restoreSnapshot(snapPn string, name string, peerUrls []strin
 		}
 		db.DPrintf(db.ETCD, "Done direct get")
 	}
+	perf.LogSpawnLatency("Initialization.DownloadState", es.ssrv.SigmaClnt().ProcEnv().GetPID(), es.ssrv.SigmaClnt().ProcEnv().GetSpawnTime(), start)
 	// Write the snapshot out
 	localSnapPn := "./snapshot.db"
 	if err := os.WriteFile(localSnapPn, b, 0777); err != nil {
