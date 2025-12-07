@@ -15,6 +15,7 @@ import (
 	"sigmaos/apps/etcd"
 	"sigmaos/apps/hotel"
 	"sigmaos/apps/imgresize"
+	"sigmaos/apps/memcached"
 	"sigmaos/benchmarks"
 	db "sigmaos/debug"
 	"sigmaos/proc"
@@ -1672,9 +1673,10 @@ func TestStartLatency(t *testing.T) {
 		}
 		// If true, run with gvisor
 		apps map[string]bool = map[string]bool{
-			"cached": false,
-			"cossim": false,
-			"etcd":   true,
+			"cached":    false,
+			"cossim":    false,
+			"etcd":      true,
+			"memcached": true,
 		}
 	)
 	ts, err := NewTstate(t)
@@ -1746,7 +1748,15 @@ func TestStartLatency(t *testing.T) {
 					UseInitScript: initscript,
 				},
 			}
-			cmdFn := GetStartLatencyCmdConstructor(startLatencyCfg, cacheBenchCfg, cossimCfg, etcdCfg, initscript, useGVisor)
+			memcachedCfg := &benchmarks.MemcachedBenchConfig{
+				JobCfg: &memcached.MemcachedJobConfig{
+					Job:           "memcached-job",
+					SnapshotPath:  "9ps3/memcached-snapshot-40M",
+					Port:          11211,
+					UseInitScript: initscript,
+				},
+			}
+			cmdFn := GetStartLatencyCmdConstructor(startLatencyCfg, cacheBenchCfg, cossimCfg, etcdCfg, memcachedCfg, initscript, useGVisor)
 			ts.RunStandardBenchmark(benchName, driverVM, cmdFn, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost, useGVisor)
 		}
 	}

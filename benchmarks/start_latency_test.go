@@ -14,6 +14,7 @@ import (
 	cossimsrv "sigmaos/apps/cossim/srv"
 	epsrv "sigmaos/apps/epcache/srv"
 	"sigmaos/apps/etcd"
+	"sigmaos/apps/memcached"
 	"sigmaos/benchmarks"
 	db "sigmaos/debug"
 	"sigmaos/proc"
@@ -25,35 +26,38 @@ import (
 
 type StartLatencyJobInstance struct {
 	*test.RealmTstate
-	jobName     string
-	cfg         *benchmarks.StartLatencyBenchConfig
-	cacheCfg    *benchmarks.CacheBenchConfig
-	cossimCfg   *benchmarks.CosSimBenchConfig
-	etcdCfg     *benchmarks.EtcdBenchConfig
-	ready       chan bool
-	epcj        *epsrv.EPCacheJob
-	cacheJob    *cachegrpmgr.CacheMgr
-	msc         *mschedclnt.MSchedClnt
-	cacheClnt   *cachegrpclnt.CachedSvcClnt
-	cossimJob   *cossimsrv.CosSimJob
-	cossimClnt  *cossimclnt.CosSimShardClnt
-	etcdJob     *etcd.EtcdJob
-	sleeperProc *proc.Proc
-	keys        []string
-	vals        []*cacheproto.CacheString
-	needCached  bool
-	warmSrvKID  string
+	jobName      string
+	cfg          *benchmarks.StartLatencyBenchConfig
+	cacheCfg     *benchmarks.CacheBenchConfig
+	cossimCfg    *benchmarks.CosSimBenchConfig
+	etcdCfg      *benchmarks.EtcdBenchConfig
+	memcachedCfg *benchmarks.MemcachedBenchConfig
+	ready        chan bool
+	epcj         *epsrv.EPCacheJob
+	cacheJob     *cachegrpmgr.CacheMgr
+	msc          *mschedclnt.MSchedClnt
+	cacheClnt    *cachegrpclnt.CachedSvcClnt
+	cossimJob    *cossimsrv.CosSimJob
+	cossimClnt   *cossimclnt.CosSimShardClnt
+	etcdJob      *etcd.EtcdJob
+	memcachedJob *memcached.MemcachedJob
+	sleeperProc  *proc.Proc
+	keys         []string
+	vals         []*cacheproto.CacheString
+	needCached   bool
+	warmSrvKID   string
 }
 
-func NewStartLatencyJob(ts *test.RealmTstate, cfg *benchmarks.StartLatencyBenchConfig, cacheCfg *benchmarks.CacheBenchConfig, cossimCfg *benchmarks.CosSimBenchConfig, etcdCfg *benchmarks.EtcdBenchConfig) *StartLatencyJobInstance {
+func NewStartLatencyJob(ts *test.RealmTstate, cfg *benchmarks.StartLatencyBenchConfig, cacheCfg *benchmarks.CacheBenchConfig, cossimCfg *benchmarks.CosSimBenchConfig, etcdCfg *benchmarks.EtcdBenchConfig, memcachedCfg *benchmarks.MemcachedBenchConfig) *StartLatencyJobInstance {
 	ji := &StartLatencyJobInstance{
-		RealmTstate: ts,
-		jobName:     "start-latency",
-		cfg:         cfg,
-		cacheCfg:    cacheCfg,
-		cossimCfg:   cossimCfg,
-		etcdCfg:     etcdCfg,
-		ready:       make(chan bool),
+		RealmTstate:  ts,
+		jobName:      "start-latency",
+		cfg:          cfg,
+		cacheCfg:     cacheCfg,
+		cossimCfg:    cossimCfg,
+		etcdCfg:      etcdCfg,
+		memcachedCfg: memcachedCfg,
+		ready:        make(chan bool),
 	}
 	ji.msc = mschedclnt.NewMSchedClnt(ts.SigmaClnt.FsLib, sp.NOT_SET)
 	// Create a sleeper proc, which will block off a machine which can be used to
@@ -94,6 +98,8 @@ func NewStartLatencyJob(ts *test.RealmTstate, cfg *benchmarks.StartLatencyBenchC
 		"cached-srv-cpp-v" + sp.Version,
 		"etcd-v" + sp.Version,
 		"etcd-shim-v" + sp.Version,
+		"memcached-v" + sp.Version,
+		"memcached-shim-v" + sp.Version,
 	}
 	// Warm up the warm server with the proc binaries
 	for _, bin := range bins {
@@ -143,6 +149,12 @@ func NewStartLatencyJob(ts *test.RealmTstate, cfg *benchmarks.StartLatencyBenchC
 		if !assert.Nil(ts.Ts.T, err, "Err new etcd job: %v", err) {
 			return ji
 		}
+	case "memcached":
+		// Create memcached job
+		ji.memcachedJob, err = memcached.NewMemcachedJob(ji.memcachedCfg.JobCfg, ts.SigmaClnt)
+		if !assert.Nil(ts.Ts.T, err, "Err new memcached job: %v", err) {
+			return ji
+		}
 	}
 	return ji
 }
@@ -170,6 +182,12 @@ func (ji *StartLatencyJobInstance) RunJob(rs *benchmarks.Results, crash bool) bo
 			return false
 		}
 		db.DPrintf(db.BENCH, "Etcd started")
+	case "memcached":
+		// Start memcached
+		if err := ji.memcachedJob.Start(chunk.ChunkdPath(ji.warmSrvKID)); !assert.Nil(ji.Ts.T, err, "Err start memcached: %v", err) {
+			return false
+		}
+		db.DPrintf(db.BENCH, "Memcached started")
 	}
 	return true
 }
@@ -193,6 +211,10 @@ func (ji *StartLatencyJobInstance) Cleanup() {
 	case "etcd":
 		if ji.etcdJob != nil {
 			ji.etcdJob.Stop()
+		}
+	case "memcached":
+		if ji.memcachedJob != nil {
+			ji.memcachedJob.Stop()
 		}
 	}
 	if ji.needCached {

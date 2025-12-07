@@ -16,6 +16,7 @@ var CacheBenchConfig *benchmarks.CacheBenchConfig
 var HotelBenchConfig *benchmarks.HotelBenchConfig
 var ImgBenchConfig *benchmarks.ImgBenchConfig
 var EtcdBenchConfig *benchmarks.EtcdBenchConfig
+var MemcachedBenchConfig *benchmarks.MemcachedBenchConfig
 var StartLatencyBenchConfig *benchmarks.StartLatencyBenchConfig
 
 var cossimBenchCfgStr string
@@ -23,6 +24,7 @@ var cacheBenchCfgStr string
 var hotelBenchCfgStr string
 var imgBenchCfgStr string
 var etcdBenchCfgStr string
+var memcachedBenchCfgStr string
 var startLatencyBenchCfgStr string
 
 func init() {
@@ -31,6 +33,7 @@ func init() {
 	flag.StringVar(&hotelBenchCfgStr, "hotel_bench_cfg", sp.NOT_SET, "JSON string for HotelBenchConfig")
 	flag.StringVar(&imgBenchCfgStr, "img_bench_cfg", sp.NOT_SET, "JSON string for ImgBenchConfig")
 	flag.StringVar(&etcdBenchCfgStr, "etcd_bench_cfg", sp.NOT_SET, "JSON string for EtcdBenchConfig")
+	flag.StringVar(&memcachedBenchCfgStr, "memcached_bench_cfg", sp.NOT_SET, "JSON string for MemcachedBenchConfig")
 	flag.StringVar(&startLatencyBenchCfgStr, "start_latency_bench_cfg", sp.NOT_SET, "JSON string for StartLatencyBenchConfig")
 }
 
@@ -97,6 +100,18 @@ func TestMain(m *testing.M) {
 		db.DPrintf(db.ALWAYS, "Loaded EtcdBenchConfig")
 	}
 
+	// Parse MemcachedBenchConfig
+	if memcachedBenchCfgStr == sp.NOT_SET {
+		MemcachedBenchConfig = benchmarks.DefaultMemcachedBenchConfig
+		db.DPrintf(db.ALWAYS, "Using default MemcachedBenchConfig")
+	} else {
+		err := json.Unmarshal([]byte(memcachedBenchCfgStr), &MemcachedBenchConfig)
+		if err != nil {
+			db.DFatalf("Error unmarshaling memcached_bench_cfg: %v", err)
+		}
+		db.DPrintf(db.ALWAYS, "Loaded MemcachedBenchConfig")
+	}
+
 	// Parse StartLatencyBenchConfig
 	if startLatencyBenchCfgStr == sp.NOT_SET {
 		StartLatencyBenchConfig = benchmarks.DefaultStartLatencyBenchConfig
@@ -119,6 +134,7 @@ func TestMain(m *testing.M) {
 	db.DPrintf(db.ALWAYS, "HotelBenchConfig: %v", HotelBenchConfig)
 	db.DPrintf(db.ALWAYS, "ImgBenchConfig: %v", ImgBenchConfig)
 	db.DPrintf(db.ALWAYS, "EtcdBenchConfig: %v", EtcdBenchConfig)
+	db.DPrintf(db.ALWAYS, "MemcachedBenchConfig: %v", MemcachedBenchConfig)
 	db.DPrintf(db.ALWAYS, "StartLatencyBenchConfig: %v", StartLatencyBenchConfig)
 
 	os.Exit(m.Run())

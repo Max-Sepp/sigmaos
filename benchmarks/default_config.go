@@ -9,6 +9,7 @@ import (
 	"sigmaos/apps/etcd"
 	"sigmaos/apps/hotel"
 	"sigmaos/apps/imgresize"
+	"sigmaos/apps/memcached"
 	"sigmaos/proc"
 	sp "sigmaos/sigmap"
 )
@@ -143,6 +144,15 @@ var DefaultEtcdBenchConfig = &EtcdBenchConfig{
 		PeerPort:      6380,
 		ClientPort:    6379,
 		UseInitScript: true,
+	},
+}
+
+var DefaultMemcachedBenchConfig = &MemcachedBenchConfig{
+	JobCfg: &memcached.MemcachedJobConfig{
+		Job:           "memcached-job",
+		SnapshotPath:  "9ps3/memcached-snapshot-40M",
+		Port:          11211,
+		UseInitScript: false,
 	},
 }
 

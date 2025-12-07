@@ -10,6 +10,7 @@ import (
 	"sigmaos/apps/etcd"
 	"sigmaos/apps/hotel"
 	"sigmaos/apps/imgresize"
+	"sigmaos/apps/memcached"
 )
 
 type CosSimBenchConfig struct {
@@ -136,6 +137,26 @@ func (cfg *EtcdBenchConfig) GetJobConfig() *etcd.EtcdJobConfig {
 }
 
 func (cfg *EtcdBenchConfig) Marshal() (string, error) {
+	b, err := json.Marshal(cfg)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
+type MemcachedBenchConfig struct {
+	JobCfg *memcached.MemcachedJobConfig `json:"job_cfg"`
+}
+
+func (cfg *MemcachedBenchConfig) String() string {
+	return fmt.Sprintf("&{ JobCfg:%v }", cfg.JobCfg)
+}
+
+func (cfg *MemcachedBenchConfig) GetJobConfig() *memcached.MemcachedJobConfig {
+	return cfg.JobCfg
+}
+
+func (cfg *MemcachedBenchConfig) Marshal() (string, error) {
 	b, err := json.Marshal(cfg)
 	if err != nil {
 		return "", err
