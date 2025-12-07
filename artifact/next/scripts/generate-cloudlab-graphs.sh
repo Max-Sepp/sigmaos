@@ -154,6 +154,8 @@ echo "Generating start latency comparison..."
 ./benchmarks/scripts/graph/start-latency-initscript-bar-graph.py \
   --dir_path_etcd $RES_OUT_DIR/start_latency_etcd \
   --dir_path_etcd_initscript $RES_OUT_DIR/start_latency_etcd_initscript \
+  --dir_path_memcached $RES_OUT_DIR/start_latency_memcached \
+  --dir_path_memcached_initscript $RES_OUT_DIR/start_latency_memcached_initscript \
   --dir_path_vecdb $RES_OUT_DIR/start_latency_cossim \
   --dir_path_vecdb_initscript $RES_OUT_DIR/start_latency_cossim_initscript \
   --dir_path_cached $RES_OUT_DIR/start_latency_cached \
