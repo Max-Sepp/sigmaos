@@ -140,8 +140,15 @@ std::expected<int, sigmaos::serr::Error> Srv::Init(int old_n_srv,
     }
     LogSpawnLatency(_sp_clnt->ProcEnv()->GetPID(),
                     _sp_clnt->ProcEnv()->GetSpawnTime(), startConnect,
+                    "Paper.Initialization.ConnectionSetup");
+    LogSpawnLatency(_sp_clnt->ProcEnv()->GetPID(),
+                    _sp_clnt->ProcEnv()->GetSpawnTime(), startConnect,
                     "Initialization.ConnectionSetup");
     // For each source server, dump shards to be stolen
+    std::map<int, std::shared_ptr<std::map<
+          uint32_t,
+          std::shared_ptr<std::map<
+              std::string, std::shared_ptr<sigmaos::apps::cache::Value>>>>>> all_shards;
     for (int src_srv : src_srvs) {
       auto res = _cache_clnt->MultiDumpShard(src_srv, shards_to_steal[src_srv]);
       if (!res.has_value()) {
@@ -151,11 +158,21 @@ std::expected<int, sigmaos::serr::Error> Srv::Init(int old_n_srv,
       }
       // Fill the local copy of the shard with the dumped values
       auto shard_map = res.value();
+      all_shards[src_srv] = shard_map;
+    }
+    LogSpawnLatency(_sp_clnt->ProcEnv()->GetPID(),
+                    _sp_clnt->ProcEnv()->GetSpawnTime(), startLoad,
+                    "Paper.Initialization.DownloadState");
+    auto startAppLoad = GetCurrentTime();
+    for (auto [src_srv, shard_map] : all_shards) {
       for (uint32_t shard : shards_to_steal[src_srv]) {
         log(CACHESRV, "Load shard {}", (int)shard);
         _cache.at(shard)->Fill(shard_map->at(shard));
       }
     }
+    LogSpawnLatency(_sp_clnt->ProcEnv()->GetPID(),
+                    _sp_clnt->ProcEnv()->GetSpawnTime(), startAppLoad,
+                    "Paper.Initialization.AppLoadState");
   } else {
     //    {
     //      auto start = GetCurrentTime();
@@ -173,6 +190,10 @@ std::expected<int, sigmaos::serr::Error> Srv::Init(int old_n_srv,
     //    }
     auto start = GetCurrentTime();
     uint64_t rpc_idx = 0;
+    std::map<int, std::shared_ptr<std::map<
+          uint32_t,
+          std::shared_ptr<std::map<
+              std::string, std::shared_ptr<sigmaos::apps::cache::Value>>>>>> all_shards;
     // For each source server, dump shards to be stolen
     for (int src_srv : src_srvs) {
       auto start = GetCurrentTime();
@@ -187,18 +208,28 @@ std::expected<int, sigmaos::serr::Error> Srv::Init(int old_n_srv,
                       _sp_clnt->ProcEnv()->GetSpawnTime(), start,
                       "Scaler.DelegatedMultiDumpRPC");
       log(CACHESRV, "Load shard delegated srvs {}", (int)src_srv);
-      start = GetCurrentTime();
       // Fill the local copy of the shard with the dumped values
       auto shard_map = res.value();
+      all_shards[src_srv] = shard_map;
+      rpc_idx++;
+    }
+    LogSpawnLatency(_sp_clnt->ProcEnv()->GetPID(),
+                    _sp_clnt->ProcEnv()->GetSpawnTime(), startLoad,
+                    "Paper.Initialization.TransferState");
+    auto startAppLoad = GetCurrentTime();
+    for (auto [src_srv, shard_map] : all_shards) {
       for (uint32_t shard : shards_to_steal[src_srv]) {
         log(CACHESRV, "Load shard {}", (int)shard);
         _cache.at(shard)->Fill(shard_map->at(shard));
       }
-      LogSpawnLatency(_sp_clnt->ProcEnv()->GetPID(),
-                      _sp_clnt->ProcEnv()->GetSpawnTime(), start,
-                      "Scaler.FillShards");
-      rpc_idx++;
     }
+    LogSpawnLatency(_sp_clnt->ProcEnv()->GetPID(),
+                    _sp_clnt->ProcEnv()->GetSpawnTime(), startAppLoad,
+                    "Paper.Initialization.AppLoadState");
+
+    LogSpawnLatency(_sp_clnt->ProcEnv()->GetPID(),
+                    _sp_clnt->ProcEnv()->GetSpawnTime(), startLoad,
+                    "Paper.Initialization.AppLoadState");
     LogSpawnLatency(_sp_clnt->ProcEnv()->GetPID(),
                     _sp_clnt->ProcEnv()->GetSpawnTime(), start,
                     "Scaler.DelegatedDumpRPCs");
