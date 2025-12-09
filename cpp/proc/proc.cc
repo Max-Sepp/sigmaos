@@ -18,9 +18,11 @@ std::shared_ptr<ProcEnv> GetProcEnv() {
 }
 
 google::protobuf::Timestamp GetExecTime() {
+  auto unix_micros_str = std::getenv("SIGMA_EXEC_TIME");
+  int64_t unix_micros = std::stoll(unix_micros_str);
   google::protobuf::Timestamp exec_time;
-  google::protobuf::util::TimeUtil::FromString(
-      std::getenv("SIGMA_EXEC_TIME_PB"), &exec_time);
+  exec_time.set_seconds(unix_micros / 1000000);
+  exec_time.set_nanos((unix_micros % 1000000) * 1000);
   return exec_time;
 }
 
