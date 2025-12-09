@@ -53,14 +53,19 @@ def find_proc_pid(dir_path, proc_name, start=True):
     return proc_pid
 
 
-def parse_timing_line(line):
+def parse_timing_line(line, paper_mode=False):
     """
     Parse a log line to extract phase, operation name, sinceSpawn, and op timing.
     Expected format: [proc_pid] Setup.OperationName or Initialization.OperationName ... sinceSpawn:123ms ... op:456ms
+    If paper_mode is True, only matches Paper.Setup.* and Paper.Initialization.*
     Returns tuple of (phase, op_name, since_spawn_ms, op_time_ms) or None if parsing fails
     """
     # Extract the phase (Setup or Initialization) and operation name
-    op_match = re.search(r'\] (Setup|Initialization)\.(\S+)', line)
+    if paper_mode:
+        op_match = re.search(r'\] Paper\.(Setup|Initialization)\.(\S+)', line)
+    else:
+        op_match = re.search(r'\] (Setup|Initialization)\.(\S+)', line)
+
     if not op_match:
         return None
 
@@ -98,10 +103,11 @@ def parse_timing_line(line):
     return (phase, op_name, since_spawn_ms, op_time_ms)
 
 
-def find_setup_init_lines(dir_path, proc_pid):
+def find_setup_init_lines(dir_path, proc_pid, paper_mode=False):
     """
     Search all log files in dir_path/sigmaos-node-logs for lines matching
     "[proc_pid] Setup\\.*" or "[proc_pid] Initialization\\.*"
+    If paper_mode is True, matches "[proc_pid] Paper.Setup\\.*" or "[proc_pid] Paper.Initialization\\.*"
     Returns two dicts: setup_timings and init_timings, each mapping operation names
     to (sinceSpawn, op_time) tuples. If duplicates exist, keeps the last occurrence.
     """
@@ -118,8 +124,12 @@ def find_setup_init_lines(dir_path, proc_pid):
         return {}, {}
 
     # Patterns to match
-    setup_pattern = re.compile(rf"\[{re.escape(proc_pid)}\] Setup\..*")
-    init_pattern = re.compile(rf"\[{re.escape(proc_pid)}\] Initialization\..*")
+    if paper_mode:
+        setup_pattern = re.compile(rf"\[{re.escape(proc_pid)}\] Paper\.Setup\..*")
+        init_pattern = re.compile(rf"\[{re.escape(proc_pid)}\] Paper\.Initialization\..*")
+    else:
+        setup_pattern = re.compile(rf"\[{re.escape(proc_pid)}\] Setup\..*")
+        init_pattern = re.compile(rf"\[{re.escape(proc_pid)}\] Initialization\..*")
 
     # Use separate dicts for Setup and Initialization timings
     setup_timings = {}
@@ -135,7 +145,7 @@ def find_setup_init_lines(dir_path, proc_pid):
                 for line in f:
                     line = line.strip()
                     if setup_pattern.search(line) or init_pattern.search(line):
-                        parsed = parse_timing_line(line)
+                        parsed = parse_timing_line(line, paper_mode)
                         if parsed:
                             phase, op_name, since_spawn_ms, op_time_ms = parsed
                             if phase == "Setup":
@@ -148,7 +158,7 @@ def find_setup_init_lines(dir_path, proc_pid):
     return setup_timings, init_timings
 
 
-def get_detailed_times(dir_path, proc_name):
+def get_detailed_times(dir_path, proc_name, paper_mode=False):
     """
     Extract the detailed setup and initialization times for a given proc.
     Returns tuple of (setup_events, init_events) where each is a list of
@@ -161,7 +171,7 @@ def get_detailed_times(dir_path, proc_name):
     if proc_pid is None:
         return None, None
 
-    setup_timings, init_timings = find_setup_init_lines(dir_path, proc_pid)
+    setup_timings, init_timings = find_setup_init_lines(dir_path, proc_pid, paper_mode)
 
     # Extract events with start times
     setup_events = []
@@ -236,6 +246,11 @@ def main():
         default="start-latency-breakdown-timeline.png",
         help="Output filename for the graph (default: start-latency-breakdown-timeline.png)"
     )
+    parser.add_argument(
+        "--paper",
+        action="store_true",
+        help="Only match Paper.Setup.* and Paper.Initialization.* log lines"
+    )
 
     args = parser.parse_args()
 
@@ -244,8 +259,8 @@ def main():
     label_2 = args.label_2 if args.label_2 else args.proc_name_2
 
     # Extract data for both procs
-    setup_events_1, init_events_1 = get_detailed_times(args.dir_path_1, args.proc_name_1)
-    setup_events_2, init_events_2 = get_detailed_times(args.dir_path_2, args.proc_name_2)
+    setup_events_1, init_events_1 = get_detailed_times(args.dir_path_1, args.proc_name_1, args.paper)
+    setup_events_2, init_events_2 = get_detailed_times(args.dir_path_2, args.proc_name_2, args.paper)
 
     if setup_events_1 is None or init_events_1 is None:
         print(f"Error: Could not extract data for {args.proc_name_1} from {args.dir_path_1}", file=sys.stderr)
