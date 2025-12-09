@@ -37,7 +37,7 @@ func RunEtcdShim(snapPn, name string, peerUrls, clientUrls, listenClientUrls []s
 	es.ssrv = ssrv
 	start := time.Now()
 	// Create an S3 clnt
-	s3Clnt, err := s3clnt.NewS3Clnt(es.ssrv.SigmaClnt().FsLib, filepath.Join(sp.S3, pe.GetKernelID()))
+	s3Clnt, err := s3clnt.NewS3ClntInit(es.ssrv.SigmaClnt().FsLib, filepath.Join(sp.S3, pe.GetKernelID()), pe.GetRunBootScript())
 	if err != nil {
 		db.DFatalf("Err newS3Clnt: %v", err)
 	}

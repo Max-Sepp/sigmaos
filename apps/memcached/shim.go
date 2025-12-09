@@ -41,7 +41,7 @@ func RunMemcachedShim(snapPn string, port string) error {
 	ms.ssrv = ssrv
 	start := time.Now()
 	// Create an S3 clnt
-	s3Clnt, err := s3clnt.NewS3Clnt(ms.ssrv.SigmaClnt().FsLib, filepath.Join(sp.S3, pe.GetKernelID()))
+	s3Clnt, err := s3clnt.NewS3ClntInit(ms.ssrv.SigmaClnt().FsLib, filepath.Join(sp.S3, pe.GetKernelID()), pe.GetRunBootScript())
 	if err != nil {
 		db.DFatalf("Err newS3Clnt: %v", err)
 	}
@@ -72,12 +72,14 @@ func RunMemcachedShim(snapPn string, port string) error {
 	ms.clnt = clnt
 	perf.LogSpawnLatency("Initialization.NewMemcachedClnt", pe.GetPID(), pe.GetSpawnTime(), start)
 	perf.LogSpawnLatency("Paper.Initialization.AppLoadState", pe.GetPID(), pe.GetSpawnTime(), start2)
+	start = time.Now()
 	// Mark memcached as started
 	if err := ssrv.SigmaClnt().Started(); err != nil {
 		db.DFatalf("Err Started: %v", err)
 		return err
 	}
 	db.DPrintf(db.MEMCACHED, "Started shim and memcached")
+	perf.LogSpawnLatency("Paper.Initialization.ServiceDiscovery", pe.GetPID(), pe.GetSpawnTime(), start2)
 	// Wait for eviction
 	if err := ssrv.SigmaClnt().WaitEvict(ssrv.SigmaClnt().ProcEnv().GetPID()); err != nil {
 		db.DFatalf("Err WaitEvict: %v", err)

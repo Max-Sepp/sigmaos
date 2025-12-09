@@ -13,15 +13,19 @@ type S3Clnt struct {
 	rpcc *rpcclnt.RPCClnt
 }
 
-func NewS3Clnt(fsl *fslib.FsLib, pn string) (*S3Clnt, error) {
+func NewS3ClntInit(fsl *fslib.FsLib, pn string, lazyInit bool) (*S3Clnt, error) {
 	db.DPrintf(db.S3CLNT2, "New S3Clnt: %v", pn)
-	rpcc, err := rpcclnt.NewRPCClnt(pn, sprpcclnt.WithSPChannel(fsl, true), sprpcclnt.WithDelegatedSPProxyChannel(fsl))
+	rpcc, err := rpcclnt.NewRPCClnt(pn, sprpcclnt.WithSPChannel(fsl, lazyInit), sprpcclnt.WithDelegatedSPProxyChannel(fsl))
 	if err != nil {
 		return nil, err
 	}
 	return &S3Clnt{
 		rpcc: rpcc,
 	}, nil
+}
+
+func NewS3Clnt(fsl *fslib.FsLib, pn string) (*S3Clnt, error) {
+	return NewS3ClntInit(fsl, pn, true)
 }
 
 func (clnt *S3Clnt) GetObject(bucket, key string) ([]byte, error) {
