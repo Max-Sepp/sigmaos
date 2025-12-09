@@ -158,6 +158,13 @@ fn main() {
     }
 
     print_elapsed_time(&debug_pid, "Setup.Isolation", spawn_time, exec_time, true);
+    print_elapsed_time(
+        &debug_pid,
+        "Paper.Setup.ContainerStart",
+        spawn_time,
+        exec_time,
+        true,
+    );
     let err = cmd.args(new_args).exec();
     // Exec should never return
     log::info!("err: {}", err);

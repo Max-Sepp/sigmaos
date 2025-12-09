@@ -129,7 +129,7 @@ std::expected<int, sigmaos::serr::Error> Srv::Init(int old_n_srv,
         log(CACHESRV_ERR, "Error InitClnts: {}", res.error());
         fatal("Error InitClnts: {}", res.error().String());
         return std::unexpected(res.error());
-      } 
+      }
     } else {
       auto res = _cache_clnt->InitClnt(_srv_id);
       if (!res.has_value()) {
@@ -145,10 +145,13 @@ std::expected<int, sigmaos::serr::Error> Srv::Init(int old_n_srv,
                     _sp_clnt->ProcEnv()->GetSpawnTime(), startConnect,
                     "Initialization.ConnectionSetup");
     // For each source server, dump shards to be stolen
-    std::map<int, std::shared_ptr<std::map<
-          uint32_t,
-          std::shared_ptr<std::map<
-              std::string, std::shared_ptr<sigmaos::apps::cache::Value>>>>>> all_shards;
+    std::map<
+        int,
+        std::shared_ptr<std::map<
+            uint32_t,
+            std::shared_ptr<std::map<
+                std::string, std::shared_ptr<sigmaos::apps::cache::Value>>>>>>
+        all_shards;
     for (int src_srv : src_srvs) {
       auto res = _cache_clnt->MultiDumpShard(src_srv, shards_to_steal[src_srv]);
       if (!res.has_value()) {
@@ -190,10 +193,13 @@ std::expected<int, sigmaos::serr::Error> Srv::Init(int old_n_srv,
     //    }
     auto start = GetCurrentTime();
     uint64_t rpc_idx = 0;
-    std::map<int, std::shared_ptr<std::map<
-          uint32_t,
-          std::shared_ptr<std::map<
-              std::string, std::shared_ptr<sigmaos::apps::cache::Value>>>>>> all_shards;
+    std::map<
+        int,
+        std::shared_ptr<std::map<
+            uint32_t,
+            std::shared_ptr<std::map<
+                std::string, std::shared_ptr<sigmaos::apps::cache::Value>>>>>>
+        all_shards;
     // For each source server, dump shards to be stolen
     for (int src_srv : src_srvs) {
       auto start = GetCurrentTime();

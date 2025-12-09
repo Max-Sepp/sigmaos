@@ -495,6 +495,7 @@ func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 				}
 			}
 			perf.LogSpawnLatency("Setup.BinaryDownload", uproc.GetPid(), uproc.GetSpawnTime(), start)
+			perf.LogSpawnLatency("Paper.Setup.BinaryDownload", uproc.GetPid(), uproc.GetSpawnTime(), start)
 			ctrStart = time.Now()
 			ctr, err = gvisor.StartGVisorContainer(uproc, ps.dialproxy, gvisor.BASE_BUNDLE_PATH, true)
 			if err != nil {

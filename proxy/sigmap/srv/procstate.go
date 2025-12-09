@@ -154,6 +154,8 @@ func (psm *ProcStateMgr) InsertReply(pe *proc.ProcEnv, rpcIdx uint64, iov *sessp
 		db.DPrintf(db.SPPROXYSRV_ERR, "Try to insert delegated RPC reply for unknown proc: %v", pe.GetPID())
 		return
 	}
+	loadStateStart := ps.getDelRPCStart(start)
+	perf.LogSpawnLatency("Paper.Initialization.DownloadState", pe.GetPID(), pe.GetSpawnTime(), loadStateStart)
 	ps.rpcReps.InsertReply(rpcIdx, iov, err)
 }
 
@@ -224,6 +226,8 @@ type procState struct {
 	sc                       *sigmaclnt.SigmaClnt
 	epcc                     *epcacheclnt.EndpointCacheClnt
 	shm                      *shmem.Segment
+	delRPCStart              time.Time
+	delRPCStartSet           bool
 	shmAlloc                 malloc.Allocator
 	err                      error // Creation result
 	bsErr                    error // BootScript result
@@ -334,6 +338,18 @@ func (ps *procState) Destroy() error {
 		return ps.shm.Destroy()
 	}
 	return nil
+}
+
+// Return the time point at which loading state via delRPC started
+func (ps *procState) getDelRPCStart(s time.Time) time.Time {
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
+
+	if !ps.delRPCStartSet {
+		ps.delRPCStart = s
+		ps.delRPCStartSet = true
+	}
+	return ps.delRPCStart
 }
 
 func (ps *procState) createSigmaClnt(spps *SPProxySrv) {

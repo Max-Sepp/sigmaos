@@ -49,7 +49,8 @@ func RunMemcachedShim(snapPn string, port string) error {
 	perf.LogSpawnLatency("Initialization.ConnectionSetup", pe.GetPID(), pe.GetSpawnTime(), start)
 	start = time.Now()
 	// Restore the snapshot
-	if err := ms.restoreSnapshot(snapPn); err != nil {
+	start2, err := ms.restoreSnapshot(snapPn)
+	if err != nil {
 		db.DFatalf("Err restoreSnapshot: %v", err)
 		return err
 	}
@@ -70,6 +71,7 @@ func RunMemcachedShim(snapPn string, port string) error {
 	}
 	ms.clnt = clnt
 	perf.LogSpawnLatency("Initialization.NewMemcachedClnt", pe.GetPID(), pe.GetSpawnTime(), start)
+	perf.LogSpawnLatency("Paper.Initialization.AppLoadState", pe.GetPID(), pe.GetSpawnTime(), start2)
 	// Mark memcached as started
 	if err := ssrv.SigmaClnt().Started(); err != nil {
 		db.DFatalf("Err Started: %v", err)
@@ -99,7 +101,7 @@ func newMemcachedClnt(port string) (*memcache.Client, error) {
 	return clnt, nil
 }
 
-func (ms *MemcachedShim) restoreSnapshot(snapPn string) error {
+func (ms *MemcachedShim) restoreSnapshot(snapPn string) (time.Time, error) {
 	pn := strings.Split(snapPn, "/")
 	bucket := pn[0]
 	key := filepath.Join(pn[1:]...)
@@ -112,46 +114,50 @@ func (ms *MemcachedShim) restoreSnapshot(snapPn string) error {
 		if err != nil {
 			db.DPrintf(db.MEMCACHED_ERR, "Err DelegatedGetObject bucket:%v key:%v: %v", bucket, key, err)
 			db.DPrintf(db.ERROR, "Err DelegatedGetObject bucket:%v key:%v: %v", bucket, key, err)
-			return err
+			return time.Now(), err
 		}
 		db.DPrintf(db.MEMCACHED, "Done delegated get")
+		perf.LogSpawnLatency("Paper.Initialization.TransferState", pe.GetPID(), pe.GetSpawnTime(), start)
+		perf.LogSpawnLatency("Initialization.TransferState", pe.GetPID(), pe.GetSpawnTime(), start)
 	} else {
 		b, err = ms.s3Clnt.GetObject(bucket, key)
 		if err != nil {
 			db.DPrintf(db.MEMCACHED_ERR, "Err GetObject bucket:%v key:%v: %v", bucket, key, err)
 			db.DPrintf(db.ERROR, "Err GetObject bucket:%v key:%v: %v", bucket, key, err)
-			return err
+			return time.Now(), err
 		}
 		db.DPrintf(db.MEMCACHED, "Done direct get")
+		perf.LogSpawnLatency("Paper.Initialization.DownloadState", pe.GetPID(), pe.GetSpawnTime(), start)
 	}
 	// Get meta file
 	b2, err := ms.s3Clnt.GetObject(bucket, key+".meta")
 	if err != nil {
 		db.DPrintf(db.MEMCACHED_ERR, "Err GetObject bucket:%v key:%v: %v", bucket, key+".meta", err)
 		db.DPrintf(db.ERROR, "Err GetObject bucket:%v key:%v: %v", bucket, key+".meta", err)
-		return err
+		return time.Now(), err
 	}
 	db.DPrintf(db.MEMCACHED, "Done direct get")
 	perf.LogSpawnLatency("Initialization.DownloadState", pe.GetPID(), pe.GetSpawnTime(), start)
+	start = time.Now()
 	// Create tmpfs mount (shim always runs in Docker/gVisor)
 	//	if err := MakeTmpfs(TMPFS_MOUNT); err != nil {
 	if err := os.Mkdir(TMPFS_MOUNT, 0777); err != nil {
-		return err
+		return time.Now(), err
 	}
 	// Write the snapshot out to a local file
 	localSnapPn := filepath.Join(TMPFS_MOUNT, SNAP_FILE)
 	if err := os.WriteFile(localSnapPn, b, 0777); err != nil {
 		db.DPrintf(db.MEMCACHED_ERR, "Err WriteFile: %v", err)
 		db.DPrintf(db.ERROR, "Err WriteFile: %v", err)
-		return err
+		return time.Now(), err
 	}
 	if err := os.WriteFile(localSnapPn+".meta", b2, 0777); err != nil {
 		db.DPrintf(db.MEMCACHED_ERR, "Err WriteFile: %v", err)
 		db.DPrintf(db.ERROR, "Err WriteFile: %v", err)
-		return err
+		return time.Now(), err
 	}
 	db.DPrintf(db.MEMCACHED, "Restored snapshot to %v", localSnapPn)
-	return nil
+	return start, nil
 }
 
 func startMemcached(port string) (*exec.Cmd, error) {

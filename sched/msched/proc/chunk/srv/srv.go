@@ -285,6 +285,7 @@ func (cksrv *ChunkSrv) fetchChunk(fetchCnt uint64, be *bin, r sp.Trealm, pid sp.
 	db.DPrintf(db.CHUNKSRV, "%v: fetchChunk(%v) done: writeChunk %v pid %v ckid %d sz %d", cksrv.kernelId, fetchCnt, pn, pid, ck, sz)
 	be.tot += time.Since(chunkFetchStart)
 	perf.LogSpawnLatency("Setup.BinaryDownload", pid, perf.TIME_NOT_SET, time.Now().Add(-1*be.tot))
+	perf.LogSpawnLatency("Paper.Setup.BinaryDownload", pid, perf.TIME_NOT_SET, time.Now().Add(-1*be.tot))
 	return sz, srvpath, nil
 }
 

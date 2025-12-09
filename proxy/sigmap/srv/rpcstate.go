@@ -2,12 +2,14 @@ package srv
 
 import (
 	"sync"
+	"time"
 
 	db "sigmaos/debug"
 	rpcchan "sigmaos/rpc/clnt/channel"
 	sprpcchan "sigmaos/rpc/clnt/channel/spchannel"
 	sessp "sigmaos/session/proto"
 	"sigmaos/sigmaclnt"
+	"sigmaos/util/perf"
 )
 
 type RPCState struct {
@@ -54,6 +56,7 @@ func (rpcs *RPCState) GetRPCChannel(sc *sigmaclnt.SigmaClnt, rpcIdx uint64, pn s
 	} else {
 		// If this is the first attempt to get this channel, create it
 		if ok := rpcs.channelCreationInProgress[pn]; !ok {
+			start := time.Now()
 			db.DPrintf(db.SPPROXYSRV, "[%v] delRPC(%v) create new channel pn:%v", sc.ProcEnv().GetPID(), rpcIdx, pn)
 			// Note that channel creation is in-progress
 			rpcs.channelCreationInProgress[pn] = true
@@ -87,6 +90,7 @@ func (rpcs *RPCState) GetRPCChannel(sc *sigmaclnt.SigmaClnt, rpcIdx uint64, pn s
 			delete(rpcs.channelCreationInProgress, pn)
 			// Signal waiters that the channel (or error) is ready
 			rpcs.cond.Broadcast()
+			perf.LogSpawnLatency("Paper.Initialization.ConnectionSetup", sc.ProcEnv().GetPID(), sc.ProcEnv().GetSpawnTime(), start)
 		} else {
 			db.DPrintf(db.SPPROXYSRV, "[%v] delRPC(%v) wait for channel creation pn:%v", sc.ProcEnv().GetPID(), rpcIdx, pn)
 			// Wait until channel creation finished

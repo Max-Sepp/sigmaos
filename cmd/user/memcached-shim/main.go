@@ -28,6 +28,7 @@ func main() {
 	}
 	execTime := time.UnixMicro(execTimeMicro)
 	perf.LogSpawnLatency("Setup.RuntimeInit+Isolation", pe.GetPID(), pe.GetSpawnTime(), execTime)
+	perf.LogSpawnLatency("Paper.Setup.ContainerStart", pe.GetPID(), pe.GetSpawnTime(), execTime)
 	snapPn := os.Args[1]
 	port := os.Args[2]
 	if err := memcached.RunMemcachedShim(snapPn, port); err != nil {

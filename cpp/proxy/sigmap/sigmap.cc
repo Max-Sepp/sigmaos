@@ -669,6 +669,9 @@ std::expected<int, sigmaos::serr::Error> Clnt::RegisterEP(
   req.set_allocated_endpoint(ep.get());
   auto res = _rpcc->RPC("SPProxySrvAPI.RegisterEP", req, rep);
   LogSpawnLatency(ProcEnv()->GetPID(), ProcEnv()->GetSpawnTime(),
+                  startServiceDiscovery,
+                  "Paper.Initialization.ServiceDiscovery");
+  LogSpawnLatency(ProcEnv()->GetPID(), ProcEnv()->GetSpawnTime(),
                   startServiceDiscovery, "Initialization.ServiceDiscovery");
   auto _ = req.release_endpoint();
   if (!res.has_value()) {
