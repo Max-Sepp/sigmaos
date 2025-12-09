@@ -31,6 +31,12 @@ type GVisorContainer struct {
 
 func StartGVisorContainer(p *proc.Proc, dialproxy bool, baseBundleDir string, inDocker bool) (*GVisorContainer, error) {
 	db.DPrintf(db.CONTAINER, "RunUProc gvisor dialproxy %v %v env %v", dialproxy, p, os.Environ())
+	p.AppendEnv("SIGMA_EXEC_TIME", strconv.FormatInt(time.Now().UnixMicro(), 10))
+	b, err := time.Now().MarshalText()
+	if err != nil {
+		db.DFatalf("Error marshal timestamp pb: %v", err)
+	}
+	p.AppendEnv("SIGMA_EXEC_TIME_PB", string(b))
 	containerID := "gvisor-ctr-" + p.GetPid().String()
 	// Get the overlay bundle directory path for this pid
 	overlayBundleDir := PidToOverlayBundleDirPath(p.GetPid())
@@ -41,12 +47,6 @@ func StartGVisorContainer(p *proc.Proc, dialproxy bool, baseBundleDir string, in
 	}
 	// Set some environemnt variables
 	p.AppendEnv("PATH", "/bin:/bin2:/usr/bin:/home/sigmaos/bin/kernel:"+BIN_DIR)
-	p.AppendEnv("SIGMA_EXEC_TIME", strconv.FormatInt(time.Now().UnixMicro(), 10))
-	b, err := time.Now().MarshalText()
-	if err != nil {
-		db.DFatalf("Error marshal timestamp pb: %v", err)
-	}
-	p.AppendEnv("SIGMA_EXEC_TIME_PB", string(b))
 	p.AppendEnv("SIGMA_SPAWN_TIME", strconv.FormatInt(p.GetSpawnTime().UnixMicro(), 10))
 	p.AppendEnv(proc.SIGMAPERF, p.GetProcEnv().GetPerf())
 	cfg := NewDefaultConfig(p)
