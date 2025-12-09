@@ -18,6 +18,8 @@ void Clnt::init_conn() {
   auto res = _rpcc->RPC("SPProxySrvAPI.Init", req, rep);
   LogSpawnLatency(ProcEnv()->GetPID(), ProcEnv()->GetSpawnTime(), startInit,
                   "Initialization.InitSPProxyConn");
+  LogSpawnLatency(ProcEnv()->GetPID(), ProcEnv()->GetSpawnTime(), startInit,
+                  "Paper.Initialization.InitSPProxyConn");
   // Make sure to release the proc env proto pointer so it isn't destroyed
   auto _ = req.release_procenvproto();
   if (!res.has_value()) {

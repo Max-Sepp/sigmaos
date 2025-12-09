@@ -144,6 +144,7 @@ std::expected<int, sigmaos::serr::Error> Srv::Init(int old_n_srv,
     LogSpawnLatency(_sp_clnt->ProcEnv()->GetPID(),
                     _sp_clnt->ProcEnv()->GetSpawnTime(), startConnect,
                     "Initialization.ConnectionSetup");
+    auto startDownload = GetCurrentTime();
     // For each source server, dump shards to be stolen
     std::map<
         int,
@@ -164,7 +165,7 @@ std::expected<int, sigmaos::serr::Error> Srv::Init(int old_n_srv,
       all_shards[src_srv] = shard_map;
     }
     LogSpawnLatency(_sp_clnt->ProcEnv()->GetPID(),
-                    _sp_clnt->ProcEnv()->GetSpawnTime(), startLoad,
+                    _sp_clnt->ProcEnv()->GetSpawnTime(), startDownload,
                     "Paper.Initialization.DownloadState");
     auto startAppLoad = GetCurrentTime();
     for (auto [src_srv, shard_map] : all_shards) {
