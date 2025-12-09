@@ -372,6 +372,10 @@ func (ps *ProcSrv) prefetchProcFileStat(realm sp.Trealm, upid sp.Tpid, prog stri
 // Run a proc inside of an sigma container
 func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 	uproc := proc.NewProcFromProto(req.ProcProto)
+	if uproc.GetProcEnv().GetRunBootScript() {
+		perf.LogSpawnLatency("Paper.Setup.DownloadInitScript", uproc.GetPid(), uproc.GetSpawnTime(), uproc.GetSpawnTime())
+	}
+	perf.LogSpawnLatency("Paper.Setup.GlobalScheduling", uproc.GetPid(), uproc.GetSpawnTime(), uproc.GetSpawnTime())
 	recordPSS := db.WillBePrinted(db.PSS) && uproc.GetProgram() == "imgresize"
 	db.DPrintf(db.PROCD, "Run uproc %v", uproc)
 	perf.LogSpawnLatency("ProcSrv.Run recvd proc", uproc.GetPid(), uproc.GetSpawnTime(), perf.TIME_NOT_SET)
