@@ -112,14 +112,15 @@ func (ms *MemcachedShim) restoreSnapshot(snapPn string) (time.Time, error) {
 	start := time.Now()
 	pe := proc.GetProcEnv()
 	if ms.ssrv.SigmaClnt().ProcEnv().GetRunBootScript() {
-		b, err = ms.s3Clnt.DelegatedGetObject(0)
+		var transferDur time.Duration
+		b, transferDur, err = ms.s3Clnt.DelegatedGetObject(0)
 		if err != nil {
 			db.DPrintf(db.MEMCACHED_ERR, "Err DelegatedGetObject bucket:%v key:%v: %v", bucket, key, err)
 			db.DPrintf(db.ERROR, "Err DelegatedGetObject bucket:%v key:%v: %v", bucket, key, err)
 			return time.Now(), err
 		}
 		db.DPrintf(db.MEMCACHED, "Done delegated get")
-		perf.LogSpawnLatency("Paper.Initialization.TransferState", pe.GetPID(), pe.GetSpawnTime(), start)
+		perf.LogSpawnLatency("Paper.Initialization.TransferState", pe.GetPID(), pe.GetSpawnTime(), time.Now().Add(-1*transferDur))
 		perf.LogSpawnLatency("Initialization.TransferState", pe.GetPID(), pe.GetSpawnTime(), start)
 	} else {
 		b, err = ms.s3Clnt.GetObject(bucket, key)

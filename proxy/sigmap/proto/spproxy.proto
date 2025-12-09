@@ -3,6 +3,7 @@ syntax = "proto3";
 import "sigmap/sigmap.proto";
 import "proc/proc.proto";
 import "rpc/proto/rpc.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "sigmaos/proxy/sigmap/proto";
 
@@ -162,6 +163,7 @@ message SigmaDelegatedRPCRep {
         bool useShmem = 3;
         repeated uint64 shmOffs = 4;
         repeated uint64 shmLens = 5;
+        google.protobuf.Timestamp transferStartPB = 6;
 }
 
 message SigmaMultiDelegatedRPCReq {
@@ -172,4 +174,5 @@ message SigmaMultiDelegatedRPCRep {
         Blob blob = 1;
         repeated uint64 nIOVs = 2;
         repeated Rerror errs = 3;
+        google.protobuf.Timestamp transferStartPB = 4;
 }

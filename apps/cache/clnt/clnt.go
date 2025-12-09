@@ -172,7 +172,7 @@ func (cc *CacheClnt) NewGet(sctx *tproto.SpanContextConfig, key string, f *sp.Tf
 
 func (c *CacheClnt) DelegatedGetHotShards(srv string, rpcIdx uint64) ([]cache.Tshard, []uint64, error) {
 	var res cacheproto.HotShardsRep
-	if err := c.DelegatedRPC(srv, uint64(rpcIdx), &res); err != nil {
+	if _, err := c.DelegatedRPC(srv, uint64(rpcIdx), &res); err != nil {
 		return nil, nil, err
 	}
 	shardIDs := make([]cache.Tshard, 0, len(res.ShardIDs))
@@ -328,7 +328,7 @@ func (c *CacheClnt) DelegatedDumpShard(srv string, rpcIdx int) (cache.Tcache, er
 	perf.LogSpawnLatency("CacheClnt.DelegatedDumpShard start %d", sp.NOT_SET, perf.TIME_NOT_SET, perf.TIME_NOT_SET, rpcIdx)
 	start := time.Now()
 	var res cacheproto.ShardData
-	if err := c.DelegatedRPC(srv, uint64(rpcIdx), &res); err != nil {
+	if _, err := c.DelegatedRPC(srv, uint64(rpcIdx), &res); err != nil {
 		return nil, err
 	}
 	perf.LogSpawnLatency("CacheClnt.DelegatedDumpShard done %d", sp.NOT_SET, perf.TIME_NOT_SET, start, rpcIdx)

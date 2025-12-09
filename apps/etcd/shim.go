@@ -98,12 +98,14 @@ func (es *EtcdShim) restoreSnapshot(snapPn string, name string, peerUrls []strin
 	var err error
 	start := time.Now()
 	if es.ssrv.SigmaClnt().ProcEnv().GetRunBootScript() {
-		b, err = es.s3Clnt.DelegatedGetObject(0)
+		var transferDur time.Duration
+		b, transferDur, err = es.s3Clnt.DelegatedGetObject(0)
 		if err != nil {
 			db.DPrintf(db.ETCD_ERR, "Err DelegatedGetObject bucket:%v key:%v: %v", bucket, key, err)
 			db.DPrintf(db.ERROR, "Err DelegatedGetObject bucket:%v key:%v: %v", bucket, key, err)
 			return err
 		}
+		perf.LogSpawnLatency("Paper.Initialization.TransferState", es.ssrv.SigmaClnt().ProcEnv().GetPID(), es.ssrv.SigmaClnt().ProcEnv().GetSpawnTime(), time.Now().Add(-1*transferDur))
 		db.DPrintf(db.ETCD, "Done delegated get")
 	} else {
 		b, err = es.s3Clnt.GetObject(bucket, key)

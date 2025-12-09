@@ -147,7 +147,7 @@ func (ip *ImgProcess) Work(i int, output string) *proc.Status {
 		var b []byte
 		var err error
 		if ip.ProcEnv().GetRunBootScript() {
-			b, err = ip.s3Clnt.DelegatedGetObject(0)
+			b, _, err = ip.s3Clnt.DelegatedGetObject(0)
 			if err != nil {
 				return proc.NewStatusErr(fmt.Sprintf("Err GetObject bucket:%v key:%v", bucket, key), err)
 			}

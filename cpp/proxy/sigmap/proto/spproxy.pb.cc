@@ -438,6 +438,7 @@ PROTOBUF_CONSTEXPR SigmaDelegatedRPCRep::SigmaDelegatedRPCRep(
   , /*decltype(_impl_._shmlens_cached_byte_size_)*/{0}
   , /*decltype(_impl_.blob_)*/nullptr
   , /*decltype(_impl_.err_)*/nullptr
+  , /*decltype(_impl_.transferstartpb_)*/nullptr
   , /*decltype(_impl_.useshmem_)*/false
   , /*decltype(_impl_._cached_size_)*/{}} {}
 struct SigmaDelegatedRPCRepDefaultTypeInternal {
@@ -469,6 +470,7 @@ PROTOBUF_CONSTEXPR SigmaMultiDelegatedRPCRep::SigmaMultiDelegatedRPCRep(
   , /*decltype(_impl_._niovs_cached_byte_size_)*/{0}
   , /*decltype(_impl_.errs_)*/{}
   , /*decltype(_impl_.blob_)*/nullptr
+  , /*decltype(_impl_.transferstartpb_)*/nullptr
   , /*decltype(_impl_._cached_size_)*/{}} {}
 struct SigmaMultiDelegatedRPCRepDefaultTypeInternal {
   PROTOBUF_CONSTEXPR SigmaMultiDelegatedRPCRepDefaultTypeInternal()
@@ -732,6 +734,7 @@ const uint32_t TableStruct_proxy_2fsigmap_2fproto_2fspproxy_2eproto::offsets[] P
   PROTOBUF_FIELD_OFFSET(::SigmaDelegatedRPCRep, _impl_.useshmem_),
   PROTOBUF_FIELD_OFFSET(::SigmaDelegatedRPCRep, _impl_.shmoffs_),
   PROTOBUF_FIELD_OFFSET(::SigmaDelegatedRPCRep, _impl_.shmlens_),
+  PROTOBUF_FIELD_OFFSET(::SigmaDelegatedRPCRep, _impl_.transferstartpb_),
   ~0u,  // no _has_bits_
   PROTOBUF_FIELD_OFFSET(::SigmaMultiDelegatedRPCReq, _internal_metadata_),
   ~0u,  // no _extensions_
@@ -748,6 +751,7 @@ const uint32_t TableStruct_proxy_2fsigmap_2fproto_2fspproxy_2eproto::offsets[] P
   PROTOBUF_FIELD_OFFSET(::SigmaMultiDelegatedRPCRep, _impl_.blob_),
   PROTOBUF_FIELD_OFFSET(::SigmaMultiDelegatedRPCRep, _impl_.niovs_),
   PROTOBUF_FIELD_OFFSET(::SigmaMultiDelegatedRPCRep, _impl_.errs_),
+  PROTOBUF_FIELD_OFFSET(::SigmaMultiDelegatedRPCRep, _impl_.transferstartpb_),
 };
 static const ::_pbi::MigrationSchema schemas[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
   { 0, -1, -1, sizeof(::SigmaWaitBootScriptReq)},
@@ -780,8 +784,8 @@ static const ::_pbi::MigrationSchema schemas[] PROTOBUF_SECTION_VARIABLE(protode
   { 221, -1, -1, sizeof(::SigmaOutgoingDelegatedRPCReq)},
   { 229, -1, -1, sizeof(::SigmaDelegatedRPCReq)},
   { 237, -1, -1, sizeof(::SigmaDelegatedRPCRep)},
-  { 248, -1, -1, sizeof(::SigmaMultiDelegatedRPCReq)},
-  { 255, -1, -1, sizeof(::SigmaMultiDelegatedRPCRep)},
+  { 249, -1, -1, sizeof(::SigmaMultiDelegatedRPCReq)},
+  { 256, -1, -1, sizeof(::SigmaMultiDelegatedRPCRep)},
 };
 
 static const ::_pb::Message* const file_default_instances[] = {
@@ -822,68 +826,73 @@ static const ::_pb::Message* const file_default_instances[] = {
 const char descriptor_table_protodef_proxy_2fsigmap_2fproto_2fspproxy_2eproto[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) =
   "\n proxy/sigmap/proto/spproxy.proto\032\023sigm"
   "ap/sigmap.proto\032\017proc/proc.proto\032\023rpc/pr"
-  "oto/rpc.proto\"(\n\026SigmaWaitBootScriptReq\022"
-  "\016\n\006pIDStr\030\001 \001(\t\"3\n\022SigmaInformProcReq\022\035\n"
-  "\tprocProto\030\001 \001(\0132\n.ProcProto\"3\n\014SigmaIni"
-  "tReq\022#\n\014procEnvProto\030\001 \001(\0132\r.ProcEnvProt"
-  "o\"\016\n\014SigmaNullReq\"!\n\rSigmaRealmReq\022\020\n\010re"
-  "almStr\030\001 \001(\t\"\033\n\rSigmaCloseReq\022\n\n\002fd\030\001 \001("
-  "\r\"#\n\013SigmaErrRep\022\024\n\003err\030\001 \001(\0132\007.Rerror\"\034"
-  "\n\014SigmaPathReq\022\014\n\004path\030\001 \001(\t\"\?\n\014SigmaSta"
-  "tRep\022\031\n\004stat\030\001 \001(\0132\013.TstatProto\022\024\n\003err\030\002"
-  " \001(\0132\007.Rerror\"v\n\016SigmaCreateReq\022\014\n\004path\030"
-  "\001 \001(\t\022\014\n\004perm\030\002 \001(\r\022\014\n\004mode\030\003 \001(\r\022\017\n\007lea"
-  "seId\030\004 \001(\004\022\033\n\005fence\030\005 \001(\0132\014.TfenceProto\022"
-  "\014\n\004wait\030\006 \001(\010\".\n\nSigmaFdRep\022\n\n\002fd\030\001 \001(\r\022"
-  "\024\n\003err\030\002 \001(\0132\007.Rerror\"*\n\016SigmaRenameReq\022"
-  "\013\n\003src\030\001 \001(\t\022\013\n\003dst\030\002 \001(\t\"9\n\014SigmaDataRe"
+  "oto/rpc.proto\032\037google/protobuf/timestamp"
+  ".proto\"(\n\026SigmaWaitBootScriptReq\022\016\n\006pIDS"
+  "tr\030\001 \001(\t\"3\n\022SigmaInformProcReq\022\035\n\tprocPr"
+  "oto\030\001 \001(\0132\n.ProcProto\"3\n\014SigmaInitReq\022#\n"
+  "\014procEnvProto\030\001 \001(\0132\r.ProcEnvProto\"\016\n\014Si"
+  "gmaNullReq\"!\n\rSigmaRealmReq\022\020\n\010realmStr\030"
+  "\001 \001(\t\"\033\n\rSigmaCloseReq\022\n\n\002fd\030\001 \001(\r\"#\n\013Si"
+  "gmaErrRep\022\024\n\003err\030\001 \001(\0132\007.Rerror\"\034\n\014Sigma"
+  "PathReq\022\014\n\004path\030\001 \001(\t\"\?\n\014SigmaStatRep\022\031\n"
+  "\004stat\030\001 \001(\0132\013.TstatProto\022\024\n\003err\030\002 \001(\0132\007."
+  "Rerror\"v\n\016SigmaCreateReq\022\014\n\004path\030\001 \001(\t\022\014"
+  "\n\004perm\030\002 \001(\r\022\014\n\004mode\030\003 \001(\r\022\017\n\007leaseId\030\004 "
+  "\001(\004\022\033\n\005fence\030\005 \001(\0132\014.TfenceProto\022\014\n\004wait"
+  "\030\006 \001(\010\".\n\nSigmaFdRep\022\n\n\002fd\030\001 \001(\r\022\024\n\003err\030"
+  "\002 \001(\0132\007.Rerror\"*\n\016SigmaRenameReq\022\013\n\003src\030"
+  "\001 \001(\t\022\013\n\003dst\030\002 \001(\t\"9\n\014SigmaDataRep\022\023\n\004bl"
+  "ob\030\001 \001(\0132\005.Blob\022\024\n\003err\030\002 \001(\0132\007.Rerror\"q\n"
+  "\017SigmaPutFileReq\022\014\n\004path\030\001 \001(\t\022\014\n\004perm\030\002"
+  " \001(\r\022\014\n\004mode\030\003 \001(\r\022\016\n\006offset\030\004 \001(\004\022\017\n\007le"
+  "aseId\030\005 \001(\004\022\023\n\004blob\030\006 \001(\0132\005.Blob\"2\n\014Sigm"
+  "aSizeRep\022\014\n\004size\030\001 \001(\004\022\024\n\003err\030\002 \001(\0132\007.Re"
+  "rror\"5\n\014SigmaReadReq\022\n\n\002fd\030\001 \001(\r\022\014\n\004size"
+  "\030\002 \001(\004\022\013\n\003off\030\003 \001(\004\"^\n\rSigmaWriteReq\022\n\n\002"
+  "fd\030\001 \001(\r\022\033\n\005fence\030\002 \001(\0132\014.TfenceProto\022\023\n"
+  "\004blob\030\003 \001(\0132\005.Blob\022\017\n\007nOutVec\030\004 \001(\r\"*\n\014S"
+  "igmaSeekReq\022\n\n\002fd\030\001 \001(\r\022\016\n\006offset\030\002 \001(\004\""
+  "6\n\016SigmaClntIdRep\022\016\n\006clntId\030\001 \001(\004\022\024\n\003err"
+  "\030\002 \001(\0132\007.Rerror\":\n\rSigmaFenceReq\022\014\n\004Path"
+  "\030\001 \001(\t\022\033\n\005Fence\030\002 \001(\0132\014.TfenceProto\"W\n\021S"
+  "igmaMountTreeReq\022!\n\010Endpoint\030\001 \001(\0132\017.Ten"
+  "dpointProto\022\014\n\004tree\030\002 \001(\t\022\021\n\tmountName\030\003"
+  " \001(\t\"G\n\021SigmaLastMountRep\022\r\n\005path1\030\001 \003(\t"
+  "\022\r\n\005path2\030\002 \003(\t\022\024\n\003err\030\003 \001(\0132\007.Rerror\"@\n"
+  "\rSigmaMountReq\022!\n\010endpoint\030\001 \001(\0132\017.Tendp"
+  "ointProto\022\014\n\004port\030\002 \001(\t\"W\n\rSigmaMountRep"
+  "\022!\n\010endpoint\030\001 \001(\0132\017.TendpointProto\022\r\n\005l"
+  "ocal\030\002 \001(\010\022\024\n\003err\030\003 \001(\0132\007.Rerror\"9\n\016Sigm"
+  "aMountsRep\022\021\n\tendpoints\030\001 \003(\t\022\024\n\003err\030\002 \001"
+  "(\0132\007.Rerror\"E\n\022SigmaRegisterEPReq\022\014\n\004pat"
+  "h\030\001 \001(\t\022!\n\010endpoint\030\002 \001(\0132\017.TendpointPro"
+  "to\"-\n\016SigmaExitedReq\022\016\n\006status\030\001 \001(\r\022\013\n\003"
+  "msg\030\002 \001(\t\"C\n\034SigmaOutgoingDelegatedRPCRe"
+  "q\022\016\n\006rPCIdx\030\001 \001(\004\022\023\n\004blob\030\002 \001(\0132\005.Blob\"8"
+  "\n\024SigmaDelegatedRPCReq\022\016\n\006rPCIdx\030\001 \001(\004\022\020"
+  "\n\010useShmem\030\002 \001(\010\"\252\001\n\024SigmaDelegatedRPCRe"
   "p\022\023\n\004blob\030\001 \001(\0132\005.Blob\022\024\n\003err\030\002 \001(\0132\007.Re"
-  "rror\"q\n\017SigmaPutFileReq\022\014\n\004path\030\001 \001(\t\022\014\n"
-  "\004perm\030\002 \001(\r\022\014\n\004mode\030\003 \001(\r\022\016\n\006offset\030\004 \001("
-  "\004\022\017\n\007leaseId\030\005 \001(\004\022\023\n\004blob\030\006 \001(\0132\005.Blob\""
-  "2\n\014SigmaSizeRep\022\014\n\004size\030\001 \001(\004\022\024\n\003err\030\002 \001"
-  "(\0132\007.Rerror\"5\n\014SigmaReadReq\022\n\n\002fd\030\001 \001(\r\022"
-  "\014\n\004size\030\002 \001(\004\022\013\n\003off\030\003 \001(\004\"^\n\rSigmaWrite"
-  "Req\022\n\n\002fd\030\001 \001(\r\022\033\n\005fence\030\002 \001(\0132\014.TfenceP"
-  "roto\022\023\n\004blob\030\003 \001(\0132\005.Blob\022\017\n\007nOutVec\030\004 \001"
-  "(\r\"*\n\014SigmaSeekReq\022\n\n\002fd\030\001 \001(\r\022\016\n\006offset"
-  "\030\002 \001(\004\"6\n\016SigmaClntIdRep\022\016\n\006clntId\030\001 \001(\004"
-  "\022\024\n\003err\030\002 \001(\0132\007.Rerror\":\n\rSigmaFenceReq\022"
-  "\014\n\004Path\030\001 \001(\t\022\033\n\005Fence\030\002 \001(\0132\014.TfencePro"
-  "to\"W\n\021SigmaMountTreeReq\022!\n\010Endpoint\030\001 \001("
-  "\0132\017.TendpointProto\022\014\n\004tree\030\002 \001(\t\022\021\n\tmoun"
-  "tName\030\003 \001(\t\"G\n\021SigmaLastMountRep\022\r\n\005path"
-  "1\030\001 \003(\t\022\r\n\005path2\030\002 \003(\t\022\024\n\003err\030\003 \001(\0132\007.Re"
-  "rror\"@\n\rSigmaMountReq\022!\n\010endpoint\030\001 \001(\0132"
-  "\017.TendpointProto\022\014\n\004port\030\002 \001(\t\"W\n\rSigmaM"
-  "ountRep\022!\n\010endpoint\030\001 \001(\0132\017.TendpointPro"
-  "to\022\r\n\005local\030\002 \001(\010\022\024\n\003err\030\003 \001(\0132\007.Rerror\""
-  "9\n\016SigmaMountsRep\022\021\n\tendpoints\030\001 \003(\t\022\024\n\003"
-  "err\030\002 \001(\0132\007.Rerror\"E\n\022SigmaRegisterEPReq"
-  "\022\014\n\004path\030\001 \001(\t\022!\n\010endpoint\030\002 \001(\0132\017.Tendp"
-  "ointProto\"-\n\016SigmaExitedReq\022\016\n\006status\030\001 "
-  "\001(\r\022\013\n\003msg\030\002 \001(\t\"C\n\034SigmaOutgoingDelegat"
-  "edRPCReq\022\016\n\006rPCIdx\030\001 \001(\004\022\023\n\004blob\030\002 \001(\0132\005"
-  ".Blob\"8\n\024SigmaDelegatedRPCReq\022\016\n\006rPCIdx\030"
-  "\001 \001(\004\022\020\n\010useShmem\030\002 \001(\010\"u\n\024SigmaDelegate"
-  "dRPCRep\022\023\n\004blob\030\001 \001(\0132\005.Blob\022\024\n\003err\030\002 \001("
-  "\0132\007.Rerror\022\020\n\010useShmem\030\003 \001(\010\022\017\n\007shmOffs\030"
-  "\004 \003(\004\022\017\n\007shmLens\030\005 \003(\004\",\n\031SigmaMultiDele"
-  "gatedRPCReq\022\017\n\007rPCIdxs\030\001 \003(\004\"V\n\031SigmaMul"
-  "tiDelegatedRPCRep\022\023\n\004blob\030\001 \001(\0132\005.Blob\022\r"
-  "\n\005nIOVs\030\002 \003(\004\022\025\n\004errs\030\003 \003(\0132\007.RerrorB\034Z\032"
-  "sigmaos/proxy/sigmap/protob\006proto3"
+  "rror\022\020\n\010useShmem\030\003 \001(\010\022\017\n\007shmOffs\030\004 \003(\004\022"
+  "\017\n\007shmLens\030\005 \003(\004\0223\n\017transferStartPB\030\006 \001("
+  "\0132\032.google.protobuf.Timestamp\",\n\031SigmaMu"
+  "ltiDelegatedRPCReq\022\017\n\007rPCIdxs\030\001 \003(\004\"\213\001\n\031"
+  "SigmaMultiDelegatedRPCRep\022\023\n\004blob\030\001 \001(\0132"
+  "\005.Blob\022\r\n\005nIOVs\030\002 \003(\004\022\025\n\004errs\030\003 \003(\0132\007.Re"
+  "rror\0223\n\017transferStartPB\030\004 \001(\0132\032.google.p"
+  "rotobuf.TimestampB\034Z\032sigmaos/proxy/sigma"
+  "p/protob\006proto3"
   ;
-static const ::_pbi::DescriptorTable* const descriptor_table_proxy_2fsigmap_2fproto_2fspproxy_2eproto_deps[3] = {
+static const ::_pbi::DescriptorTable* const descriptor_table_proxy_2fsigmap_2fproto_2fspproxy_2eproto_deps[4] = {
+  &::descriptor_table_google_2fprotobuf_2ftimestamp_2eproto,
   &::descriptor_table_proc_2fproc_2eproto,
   &::descriptor_table_rpc_2fproto_2frpc_2eproto,
   &::descriptor_table_sigmap_2fsigmap_2eproto,
 };
 static ::_pbi::once_flag descriptor_table_proxy_2fsigmap_2fproto_2fspproxy_2eproto_once;
 const ::_pbi::DescriptorTable descriptor_table_proxy_2fsigmap_2fproto_2fspproxy_2eproto = {
-    false, false, 2114, descriptor_table_protodef_proxy_2fsigmap_2fproto_2fspproxy_2eproto,
+    false, false, 2255, descriptor_table_protodef_proxy_2fsigmap_2fproto_2fspproxy_2eproto,
     "proxy/sigmap/proto/spproxy.proto",
-    &descriptor_table_proxy_2fsigmap_2fproto_2fspproxy_2eproto_once, descriptor_table_proxy_2fsigmap_2fproto_2fspproxy_2eproto_deps, 3, 32,
+    &descriptor_table_proxy_2fsigmap_2fproto_2fspproxy_2eproto_once, descriptor_table_proxy_2fsigmap_2fproto_2fspproxy_2eproto_deps, 4, 32,
     schemas, file_default_instances, TableStruct_proxy_2fsigmap_2fproto_2fspproxy_2eproto::offsets,
     file_level_metadata_proxy_2fsigmap_2fproto_2fspproxy_2eproto, file_level_enum_descriptors_proxy_2fsigmap_2fproto_2fspproxy_2eproto,
     file_level_service_descriptors_proxy_2fsigmap_2fproto_2fspproxy_2eproto,
@@ -7754,6 +7763,7 @@ class SigmaDelegatedRPCRep::_Internal {
  public:
   static const ::Blob& blob(const SigmaDelegatedRPCRep* msg);
   static const ::Rerror& err(const SigmaDelegatedRPCRep* msg);
+  static const ::PROTOBUF_NAMESPACE_ID::Timestamp& transferstartpb(const SigmaDelegatedRPCRep* msg);
 };
 
 const ::Blob&
@@ -7763,6 +7773,10 @@ SigmaDelegatedRPCRep::_Internal::blob(const SigmaDelegatedRPCRep* msg) {
 const ::Rerror&
 SigmaDelegatedRPCRep::_Internal::err(const SigmaDelegatedRPCRep* msg) {
   return *msg->_impl_.err_;
+}
+const ::PROTOBUF_NAMESPACE_ID::Timestamp&
+SigmaDelegatedRPCRep::_Internal::transferstartpb(const SigmaDelegatedRPCRep* msg) {
+  return *msg->_impl_.transferstartpb_;
 }
 void SigmaDelegatedRPCRep::clear_blob() {
   if (GetArenaForAllocation() == nullptr && _impl_.blob_ != nullptr) {
@@ -7775,6 +7789,12 @@ void SigmaDelegatedRPCRep::clear_err() {
     delete _impl_.err_;
   }
   _impl_.err_ = nullptr;
+}
+void SigmaDelegatedRPCRep::clear_transferstartpb() {
+  if (GetArenaForAllocation() == nullptr && _impl_.transferstartpb_ != nullptr) {
+    delete _impl_.transferstartpb_;
+  }
+  _impl_.transferstartpb_ = nullptr;
 }
 SigmaDelegatedRPCRep::SigmaDelegatedRPCRep(::PROTOBUF_NAMESPACE_ID::Arena* arena,
                          bool is_message_owned)
@@ -7792,6 +7812,7 @@ SigmaDelegatedRPCRep::SigmaDelegatedRPCRep(const SigmaDelegatedRPCRep& from)
     , /*decltype(_impl_._shmlens_cached_byte_size_)*/{0}
     , decltype(_impl_.blob_){nullptr}
     , decltype(_impl_.err_){nullptr}
+    , decltype(_impl_.transferstartpb_){nullptr}
     , decltype(_impl_.useshmem_){}
     , /*decltype(_impl_._cached_size_)*/{}};
 
@@ -7801,6 +7822,9 @@ SigmaDelegatedRPCRep::SigmaDelegatedRPCRep(const SigmaDelegatedRPCRep& from)
   }
   if (from._internal_has_err()) {
     _this->_impl_.err_ = new ::Rerror(*from._impl_.err_);
+  }
+  if (from._internal_has_transferstartpb()) {
+    _this->_impl_.transferstartpb_ = new ::PROTOBUF_NAMESPACE_ID::Timestamp(*from._impl_.transferstartpb_);
   }
   _this->_impl_.useshmem_ = from._impl_.useshmem_;
   // @@protoc_insertion_point(copy_constructor:SigmaDelegatedRPCRep)
@@ -7817,6 +7841,7 @@ inline void SigmaDelegatedRPCRep::SharedCtor(
     , /*decltype(_impl_._shmlens_cached_byte_size_)*/{0}
     , decltype(_impl_.blob_){nullptr}
     , decltype(_impl_.err_){nullptr}
+    , decltype(_impl_.transferstartpb_){nullptr}
     , decltype(_impl_.useshmem_){false}
     , /*decltype(_impl_._cached_size_)*/{}
   };
@@ -7837,6 +7862,7 @@ inline void SigmaDelegatedRPCRep::SharedDtor() {
   _impl_.shmlens_.~RepeatedField();
   if (this != internal_default_instance()) delete _impl_.blob_;
   if (this != internal_default_instance()) delete _impl_.err_;
+  if (this != internal_default_instance()) delete _impl_.transferstartpb_;
 }
 
 void SigmaDelegatedRPCRep::SetCachedSize(int size) const {
@@ -7859,6 +7885,10 @@ void SigmaDelegatedRPCRep::Clear() {
     delete _impl_.err_;
   }
   _impl_.err_ = nullptr;
+  if (GetArenaForAllocation() == nullptr && _impl_.transferstartpb_ != nullptr) {
+    delete _impl_.transferstartpb_;
+  }
+  _impl_.transferstartpb_ = nullptr;
   _impl_.useshmem_ = false;
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
@@ -7911,6 +7941,14 @@ const char* SigmaDelegatedRPCRep::_InternalParse(const char* ptr, ::_pbi::ParseC
           CHK_(ptr);
         } else if (static_cast<uint8_t>(tag) == 40) {
           _internal_add_shmlens(::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr));
+          CHK_(ptr);
+        } else
+          goto handle_unusual;
+        continue;
+      // .google.protobuf.Timestamp transferStartPB = 6;
+      case 6:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 50)) {
+          ptr = ctx->ParseMessage(_internal_mutable_transferstartpb(), ptr);
           CHK_(ptr);
         } else
           goto handle_unusual;
@@ -7982,6 +8020,13 @@ uint8_t* SigmaDelegatedRPCRep::_InternalSerialize(
     }
   }
 
+  // .google.protobuf.Timestamp transferStartPB = 6;
+  if (this->_internal_has_transferstartpb()) {
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+      InternalWriteMessage(6, _Internal::transferstartpb(this),
+        _Internal::transferstartpb(this).GetCachedSize(), target, stream);
+  }
+
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
@@ -8040,6 +8085,13 @@ size_t SigmaDelegatedRPCRep::ByteSizeLong() const {
         *_impl_.err_);
   }
 
+  // .google.protobuf.Timestamp transferStartPB = 6;
+  if (this->_internal_has_transferstartpb()) {
+    total_size += 1 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+        *_impl_.transferstartpb_);
+  }
+
   // bool useShmem = 3;
   if (this->_internal_useshmem() != 0) {
     total_size += 1 + 1;
@@ -8072,6 +8124,10 @@ void SigmaDelegatedRPCRep::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, c
   if (from._internal_has_err()) {
     _this->_internal_mutable_err()->::Rerror::MergeFrom(
         from._internal_err());
+  }
+  if (from._internal_has_transferstartpb()) {
+    _this->_internal_mutable_transferstartpb()->::PROTOBUF_NAMESPACE_ID::Timestamp::MergeFrom(
+        from._internal_transferstartpb());
   }
   if (from._internal_useshmem() != 0) {
     _this->_internal_set_useshmem(from._internal_useshmem());
@@ -8307,11 +8363,16 @@ void SigmaMultiDelegatedRPCReq::InternalSwap(SigmaMultiDelegatedRPCReq* other) {
 class SigmaMultiDelegatedRPCRep::_Internal {
  public:
   static const ::Blob& blob(const SigmaMultiDelegatedRPCRep* msg);
+  static const ::PROTOBUF_NAMESPACE_ID::Timestamp& transferstartpb(const SigmaMultiDelegatedRPCRep* msg);
 };
 
 const ::Blob&
 SigmaMultiDelegatedRPCRep::_Internal::blob(const SigmaMultiDelegatedRPCRep* msg) {
   return *msg->_impl_.blob_;
+}
+const ::PROTOBUF_NAMESPACE_ID::Timestamp&
+SigmaMultiDelegatedRPCRep::_Internal::transferstartpb(const SigmaMultiDelegatedRPCRep* msg) {
+  return *msg->_impl_.transferstartpb_;
 }
 void SigmaMultiDelegatedRPCRep::clear_blob() {
   if (GetArenaForAllocation() == nullptr && _impl_.blob_ != nullptr) {
@@ -8321,6 +8382,12 @@ void SigmaMultiDelegatedRPCRep::clear_blob() {
 }
 void SigmaMultiDelegatedRPCRep::clear_errs() {
   _impl_.errs_.Clear();
+}
+void SigmaMultiDelegatedRPCRep::clear_transferstartpb() {
+  if (GetArenaForAllocation() == nullptr && _impl_.transferstartpb_ != nullptr) {
+    delete _impl_.transferstartpb_;
+  }
+  _impl_.transferstartpb_ = nullptr;
 }
 SigmaMultiDelegatedRPCRep::SigmaMultiDelegatedRPCRep(::PROTOBUF_NAMESPACE_ID::Arena* arena,
                          bool is_message_owned)
@@ -8336,11 +8403,15 @@ SigmaMultiDelegatedRPCRep::SigmaMultiDelegatedRPCRep(const SigmaMultiDelegatedRP
     , /*decltype(_impl_._niovs_cached_byte_size_)*/{0}
     , decltype(_impl_.errs_){from._impl_.errs_}
     , decltype(_impl_.blob_){nullptr}
+    , decltype(_impl_.transferstartpb_){nullptr}
     , /*decltype(_impl_._cached_size_)*/{}};
 
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   if (from._internal_has_blob()) {
     _this->_impl_.blob_ = new ::Blob(*from._impl_.blob_);
+  }
+  if (from._internal_has_transferstartpb()) {
+    _this->_impl_.transferstartpb_ = new ::PROTOBUF_NAMESPACE_ID::Timestamp(*from._impl_.transferstartpb_);
   }
   // @@protoc_insertion_point(copy_constructor:SigmaMultiDelegatedRPCRep)
 }
@@ -8354,6 +8425,7 @@ inline void SigmaMultiDelegatedRPCRep::SharedCtor(
     , /*decltype(_impl_._niovs_cached_byte_size_)*/{0}
     , decltype(_impl_.errs_){arena}
     , decltype(_impl_.blob_){nullptr}
+    , decltype(_impl_.transferstartpb_){nullptr}
     , /*decltype(_impl_._cached_size_)*/{}
   };
 }
@@ -8372,6 +8444,7 @@ inline void SigmaMultiDelegatedRPCRep::SharedDtor() {
   _impl_.niovs_.~RepeatedField();
   _impl_.errs_.~RepeatedPtrField();
   if (this != internal_default_instance()) delete _impl_.blob_;
+  if (this != internal_default_instance()) delete _impl_.transferstartpb_;
 }
 
 void SigmaMultiDelegatedRPCRep::SetCachedSize(int size) const {
@@ -8390,6 +8463,10 @@ void SigmaMultiDelegatedRPCRep::Clear() {
     delete _impl_.blob_;
   }
   _impl_.blob_ = nullptr;
+  if (GetArenaForAllocation() == nullptr && _impl_.transferstartpb_ != nullptr) {
+    delete _impl_.transferstartpb_;
+  }
+  _impl_.transferstartpb_ = nullptr;
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
@@ -8428,6 +8505,14 @@ const char* SigmaMultiDelegatedRPCRep::_InternalParse(const char* ptr, ::_pbi::P
             CHK_(ptr);
             if (!ctx->DataAvailable(ptr)) break;
           } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<26>(ptr));
+        } else
+          goto handle_unusual;
+        continue;
+      // .google.protobuf.Timestamp transferStartPB = 4;
+      case 4:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 34)) {
+          ptr = ctx->ParseMessage(_internal_mutable_transferstartpb(), ptr);
+          CHK_(ptr);
         } else
           goto handle_unusual;
         continue;
@@ -8484,6 +8569,13 @@ uint8_t* SigmaMultiDelegatedRPCRep::_InternalSerialize(
         InternalWriteMessage(3, repfield, repfield.GetCachedSize(), target, stream);
   }
 
+  // .google.protobuf.Timestamp transferStartPB = 4;
+  if (this->_internal_has_transferstartpb()) {
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+      InternalWriteMessage(4, _Internal::transferstartpb(this),
+        _Internal::transferstartpb(this).GetCachedSize(), target, stream);
+  }
+
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
@@ -8528,6 +8620,13 @@ size_t SigmaMultiDelegatedRPCRep::ByteSizeLong() const {
         *_impl_.blob_);
   }
 
+  // .google.protobuf.Timestamp transferStartPB = 4;
+  if (this->_internal_has_transferstartpb()) {
+    total_size += 1 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+        *_impl_.transferstartpb_);
+  }
+
   return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
 }
 
@@ -8552,6 +8651,10 @@ void SigmaMultiDelegatedRPCRep::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_m
     _this->_internal_mutable_blob()->::Blob::MergeFrom(
         from._internal_blob());
   }
+  if (from._internal_has_transferstartpb()) {
+    _this->_internal_mutable_transferstartpb()->::PROTOBUF_NAMESPACE_ID::Timestamp::MergeFrom(
+        from._internal_transferstartpb());
+  }
   _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
 
@@ -8571,7 +8674,12 @@ void SigmaMultiDelegatedRPCRep::InternalSwap(SigmaMultiDelegatedRPCRep* other) {
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
   _impl_.niovs_.InternalSwap(&other->_impl_.niovs_);
   _impl_.errs_.InternalSwap(&other->_impl_.errs_);
-  swap(_impl_.blob_, other->_impl_.blob_);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(SigmaMultiDelegatedRPCRep, _impl_.transferstartpb_)
+      + sizeof(SigmaMultiDelegatedRPCRep::_impl_.transferstartpb_)
+      - PROTOBUF_FIELD_OFFSET(SigmaMultiDelegatedRPCRep, _impl_.blob_)>(
+          reinterpret_cast<char*>(&_impl_.blob_),
+          reinterpret_cast<char*>(&other->_impl_.blob_));
 }
 
 ::PROTOBUF_NAMESPACE_ID::Metadata SigmaMultiDelegatedRPCRep::GetMetadata() const {

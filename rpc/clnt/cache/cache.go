@@ -4,6 +4,7 @@ package clnt
 import (
 	"sync"
 	"sync/atomic"
+	"time"
 
 	protobuf "google.golang.org/protobuf/proto"
 
@@ -127,10 +128,10 @@ func (cc *ClntCache) RPCRetry(pn string, method string, arg protobuf.Message, re
 	return err
 }
 
-func (cc *ClntCache) DelegatedRPC(pn string, rpcIdx uint64, res protobuf.Message) error {
+func (cc *ClntCache) DelegatedRPC(pn string, rpcIdx uint64, res protobuf.Message) (time.Duration, error) {
 	rpcc, err := cc.Lookup(pn)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	return rpcc.DelegatedRPC(rpcIdx, res)
 }

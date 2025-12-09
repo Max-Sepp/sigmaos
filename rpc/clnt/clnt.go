@@ -187,7 +187,7 @@ func (rpcc *RPCClnt) OutgoingDelegatedRPC(rpcIdx uint64, method string, arg prot
 // SPProxySrv via the delegated RPC channel), retreiving a res that contains a
 // Blob specially: it removes the blob from the message and pass it down in an
 // IoVec to avoid marshaling overhead of large blobs.
-func (rpcc *RPCClnt) DelegatedRPC(rpcIdx uint64, res proto.Message) error {
+func (rpcc *RPCClnt) DelegatedRPC(rpcIdx uint64, res proto.Message) (time.Duration, error) {
 	// Prepend 2 empty slots to the out iovec: one for the rpcproto.Rep
 	// wrapper, and one for the marshaled res proto.Message
 	outiov := sessp.NewUnallocatedIoVec(2, nil)
@@ -219,17 +219,18 @@ func (rpcc *RPCClnt) DelegatedRPC(rpcIdx uint64, res proto.Message) error {
 		db.DPrintf(db.RPCCLNT, "Get DelegatedRPC(%v) cached", rpcIdx)
 	}
 	if err != nil {
-		return err
+		return 0, err
 	}
+	transferDur := time.Since(rep.TransferStartPB.AsTime())
 	perf.LogSpawnLatency("DelegatedRPC.RunRPC %d", sp.NOT_SET, perf.TIME_NOT_SET, start, rpcIdx)
 	if rep.Err.ErrCode != 0 {
-		return sp.NewErr(rep.Err)
+		return 0, sp.NewErr(rep.Err)
 	}
 	start = time.Now()
 	defer func(start time.Time) {
 		perf.LogSpawnLatency("DelegatedRPC.Unmarshal %d", sp.NOT_SET, perf.TIME_NOT_SET, start, rpcIdx)
 	}(start)
-	return processWrappedRPCRep(rep.Blob.GetIoVec(), res, outblob)
+	return transferDur, processWrappedRPCRep(rep.Blob.GetIoVec(), res, outblob)
 }
 
 // Fetch a batch of delegated RPC results

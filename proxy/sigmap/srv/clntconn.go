@@ -9,6 +9,8 @@ import (
 	"time"
 	"unsafe"
 
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	"sigmaos/api/fs"
 	sos "sigmaos/api/sigmaos"
 	epcacheclnt "sigmaos/apps/epcache/clnt"
@@ -512,6 +514,7 @@ func (sca *SPProxySrvAPI) GetDelegatedRPCReply(ctx fs.CtxI, req scproto.SigmaDel
 		rep.UseShmem = true
 		db.DPrintf(db.SPPROXYSRV, "%v: GetDelegatedRPCReply(%v) calculate shmem offsets done", sca.sc.ClntId(), req.RPCIdx)
 	}
+	rep.TransferStartPB = timestamppb.New(time.Now())
 	return nil
 }
 
@@ -530,6 +533,7 @@ func (sca *SPProxySrvAPI) GetMultiDelegatedRPCReplies(ctx fs.CtxI, req scproto.S
 		rep.NIOVs = append(rep.NIOVs, uint64(iov.Len()))
 		rep.Errs = append(rep.Errs, sca.setErr(err))
 	}
+	rep.TransferStartPB = timestamppb.New(time.Now())
 	db.DPrintf(db.SPPROXYSRV, "%v: GetMultiDelegatedRPCReply done totalLen %v req %v", sca.sc.ClntId(), totalLen, req)
 	return nil
 }
