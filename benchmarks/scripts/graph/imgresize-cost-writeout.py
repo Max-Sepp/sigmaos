@@ -121,7 +121,7 @@ def main():
     avg_initscript = np.mean(times_initscript) if times_initscript else 0
 
     # Prepare data for plotting
-    labels = ['Without InitScript', 'With InitScript']
+    labels = ['Without co-sandbox', 'With co-sandbox']
     averages = [avg_noinitscript, avg_initscript]
     colors = ['steelblue', 'coral']
 
