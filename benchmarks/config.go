@@ -147,10 +147,11 @@ func (cfg *EtcdBenchConfig) Marshal() (string, error) {
 
 type MemcachedBenchConfig struct {
 	JobCfg *memcached.MemcachedJobConfig `json:"job_cfg"`
+	Cache  bool                          `json:"cache"`
 }
 
 func (cfg *MemcachedBenchConfig) String() string {
-	return fmt.Sprintf("&{ JobCfg:%v }", cfg.JobCfg)
+	return fmt.Sprintf("&{ JobCfg:%v Cache:%v }", cfg.JobCfg, cfg.Cache)
 }
 
 func (cfg *MemcachedBenchConfig) GetJobConfig() *memcached.MemcachedJobConfig {

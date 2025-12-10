@@ -30,7 +30,7 @@ func NewS3Clnt(fsl *fslib.FsLib, pn string) (*S3Clnt, error) {
 	return NewS3ClntInit(fsl, pn, true)
 }
 
-func (clnt *S3Clnt) GetObject(bucket, key string) ([]byte, error) {
+func (clnt *S3Clnt) GetObject(bucket, key string, cache bool) ([]byte, error) {
 	db.DPrintf(db.S3CLNT2, "GetObject bucket:%v key:%v", bucket, key)
 	b := []byte{}
 	var res proto.S3Rep
@@ -40,6 +40,7 @@ func (clnt *S3Clnt) GetObject(bucket, key string) ([]byte, error) {
 	req := &proto.S3Req{
 		Bucket: bucket,
 		Key:    key,
+		Cache:  cache,
 	}
 	err := clnt.rpcc.RPC("S3RpcAPI.GetObject", req, &res)
 	if err != nil {

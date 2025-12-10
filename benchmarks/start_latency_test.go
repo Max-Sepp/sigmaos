@@ -2,7 +2,9 @@ package benchmarks_test
 
 import (
 	"fmt"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -18,6 +20,7 @@ import (
 	"sigmaos/benchmarks"
 	db "sigmaos/debug"
 	"sigmaos/proc"
+	s3clnt "sigmaos/proxy/s3/clnt"
 	mschedclnt "sigmaos/sched/msched/clnt"
 	"sigmaos/sched/msched/proc/chunk"
 	sp "sigmaos/sigmap"
@@ -154,6 +157,27 @@ func NewStartLatencyJob(ts *test.RealmTstate, cfg *benchmarks.StartLatencyBenchC
 		ji.memcachedJob, err = memcached.NewMemcachedJob(ji.memcachedCfg.JobCfg, ts.SigmaClnt, ji.epcj)
 		if !assert.Nil(ts.Ts.T, err, "Err new memcached job: %v", err) {
 			return ji
+		}
+		if ji.memcachedCfg.Cache {
+			// Get S3 proxies
+			sts, err := ji.GetDir(sp.S3)
+			if !assert.Nil(ji.Ts.T, err, "Err GetDir S3: %v", err) {
+				return ji
+			}
+			pn := strings.Split(ji.memcachedCfg.JobCfg.SnapshotPath, "/")
+			bucket := pn[0]
+			key := filepath.Join(pn[1:]...)
+			// Create S3 clients for each proxy
+			for _, st := range sp.Names(sts) {
+				s3clnt, err := s3clnt.NewS3Clnt(ji.FsLib, filepath.Join(sp.S3, st))
+				if !assert.Nil(ji.Ts.T, err, "Err NewS3Clnt for %v: %v", st, err) {
+					return ji
+				}
+				// Force each proxy to cache the memcached snapshot in-memory
+				if _, err := s3clnt.GetObject(bucket, key, true); !assert.Nil(ji.Ts.T, "GetObject cache: %v", err) {
+					return ji
+				}
+			}
 		}
 	}
 	return ji

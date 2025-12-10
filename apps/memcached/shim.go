@@ -150,7 +150,7 @@ func (ms *MemcachedShim) restoreSnapshot(snapPn string) (time.Time, error) {
 		perf.LogSpawnLatency("Paper.Initialization.TransferState", pe.GetPID(), pe.GetSpawnTime(), time.Now().Add(-1*transferDur))
 		perf.LogSpawnLatency("Initialization.TransferState", pe.GetPID(), pe.GetSpawnTime(), start)
 	} else {
-		b, err = ms.s3Clnt.GetObject(bucket, key)
+		b, err = ms.s3Clnt.GetObject(bucket, key, false)
 		if err != nil {
 			db.DPrintf(db.MEMCACHED_ERR, "Err GetObject bucket:%v key:%v: %v", bucket, key, err)
 			db.DPrintf(db.ERROR, "Err GetObject bucket:%v key:%v: %v", bucket, key, err)
@@ -161,7 +161,7 @@ func (ms *MemcachedShim) restoreSnapshot(snapPn string) (time.Time, error) {
 	}
 	start = time.Now()
 	// Get meta file
-	b2, err := ms.s3Clnt.GetObject(bucket, key+".meta")
+	b2, err := ms.s3Clnt.GetObject(bucket, key+".meta", false)
 	if err != nil {
 		db.DPrintf(db.MEMCACHED_ERR, "Err GetObject bucket:%v key:%v: %v", bucket, key+".meta", err)
 		db.DPrintf(db.ERROR, "Err GetObject bucket:%v key:%v: %v", bucket, key+".meta", err)

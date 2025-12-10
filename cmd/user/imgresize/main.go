@@ -170,7 +170,7 @@ func (ip *ImgProcess) Work(i int, output string) *proc.Status {
 			db.DPrintf(db.ALWAYS, "Resize delegated get")
 			db.DPrintf(db.ALWAYS, "Time %v sandboxTransfer: %v", ip.inputs[i], transferTime)
 		} else {
-			b, err = ip.s3Clnt.GetObject(bucket, key)
+			b, err = ip.s3Clnt.GetObject(bucket, key, false)
 			if err != nil {
 				return proc.NewStatusErr(fmt.Sprintf("Err GetObject bucket:%v key:%v", bucket, key), err)
 			}

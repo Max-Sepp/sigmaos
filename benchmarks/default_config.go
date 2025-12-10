@@ -159,6 +159,7 @@ var DefaultMemcachedBenchConfig = &MemcachedBenchConfig{
 		UseInitScript: false,
 		Mcpu:          proc.Tmcpu(1000),
 	},
+	Cache: false,
 }
 
 var DefaultStartLatencyBenchConfig = &StartLatencyBenchConfig{

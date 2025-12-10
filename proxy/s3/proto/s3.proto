@@ -7,7 +7,8 @@ option go_package = "sigmaos/proxy/s3/proto";
 message S3Req {
   string bucket = 1;
   string key = 2;
-  Blob blob = 3;
+  bool cache = 3;
+  Blob blob = 4;
 }
 
 message S3Rep {
