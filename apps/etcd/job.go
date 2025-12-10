@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 
+	epsrv "sigmaos/apps/epcache/srv"
 	db "sigmaos/debug"
 	"sigmaos/proc"
 	"sigmaos/sigmaclnt"
@@ -38,12 +39,30 @@ type EtcdJob struct {
 	mu   sync.Mutex
 	conf *EtcdJobConfig
 	*sigmaclnt.SigmaClnt
+	EPCacheJob      *epsrv.EPCacheJob
 	p               *proc.Proc
 	bootScript      []byte
 	bootScriptInput []byte
+	stopEPCJ        bool
 }
 
-func NewEtcdJob(conf *EtcdJobConfig, sc *sigmaclnt.SigmaClnt) (*EtcdJob, error) {
+func NewEtcdJob(conf *EtcdJobConfig, sc *sigmaclnt.SigmaClnt, epcj *epsrv.EPCacheJob) (*EtcdJob, error) {
+	stopEPCJ := false
+	var err error
+	// If not supplied, create epcache job
+	if epcj == nil {
+		stopEPCJ = true
+		// Create epcache job
+		epcj, err = epsrv.NewEPCacheJob(sc)
+		if err != nil {
+			db.DPrintf(db.ERROR, "Err epcache: %v", err)
+			return nil, err
+		}
+	}
+	return newEtcdJob(conf, sc, epcj, stopEPCJ)
+}
+
+func newEtcdJob(conf *EtcdJobConfig, sc *sigmaclnt.SigmaClnt, epcj *epsrv.EPCacheJob, stopEPCJ bool) (*EtcdJob, error) {
 	var bootScript []byte
 	var bootScriptInput []byte
 	var err error
@@ -71,8 +90,10 @@ func NewEtcdJob(conf *EtcdJobConfig, sc *sigmaclnt.SigmaClnt) (*EtcdJob, error) 
 	return &EtcdJob{
 		conf:            conf,
 		SigmaClnt:       sc,
+		EPCacheJob:      epcj,
 		bootScript:      bootScript,
 		bootScriptInput: bootScriptInput,
+		stopEPCJ:        stopEPCJ,
 	}, nil
 }
 
@@ -132,6 +153,9 @@ func (j *EtcdJob) Stop() error {
 		return fmt.Errorf("wrong exit status: %v", status)
 	}
 	j.p = nil
+	if j.stopEPCJ {
+		j.EPCacheJob.Stop()
+	}
 	return nil
 }
 

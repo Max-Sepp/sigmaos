@@ -191,7 +191,7 @@ func TestMemcached(t *testing.T) {
 	db.DPrintf(db.TEST, "Created memcached job config: %v", conf)
 
 	// Create memcached job
-	job, err := memcached.NewMemcachedJob(conf, mrts.GetRealm(test.REALM1).SigmaClnt)
+	job, err := memcached.NewMemcachedJob(conf, mrts.GetRealm(test.REALM1).SigmaClnt, nil)
 	if !assert.Nil(t, err, "Err NewMemcachedJob: %v", err) {
 		return
 	}

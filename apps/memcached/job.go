@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	epsrv "sigmaos/apps/epcache/srv"
 	db "sigmaos/debug"
 	"sigmaos/proc"
 	"sigmaos/sigmaclnt"
@@ -35,12 +36,30 @@ type MemcachedJob struct {
 	mu   sync.Mutex
 	conf *MemcachedJobConfig
 	*sigmaclnt.SigmaClnt
+	EPCacheJob      *epsrv.EPCacheJob
 	p               *proc.Proc
 	bootScript      []byte
 	bootScriptInput []byte
+	stopEPCJ        bool
 }
 
-func NewMemcachedJob(conf *MemcachedJobConfig, sc *sigmaclnt.SigmaClnt) (*MemcachedJob, error) {
+func NewMemcachedJob(conf *MemcachedJobConfig, sc *sigmaclnt.SigmaClnt, epcj *epsrv.EPCacheJob) (*MemcachedJob, error) {
+	stopEPCJ := false
+	var err error
+	// If not supplied, create epcache job
+	if epcj == nil {
+		stopEPCJ = true
+		// Create epcache job
+		epcj, err = epsrv.NewEPCacheJob(sc)
+		if err != nil {
+			db.DPrintf(db.ERROR, "Err epcache: %v", err)
+			return nil, err
+		}
+	}
+	return newMemcachedJob(conf, sc, epcj, stopEPCJ)
+}
+
+func newMemcachedJob(conf *MemcachedJobConfig, sc *sigmaclnt.SigmaClnt, epcj *epsrv.EPCacheJob, stopEPCJ bool) (*MemcachedJob, error) {
 	var bootScript []byte
 	var bootScriptInput []byte
 	var err error
@@ -68,8 +87,10 @@ func NewMemcachedJob(conf *MemcachedJobConfig, sc *sigmaclnt.SigmaClnt) (*Memcac
 	return &MemcachedJob{
 		conf:            conf,
 		SigmaClnt:       sc,
+		EPCacheJob:      epcj,
 		bootScript:      bootScript,
 		bootScriptInput: bootScriptInput,
+		stopEPCJ:        stopEPCJ,
 	}, nil
 }
 
@@ -126,6 +147,9 @@ func (j *MemcachedJob) Stop() error {
 		return fmt.Errorf("wrong exit status: %v", status)
 	}
 	j.p = nil
+	if j.stopEPCJ {
+		j.EPCacheJob.Stop()
+	}
 	return nil
 }
 

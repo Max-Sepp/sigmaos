@@ -11,6 +11,8 @@ import (
 	"go.etcd.io/etcd/etcdutl/v3/snapshot"
 	"go.uber.org/zap"
 
+	"sigmaos/apps/epcache"
+	epcacheclnt "sigmaos/apps/epcache/clnt"
 	db "sigmaos/debug"
 	"sigmaos/proc"
 	s3clnt "sigmaos/proxy/s3/clnt"
@@ -66,7 +68,33 @@ func RunEtcdShim(snapPn, name string, peerUrls, clientUrls, listenClientUrls []s
 	}
 	es.clnt = clnt
 	perf.LogSpawnLatency("Initialization.NewEtcdClnt", pe.GetPID(), pe.GetSpawnTime(), start)
+
+	// Mount EPCache srv and register endpoint
+	start = time.Now()
+	if epcsrvEP, ok := pe.GetCachedEndpoint(epcache.EPCACHE); ok {
+		if err := epcacheclnt.MountEPCacheSrv(ssrv.MemFs.SigmaClnt().FsLib, epcsrvEP); err != nil {
+			db.DFatalf("Err mount epcache srv: %v", err)
+		}
+	}
+	perf.LogSpawnLatency("Etcd.MountEPCacheSrv", pe.GetPID(), pe.GetSpawnTime(), start)
+
+	start = time.Now()
+	epcc, err := epcacheclnt.NewEndpointCacheClnt(ssrv.MemFs.SigmaClnt().FsLib)
+	if err != nil {
+		db.DFatalf("Err EPCC: %v", err)
+	}
+	perf.LogSpawnLatency("Etcd.NewEPCacheClnt", pe.GetPID(), pe.GetSpawnTime(), start)
+
+	start = time.Now()
+	ep := sp.NewEndpoint(sp.EXTERNAL_EP, []*sp.Taddr{sp.NewTaddr("127.0.0.1", 2379)})
+	if err := epcc.RegisterEndpoint("etcd", pe.GetPID().String(), ep); err != nil {
+		db.DFatalf("Err RegisterEP: %v", err)
+	}
+	perf.LogSpawnLatency("Etcd.RegisterEP", pe.GetPID(), pe.GetSpawnTime(), start)
+	perf.LogSpawnLatency("Paper.Initialization.ServiceDiscovery", pe.GetPID(), pe.GetSpawnTime(), start)
+
 	// Mark etcd as started
+	start = time.Now()
 	if err := ssrv.SigmaClnt().Started(); err != nil {
 		db.DFatalf("Err Started: %v", err)
 		return err

@@ -9,6 +9,8 @@ import (
 
 	"github.com/bradfitz/gomemcache/memcache"
 
+	"sigmaos/apps/epcache"
+	epcacheclnt "sigmaos/apps/epcache/clnt"
 	db "sigmaos/debug"
 	"sigmaos/proc"
 	s3clnt "sigmaos/proxy/s3/clnt"
@@ -63,7 +65,7 @@ func RunMemcachedShim(snapPn string, port string) error {
 		return err
 	}
 	perf.LogSpawnLatency("Initialization.StartMemcached", pe.GetPID(), pe.GetSpawnTime(), start)
-	// Create a client to etcd
+	// Create a client to memcached
 	clnt, err := newMemcachedClnt(port)
 	if err != nil {
 		db.DFatalf("Err newMemcachedClnt: %v", err)
@@ -73,13 +75,36 @@ func RunMemcachedShim(snapPn string, port string) error {
 	perf.LogSpawnLatency("Initialization.NewMemcachedClnt", pe.GetPID(), pe.GetSpawnTime(), start)
 	perf.LogSpawnLatency("Paper.Initialization.AppLoadState", pe.GetPID(), pe.GetSpawnTime(), start2)
 	start = time.Now()
+
+	// Mount EPCache srv and register endpoint
+	if epcsrvEP, ok := pe.GetCachedEndpoint(epcache.EPCACHE); ok {
+		if err := epcacheclnt.MountEPCacheSrv(ssrv.MemFs.SigmaClnt().FsLib, epcsrvEP); err != nil {
+			db.DFatalf("Err mount epcache srv: %v", err)
+		}
+	}
+	perf.LogSpawnLatency("Memcached.MountEPCacheSrv", pe.GetPID(), pe.GetSpawnTime(), start)
+
+	start = time.Now()
+	epcc, err := epcacheclnt.NewEndpointCacheClnt(ssrv.MemFs.SigmaClnt().FsLib)
+	if err != nil {
+		db.DFatalf("Err EPCC: %v", err)
+	}
+	perf.LogSpawnLatency("Memcached.NewEPCacheClnt", pe.GetPID(), pe.GetSpawnTime(), start)
+
+	start = time.Now()
+	ep := sp.NewEndpoint(sp.EXTERNAL_EP, []*sp.Taddr{sp.NewTaddr("127.0.0.1", 11211)})
+	if err := epcc.RegisterEndpoint("memcached", pe.GetPID().String(), ep); err != nil {
+		db.DFatalf("Err RegisterEP: %v", err)
+	}
+	perf.LogSpawnLatency("Memcached.RegisterEP", pe.GetPID(), pe.GetSpawnTime(), start)
+	perf.LogSpawnLatency("Paper.Initialization.ServiceDiscovery", pe.GetPID(), pe.GetSpawnTime(), start2)
+
 	// Mark memcached as started
 	if err := ssrv.SigmaClnt().Started(); err != nil {
 		db.DFatalf("Err Started: %v", err)
 		return err
 	}
 	db.DPrintf(db.MEMCACHED, "Started shim and memcached")
-	perf.LogSpawnLatency("Paper.Initialization.ServiceDiscovery", pe.GetPID(), pe.GetSpawnTime(), start2)
 	// Wait for eviction
 	if err := ssrv.SigmaClnt().WaitEvict(ssrv.SigmaClnt().ProcEnv().GetPID()); err != nil {
 		db.DFatalf("Err WaitEvict: %v", err)
