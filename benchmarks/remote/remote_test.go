@@ -1599,6 +1599,7 @@ func TestImgProcess(t *testing.T) {
 				for _, pss := range measurePSS {
 					for _, initscriptWriteout := range initScriptWriteOutResult {
 						inputPath := "9ps3/img-save/7.jpg"
+						//						inputPath := "9ps3/img-save/6.jpg"
 						//			inputPath := "9ps3/img-save/1.jpg" // for more I/O-bound version
 						benchName := benchNameBase
 						if sequential {

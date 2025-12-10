@@ -607,7 +607,7 @@ func GetLCBEHotelImgResizeRPCMultiplexingCmdConstructor(numClients int, rps []in
 func GetImgProcessCmd(imgCfg *benchmarks.ImgBenchConfig, useGVisor bool) GetBenchCmdFn {
 	return func(bcfg *BenchConfig, ccfg *ClusterConfig) string {
 		const (
-			debugSelectors string = "\"TEST;BENCH;IMGD;GROUPMGR;SPAWN_LAT;\""
+			debugSelectors string = "\"TEST;BENCH;IMGD;GROUPMGR;SPAWN_LAT;PROXY_RPC_LAT;\""
 			perfSelectors  string = "\"THUMBNAIL_TPT;TEST_TPT;BENCH_TPT;\""
 		)
 		dialproxy := ""
