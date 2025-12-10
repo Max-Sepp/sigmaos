@@ -231,12 +231,16 @@ func (ji *StartLatencyJobInstance) Cleanup() {
 func (ji *StartLatencyJobInstance) writeKVsToCache() ([]string, []*cacheproto.CacheString, error) {
 	keys := make([]string, ji.cacheCfg.NKeys)
 	vals := make([]*cacheproto.CacheString, ji.cacheCfg.NKeys)
+	val := ""
+	for i := 0; i < ji.cacheCfg.ValSize; i++ {
+		val += "a"
+	}
 	for i := range keys {
 		key := "key-" + strconv.Itoa(i)
-		val := &cacheproto.CacheString{Val: "val-" + strconv.Itoa(i)}
+		v := &cacheproto.CacheString{Val: val}
 		keys[i] = key
-		vals[i] = val
-		if err := ji.cacheClnt.Put(key, val); err != nil {
+		vals[i] = v
+		if err := ji.cacheClnt.Put(key, v); err != nil {
 			return nil, nil, err
 		}
 	}

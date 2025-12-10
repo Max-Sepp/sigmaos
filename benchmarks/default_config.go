@@ -62,6 +62,7 @@ var DefaultCacheBenchConfig = &CacheBenchConfig{
 	DelegateInit:  false,
 	Autoscale:     false,
 	NKeys:         1000,
+	ValSize:       100,
 	TopNShards:    1,
 	Durs:          []time.Duration{10 * time.Second},
 	MaxRPS:        []int{100},

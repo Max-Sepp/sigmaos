@@ -1723,6 +1723,7 @@ func TestStartLatency(t *testing.T) {
 				DelegateInit: initscript,
 				Autoscale:    false,
 				NKeys:        75000,
+				ValSize:      1000,
 				TopNShards:   0,
 				ManuallyScale: &benchmarks.ManualScalingConfig{
 					Svc:         "cached",
@@ -1741,7 +1742,7 @@ func TestStartLatency(t *testing.T) {
 				JobCfg: &cossimsrv.CosSimJobConfig{
 					Job:       "cossim-job",
 					InitNSrv:  1,
-					NVec:      12000,
+					NVec:      9000,
 					VecDim:    128,
 					EagerInit: true,
 					SrvMcpu:   proc.Tmcpu(4000),
