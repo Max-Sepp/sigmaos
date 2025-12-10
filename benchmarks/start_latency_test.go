@@ -174,7 +174,7 @@ func NewStartLatencyJob(ts *test.RealmTstate, cfg *benchmarks.StartLatencyBenchC
 					return ji
 				}
 				// Force each proxy to cache the memcached snapshot in-memory
-				if _, err := s3clnt.GetObject(bucket, key, true); !assert.Nil(ji.Ts.T, "GetObject cache: %v", err) {
+				if _, err := s3clnt.GetObject(bucket, key, true); !assert.Nil(ji.Ts.T, "GetObject[%v] cache: %v", st, err) {
 					return ji
 				}
 			}

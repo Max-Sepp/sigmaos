@@ -41,7 +41,7 @@ func (ra *S3RpcAPI) cachePut(bucket, key string, b []byte) {
 	bucketMap[key] = b
 }
 
-func (ra *S3RpcAPI) cacheGet(key, bucket string) ([]byte, error) {
+func (ra *S3RpcAPI) cacheGet(bucket, key string) ([]byte, error) {
 	ra.mu.Lock()
 	defer ra.mu.Unlock()
 

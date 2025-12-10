@@ -584,8 +584,10 @@ def main():
         y_pos = base_y_1 + lane * lane_height
         # Ensure minimum visible width for very small durations
         visible_duration = max(duration, 1.0)
+        # Get color based on phase
+        bar_color = get_phase_color(op_name, setup_op_names_1, init_op_names_1)
         ax.barh(y_pos, visible_duration, left=start_time, height=lane_height * 0.9,
-               color=op_colors[op_name], edgecolor='black', linewidth=0.5)
+               color=bar_color, edgecolor='black', linewidth=0.5)
 
         # Add label to the right of the bar
         ax.text(start_time + visible_duration, y_pos,
@@ -598,8 +600,10 @@ def main():
         y_pos = base_y_2 + lane * lane_height
         # Ensure minimum visible width for very small durations
         visible_duration = max(duration, 1.0)
+        # Get color based on phase
+        bar_color = get_phase_color(op_name, setup_op_names_2, init_op_names_2)
         ax.barh(y_pos, visible_duration, left=start_time, height=lane_height * 0.9,
-               color=op_colors[op_name], edgecolor='black', linewidth=0.5)
+               color=bar_color, edgecolor='black', linewidth=0.5)
 
         # Add label to the right of the bar
         ax.text(start_time + visible_duration, y_pos,
@@ -624,12 +628,15 @@ def main():
     max_time = max(max_time_1, max_time_2)
     ax.set_xlim(0, max_time * 1.05)
 
-    # Create legend
-    from matplotlib.patches import Patch
-    legend_elements = [Patch(facecolor=op_colors[op], label=op) for op in all_ops]
-    ax.legend(handles=legend_elements, loc='lower left', bbox_to_anchor=(1, 0), fontsize=8)
-
     ax.grid(axis='x', alpha=0.3, linestyle='--')
+
+    # Add legend for phases
+    from matplotlib.patches import Patch
+    legend_elements = [
+        Patch(facecolor=phase_colors['setup'], edgecolor='black', label='Setup'),
+        Patch(facecolor=phase_colors['init'], edgecolor='black', label='Initialization')
+    ]
+    ax.legend(handles=legend_elements, loc='upper right', fontsize=10)
 
     plt.tight_layout()
     plt.savefig(args.output, dpi=300, bbox_inches='tight')
