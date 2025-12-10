@@ -43,6 +43,7 @@ type ImgdJobConfig struct {
 	WorkerBootScriptMcpu  proc.Tmcpu `json:"worker_boot_script_mcpu"`
 	WorkerBootScriptMem   proc.Tmem  `json:"worker_boot_script_mem"`
 	FTTaskSrvMcpu         proc.Tmcpu `json:"ft_task_srv_mcpu"`
+	ImgDim                int        `json:"img_dim"`
 }
 
 func NewImgdJobConfig(job string, workerMcpu proc.Tmcpu, workerMem proc.Tmem, persist bool, nrounds int, imgdMcpu proc.Tmcpu, useSPProxy bool, useBootScript bool, useS3Clnt bool, workerBootScriptMcpu proc.Tmcpu, workerBootScriptMem proc.Tmem, ftTaskSrvMcpu proc.Tmcpu) *ImgdJobConfig {
@@ -63,7 +64,7 @@ func NewImgdJobConfig(job string, workerMcpu proc.Tmcpu, workerMem proc.Tmem, pe
 }
 
 func (cfg *ImgdJobConfig) String() string {
-	return fmt.Sprintf("&{ job:%v workerMcpu:%v workerMem:%v persist:%v nrounds:%v imgdMcpu:%v useSPProxy:%v useBootScript:%v useS3Clnt:%v workerBootScriptMcpu:%v workerBootScriptMem:%v ftTaskSrvMcpu:%v }", cfg.Job, cfg.WorkerMcpu, cfg.WorkerMem, cfg.Persist, cfg.NRounds, cfg.ImgdMcpu, cfg.UseSPProxy, cfg.UseBootScript, cfg.UseS3Clnt, cfg.WorkerBootScriptMcpu, cfg.WorkerBootScriptMem, cfg.FTTaskSrvMcpu)
+	return fmt.Sprintf("&{ job:%v workerMcpu:%v workerMem:%v persist:%v nrounds:%v imgdMcpu:%v useSPProxy:%v useBootScript:%v useS3Clnt:%v workerBootScriptMcpu:%v workerBootScriptMem:%v ftTaskSrvMcpu:%v imgDim:%v }", cfg.Job, cfg.WorkerMcpu, cfg.WorkerMem, cfg.Persist, cfg.NRounds, cfg.ImgdMcpu, cfg.UseSPProxy, cfg.UseBootScript, cfg.UseS3Clnt, cfg.WorkerBootScriptMcpu, cfg.WorkerBootScriptMem, cfg.FTTaskSrvMcpu, cfg.ImgDim)
 }
 
 func GetBootScriptWriteOut(sc *sigmaclnt.SigmaClnt) ([]byte, error) {
@@ -144,7 +145,7 @@ func NewImgdMgr[Data any](sc *sigmaclnt.SigmaClnt, jobCfg *ImgdJobConfig, em *cr
 		return nil, err
 	}
 
-	cfg := procgroupmgr.NewProcGroupConfig(1, "imgresized", []string{strconv.Itoa(int(jobCfg.WorkerMcpu)), strconv.Itoa(int(jobCfg.WorkerMem)), strconv.Itoa(jobCfg.NRounds), TaskSvcId(imgd.job), strconv.FormatBool(jobCfg.UseSPProxy), strconv.FormatBool(jobCfg.UseBootScript), strconv.Itoa(int(jobCfg.WorkerBootScriptMcpu)), strconv.Itoa(int(jobCfg.WorkerBootScriptMem)), strconv.FormatBool(jobCfg.WriteOutViaBootScript)}, jobCfg.ImgdMcpu, ImgSvcId(jobCfg.Job))
+	cfg := procgroupmgr.NewProcGroupConfig(1, "imgresized", []string{strconv.Itoa(int(jobCfg.WorkerMcpu)), strconv.Itoa(int(jobCfg.WorkerMem)), strconv.Itoa(jobCfg.NRounds), TaskSvcId(imgd.job), strconv.FormatBool(jobCfg.UseSPProxy), strconv.FormatBool(jobCfg.UseBootScript), strconv.Itoa(int(jobCfg.WorkerBootScriptMcpu)), strconv.Itoa(int(jobCfg.WorkerBootScriptMem)), strconv.FormatBool(jobCfg.WriteOutViaBootScript), strconv.Itoa(jobCfg.ImgDim)}, jobCfg.ImgdMcpu, ImgSvcId(jobCfg.Job))
 
 	if jobCfg.Persist {
 		cfg.Persist(sc.FsLib)
@@ -219,11 +220,11 @@ func IsThumbNail(fn string) bool {
 	return strings.Contains(fn, "-thumb")
 }
 
-func GetMkProcFn(serverId task.FtTaskSvcId, nrounds int, workerMcpu proc.Tmcpu, workerMem proc.Tmem, workerBootScriptMcpu proc.Tmcpu, workerBootScriptMem proc.Tmem, bootScript []byte, bootScriptWriteOut []byte, useSPProxy bool) fttask_mgr.TnewProc[Ttask] {
+func GetMkProcFn(serverId task.FtTaskSvcId, nrounds int, imgDim int, workerMcpu proc.Tmcpu, workerMem proc.Tmem, workerBootScriptMcpu proc.Tmcpu, workerBootScriptMem proc.Tmem, bootScript []byte, bootScriptWriteOut []byte, useSPProxy bool) fttask_mgr.TnewProc[Ttask] {
 	return func(task fttask_clnt.Task[Ttask]) (*proc.Proc, error) {
 		db.DPrintf(db.IMGD, "mkProc %v", task)
 		fn := task.Data.FileName
-		p := proc.NewProcPid(sp.GenPid(string(serverId)), "imgresize", []string{fn, ThumbName(fn), strconv.Itoa(nrounds), strconv.FormatBool(task.Data.UseS3Clnt), strconv.FormatBool(task.Data.WriteOutViaBootScript)})
+		p := proc.NewProcPid(sp.GenPid(string(serverId)), "imgresize", []string{fn, ThumbName(fn), strconv.Itoa(nrounds), strconv.FormatBool(task.Data.UseS3Clnt), strconv.FormatBool(task.Data.WriteOutViaBootScript), strconv.Itoa(imgDim)})
 		p.SetMcpu(workerMcpu)
 		p.SetMem(workerMem)
 		splitFN := strings.Split(fn, "/")

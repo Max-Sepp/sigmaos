@@ -29,6 +29,7 @@ type ImgSrv struct {
 	sc                    *sigmaclnt.SigmaClnt
 	ftclnt                fttask_clnt.FtTaskClnt[imgresize.Ttask, any]
 	nrounds               int
+	imgDim                int
 	workerMcpu            proc.Tmcpu
 	workerMem             proc.Tmem
 	workerBootScriptMcpu  proc.Tmcpu
@@ -46,7 +47,7 @@ type ImgSrv struct {
 }
 
 func NewImgSrv(args []string) (*ImgSrv, error) {
-	if len(args) != 10 {
+	if len(args) != 11 {
 		return nil, fmt.Errorf("NewImgSrv: wrong number of arguments: %v", args)
 	}
 	imgd := &ImgSrv{}
@@ -109,6 +110,10 @@ func NewImgSrv(args []string) (*ImgSrv, error) {
 		db.DFatalf("Error parse writeOutViaBootScript: %v", err)
 	}
 	imgd.writeOutViaBootScript = writeOutViaBootScript
+	imgd.imgDim, err = strconv.Atoi(args[10])
+	if err != nil {
+		db.DFatalf("Error parse imgDim: %v", err)
+	}
 
 	imgd.sc.Started()
 
@@ -170,7 +175,7 @@ func (imgd *ImgSrv) Work() {
 
 	go imgd.processResults(ch)
 
-	ftc.ExecuteTasks(imgresize.GetMkProcFn(imgd.ftclnt.ServiceId(), imgd.nrounds, imgd.workerMcpu, imgd.workerMem, imgd.workerBootScriptMcpu, imgd.workerBootScriptMem, imgd.bootScript, imgd.bootScriptWriteOut, imgd.useSPProxy))
+	ftc.ExecuteTasks(imgresize.GetMkProcFn(imgd.ftclnt.ServiceId(), imgd.nrounds, imgd.imgDim, imgd.workerMcpu, imgd.workerMem, imgd.workerBootScriptMcpu, imgd.workerBootScriptMem, imgd.bootScript, imgd.bootScriptWriteOut, imgd.useSPProxy))
 	close(ch)
 
 	st := spstats.NewTcounterSnapshot()

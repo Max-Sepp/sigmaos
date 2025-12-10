@@ -82,11 +82,12 @@ type ImgProcess struct {
 	p                     *perf.Perf
 	useS3Clnt             bool
 	writeOutViaBootScript bool
+	imgDim                int
 	s3Clnt                *s3clnt.S3Clnt
 }
 
 func NewImgProcess(pe *proc.ProcEnv, args []string, p *perf.Perf) (*ImgProcess, error) {
-	if len(args) != 6 {
+	if len(args) != 7 {
 		return nil, fmt.Errorf("NewImgProcess: wrong number of arguments: %v", args)
 	}
 	ip := &ImgProcess{
@@ -112,6 +113,10 @@ func NewImgProcess(pe *proc.ProcEnv, args []string, p *perf.Perf) (*ImgProcess, 
 	db.DPrintf(db.ALWAYS, "Args {%v} inputs {%v} fail {%v}", args[1], ip.inputs, proc.GetSigmaFail())
 	ip.output = ip.inputs[0] + "-thumbnail"
 	ip.nrounds, err = strconv.Atoi(args[3])
+	if err != nil {
+		db.DFatalf("Err convert nrounds: %v", err)
+	}
+	ip.imgDim, err = strconv.Atoi(args[6])
 	if err != nil {
 		db.DFatalf("Err convert nrounds: %v", err)
 	}
@@ -186,10 +191,10 @@ func (ip *ImgProcess) Work(i int, output string) *proc.Status {
 	db.DPrintf(db.ALWAYS, "Time %v read/decode: %v", ip.inputs[i], time.Since(ds))
 	dr := time.Now()
 	for i := 0; i < ip.nrounds-1; i++ {
-		resize.Resize(IMG_DIM, IMG_DIM, img, resize.Lanczos3)
+		resize.Resize(uint(ip.imgDim), uint(ip.imgDim), img, resize.Lanczos3)
 		ip.p.TptTick(float64(imgSizeB))
 	}
-	img1 := resize.Resize(IMG_DIM, IMG_DIM, img, resize.Lanczos3)
+	img1 := resize.Resize(uint(ip.imgDim), uint(ip.imgDim), img, resize.Lanczos3)
 	ip.p.TptTick(float64(imgSizeB))
 	db.DPrintf(db.ALWAYS, "Time %v resize: %v", ip.inputs[i], time.Since(dr))
 

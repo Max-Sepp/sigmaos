@@ -1644,6 +1644,7 @@ func TestImgProcess(t *testing.T) {
 								WorkerMem:             proc.Tmem(0),
 								Persist:               false,
 								NRounds:               nrounds,
+								ImgDim:                160,
 								ImgdMcpu:              proc.Tmcpu(50),
 								UseSPProxy:            true,
 								UseBootScript:         initscript,
