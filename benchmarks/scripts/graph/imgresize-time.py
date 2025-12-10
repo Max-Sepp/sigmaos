@@ -92,6 +92,11 @@ def main():
         help="Path to benchmark output directory with initscripts"
     )
     parser.add_argument(
+        "--dir_path_initscripts_writeout",
+        required=False,
+        help="Path to benchmark output directory with initscripts and writeout (optional)"
+    )
+    parser.add_argument(
         "--output",
         default="imgresize-time-comparison.png",
         help="Output filename for the graph (default: imgresize-time-comparison.png)"
@@ -103,23 +108,36 @@ def main():
     times_noinitscripts = extract_completion_times(args.dir_path_noinitscripts)
     times_initscripts = extract_completion_times(args.dir_path_initscripts)
 
+    # Extract completion times for third configuration if provided
+    times_initscripts_writeout = []
+    if args.dir_path_initscripts_writeout:
+        times_initscripts_writeout = extract_completion_times(args.dir_path_initscripts_writeout)
+
     if not times_noinitscripts:
         print(f"Warning: No completion times found in {args.dir_path_noinitscripts}", file=sys.stderr)
     if not times_initscripts:
         print(f"Warning: No completion times found in {args.dir_path_initscripts}", file=sys.stderr)
+    if args.dir_path_initscripts_writeout and not times_initscripts_writeout:
+        print(f"Warning: No completion times found in {args.dir_path_initscripts_writeout}", file=sys.stderr)
 
-    if not times_noinitscripts and not times_initscripts:
-        print("Error: No data found in either directory", file=sys.stderr)
+    if not times_noinitscripts and not times_initscripts and not times_initscripts_writeout:
+        print("Error: No data found in any directory", file=sys.stderr)
         sys.exit(1)
 
     # Calculate averages
     avg_noinitscripts = np.mean(times_noinitscripts) if times_noinitscripts else 0
     avg_initscripts = np.mean(times_initscripts) if times_initscripts else 0
+    avg_initscripts_writeout = np.mean(times_initscripts_writeout) if times_initscripts_writeout else 0
 
     # Prepare data for plotting
-    labels = ['Without co-sandbox', 'With co-sandbox']
-    averages = [avg_noinitscripts, avg_initscripts]
-    colors = ['steelblue', 'coral']
+    if args.dir_path_initscripts_writeout:
+        labels = ['Without co-sandbox', 'With co-sandbox', 'With co-sandbox + writeout']
+        averages = [avg_noinitscripts, avg_initscripts, avg_initscripts_writeout]
+        colors = ['steelblue', 'coral', 'mediumseagreen']
+    else:
+        labels = ['Without co-sandbox', 'With co-sandbox']
+        averages = [avg_noinitscripts, avg_initscripts]
+        colors = ['steelblue', 'coral']
 
     # Create bar graph
     fig, ax = plt.subplots(figsize=(6.4, 2.4))
@@ -184,11 +202,30 @@ def main():
 
     print()
 
+    # With Initscripts + Writeout stats (if provided)
+    if times_initscripts_writeout:
+        std_initscripts_writeout = np.std(times_initscripts_writeout)
+        median_initscripts_writeout = np.median(times_initscripts_writeout)
+        p90_initscripts_writeout = np.percentile(times_initscripts_writeout, 90)
+        max_initscripts_writeout = np.max(times_initscripts_writeout)
+        print(f"With Initscripts + Writeout: {len(times_initscripts_writeout)} samples")
+        print(f"  Avg:    {avg_initscripts_writeout:.2f}ms")
+        print(f"  Median: {median_initscripts_writeout:.2f}ms")
+        print(f"  StdDev: {std_initscripts_writeout:.2f}ms")
+        print(f"  90th percentile: {p90_initscripts_writeout:.2f}ms")
+        print(f"  Max:    {max_initscripts_writeout:.2f}ms")
+        print()
+
     # Comparison
     if avg_noinitscripts > 0 and avg_initscripts > 0:
         diff = avg_noinitscripts - avg_initscripts
         pct = (diff / avg_noinitscripts) * 100
-        print(f"Difference (avg):    {diff:.2f}ms ({pct:.1f}%)")
+        print(f"Difference (avg no-initscripts vs initscripts): {diff:.2f}ms ({pct:.1f}%)")
+
+    if avg_noinitscripts > 0 and avg_initscripts_writeout > 0:
+        diff = avg_noinitscripts - avg_initscripts_writeout
+        pct = (diff / avg_noinitscripts) * 100
+        print(f"Difference (avg no-initscripts vs initscripts+writeout): {diff:.2f}ms ({pct:.1f}%)")
 
 
 if __name__ == "__main__":

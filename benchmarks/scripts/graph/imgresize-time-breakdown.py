@@ -107,7 +107,7 @@ def extract_time_values(dir_path):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Extract and average time values from lines containing 'ALWAYS Time '"
+        description="Extract and average time values from lines containing 'ALWAYS Time ' or 'Time transferOutgoingDelegatedRPC'"
     )
     parser.add_argument(
         "--input_dir",
@@ -121,7 +121,7 @@ def main():
     time_values = extract_time_values(args.input_dir)
 
     if not time_values:
-        print(f"Error: No 'ALWAYS Time ' lines found in {args.input_dir}", file=sys.stderr)
+        print(f"Error: No 'ALWAYS Time ' or 'Time transferOutgoingDelegatedRPC' lines found in {args.input_dir}", file=sys.stderr)
         sys.exit(1)
 
     # Print average times
