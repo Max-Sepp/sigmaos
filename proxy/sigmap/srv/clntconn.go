@@ -539,6 +539,7 @@ func (sca *SPProxySrvAPI) GetMultiDelegatedRPCReplies(ctx fs.CtxI, req scproto.S
 }
 
 func (sca *SPProxySrvAPI) OutgoingDelegatedRPC(ctx fs.CtxI, req scproto.SigmaOutgoingDelegatedRPCReq, rep *scproto.SigmaErrRep) error {
+	db.DPrintf(db.ALWAYS, "[%v] Time transferOutgoingDelegatedRPC: %v", sca.sc.ProcEnv().GetPID(), time.Since(req.TransferStartPB.AsTime()))
 	db.DPrintf(db.SPPROXYSRV, "%v: OutgoingDelegatedRPC(%v)", sca.sc.ClntId(), req.RPCIdx)
 	iov := req.Blob.GetIoVec()
 	start := time.Now()

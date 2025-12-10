@@ -150,6 +150,7 @@ message SigmaExitedReq {
 message SigmaOutgoingDelegatedRPCReq {
         uint64 rPCIdx = 1;
         Blob blob = 2;
+        google.protobuf.Timestamp transferStartPB = 3;
 }
 
 message SigmaDelegatedRPCReq {

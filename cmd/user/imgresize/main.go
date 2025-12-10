@@ -147,11 +147,13 @@ func (ip *ImgProcess) Work(i int, output string) *proc.Status {
 		var b []byte
 		var err error
 		if ip.ProcEnv().GetRunBootScript() {
-			b, _, err = ip.s3Clnt.DelegatedGetObject(0)
+			var transferTime time.Duration
+			b, transferTime, err = ip.s3Clnt.DelegatedGetObject(0)
 			if err != nil {
 				return proc.NewStatusErr(fmt.Sprintf("Err GetObject bucket:%v key:%v", bucket, key), err)
 			}
 			db.DPrintf(db.ALWAYS, "Resize delegated get")
+			db.DPrintf(db.ALWAYS, "Time %v sandboxTransfer: %v", ip.inputs[i], transferTime)
 		} else {
 			b, err = ip.s3Clnt.GetObject(bucket, key)
 			if err != nil {

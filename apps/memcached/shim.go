@@ -48,7 +48,9 @@ func RunMemcachedShim(snapPn string, port string) error {
 		db.DFatalf("Err newS3Clnt: %v", err)
 	}
 	ms.s3Clnt = s3Clnt
-	perf.LogSpawnLatency("Paper.Initialization.ConnectionSetup", pe.GetPID(), pe.GetSpawnTime(), start)
+	if !ms.ssrv.SigmaClnt().ProcEnv().GetRunBootScript() {
+		perf.LogSpawnLatency("Paper.Initialization.ConnectionSetup", pe.GetPID(), pe.GetSpawnTime(), start)
+	}
 	start = time.Now()
 	// Restore the snapshot
 	start2, err := ms.restoreSnapshot(snapPn)

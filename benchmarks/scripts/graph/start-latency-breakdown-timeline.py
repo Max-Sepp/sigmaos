@@ -158,6 +158,127 @@ def find_setup_init_lines(dir_path, proc_pid, paper_mode=False):
     return setup_timings, init_timings
 
 
+def subtract_event_durations(events_target, events_source, subtract_pairs):
+    """
+    Subtract durations from source events from target events based on label pairs.
+    For each pair (source_label, target_label), find the event with source_label in events_source,
+    and subtract its duration from the event with target_label in events_target.
+
+    Args:
+        events_target: List of (op_name, start_time, duration) tuples to modify
+        events_source: List of (op_name, start_time, duration) tuples to subtract from
+        subtract_pairs: List of (source_label, target_label) pairs
+
+    Returns:
+        New list of events with durations adjusted
+    """
+    if not subtract_pairs:
+        return events_target
+
+    # Build a dict from events_source for quick lookup
+    source_dict = {}
+    for op_name, start_time, duration in events_source:
+        if op_name not in source_dict:
+            source_dict[op_name] = duration
+        else:
+            # If multiple events with same name, sum them
+            source_dict[op_name] += duration
+
+    # Apply subtractions to target events
+    result = []
+    for op_name, start_time, duration in events_target:
+        new_duration = duration
+
+        # Check if this event should have something subtracted from it
+        for source_label, target_label in subtract_pairs:
+            if op_name == target_label and source_label in source_dict:
+                new_duration -= source_dict[source_label]
+                # Ensure duration doesn't go negative
+                if new_duration < 0:
+                    print(f"Warning: Subtraction resulted in negative duration for {op_name}. Setting to 0.", file=sys.stderr)
+                    new_duration = 0
+
+        result.append((op_name, start_time, new_duration))
+
+    return result
+
+
+def relabel_events(events, relabel_pairs):
+    """
+    Rename event labels based on relabel pairs.
+    For each pair (old_label, new_label), rename all events with old_label to new_label.
+
+    Args:
+        events: List of (op_name, start_time, duration) tuples
+        relabel_pairs: List of (old_label, new_label) pairs
+
+    Returns:
+        New list of events with specified labels renamed
+    """
+    if not relabel_pairs:
+        return events
+
+    # Create a mapping from old labels to new labels
+    relabel_map = {old: new for old, new in relabel_pairs}
+
+    # Apply relabeling
+    result = []
+    for op_name, start_time, duration in events:
+        new_name = relabel_map.get(op_name, op_name)
+        result.append((new_name, start_time, duration))
+
+    return result
+
+
+def combine_events(events, combine_pairs):
+    """
+    Combine events based on label pairs.
+    For each pair (label1, label2), find events with label1 and label2,
+    combine them into a single event with label2 and the combined duration.
+    The combined event starts at the earlier start time.
+
+    Args:
+        events: List of (op_name, start_time, duration) tuples
+        combine_pairs: List of (label1, label2) pairs
+
+    Returns:
+        New list of events with specified labels combined
+    """
+    # Convert events to a dict for easier lookup
+    events_dict = {}
+    for op_name, start_time, duration in events:
+        if op_name not in events_dict:
+            events_dict[op_name] = []
+        events_dict[op_name].append((start_time, duration))
+
+    # Process each combine pair
+    for label1, label2 in combine_pairs:
+        if label1 in events_dict and label2 in events_dict:
+            # Get all events for both labels
+            events1 = events_dict[label1]
+            events2 = events_dict[label2]
+
+            # For each combination, merge them
+            # Take the earliest start time
+            all_starts = [s for s, d in events1 + events2]
+            all_ends = [s + d for s, d in events1 + events2]
+            combined_start = min(all_starts)
+            combined_end = max(all_ends)
+            combined_duration = combined_end - combined_start
+
+            # Remove label1 and update label2
+            del events_dict[label1]
+            events_dict[label2] = [(combined_start, combined_duration)]
+
+    # Convert back to list of tuples
+    result = []
+    for op_name, event_list in events_dict.items():
+        for start_time, duration in event_list:
+            result.append((op_name, start_time, duration))
+
+    return result
+
+
 def get_detailed_times(dir_path, proc_name, paper_mode=False):
     """
     Extract the detailed setup and initialization times for a given proc.
@@ -251,6 +372,60 @@ def main():
         action="store_true",
         help="Only match Paper.Setup.* and Paper.Initialization.* log lines"
     )
+    parser.add_argument(
+        "--combine_1",
+        action="append",
+        nargs=2,
+        metavar=("LABEL1", "LABEL2"),
+        help="Combine two labels in proc 1 into a single bar named LABEL2. Can be specified multiple times. Format: --combine_1 LABEL1 LABEL2"
+    )
+    parser.add_argument(
+        "--combine_2",
+        action="append",
+        nargs=2,
+        metavar=("LABEL1", "LABEL2"),
+        help="Combine two labels in proc 2 into a single bar named LABEL2. Can be specified multiple times. Format: --combine_2 LABEL1 LABEL2"
+    )
+    parser.add_argument(
+        "--omit_1",
+        action="append",
+        metavar="LABEL",
+        help="Omit bars with this label from proc 1. Can be specified multiple times."
+    )
+    parser.add_argument(
+        "--omit_2",
+        action="append",
+        metavar="LABEL",
+        help="Omit bars with this label from proc 2. Can be specified multiple times."
+    )
+    parser.add_argument(
+        "--relabel_1",
+        action="append",
+        nargs=2,
+        metavar=("OLD_LABEL", "NEW_LABEL"),
+        help="Rename a label in proc 1 from OLD_LABEL to NEW_LABEL. Can be specified multiple times. Format: --relabel_1 OLD_LABEL NEW_LABEL"
+    )
+    parser.add_argument(
+        "--relabel_2",
+        action="append",
+        nargs=2,
+        metavar=("OLD_LABEL", "NEW_LABEL"),
+        help="Rename a label in proc 2 from OLD_LABEL to NEW_LABEL. Can be specified multiple times. Format: --relabel_2 OLD_LABEL NEW_LABEL"
+    )
+    parser.add_argument(
+        "--subtract_1_from_2",
+        action="append",
+        nargs=2,
+        metavar=("PROC1_LABEL", "PROC2_LABEL"),
+        help="Subtract the duration of PROC1_LABEL (from proc 1) from PROC2_LABEL (from proc 2). The events can have different names. Can be specified multiple times. Format: --subtract_1_from_2 PROC1_LABEL PROC2_LABEL"
+    )
+    parser.add_argument(
+        "--subtract_2_from_1",
+        action="append",
+        nargs=2,
+        metavar=("PROC2_LABEL", "PROC1_LABEL"),
+        help="Subtract the duration of PROC2_LABEL (from proc 2) from PROC1_LABEL (from proc 1). The events can have different names. Can be specified multiple times. Format: --subtract_2_from_1 PROC2_LABEL PROC1_LABEL"
+    )
 
     args = parser.parse_args()
 
@@ -273,6 +448,84 @@ def main():
     # Combine all events for each proc
     all_events_1 = setup_events_1 + init_events_1
     all_events_2 = setup_events_2 + init_events_2
+
+    # Apply relabeling first (before tracking phase names)
+    if args.relabel_1:
+        all_events_1 = relabel_events(all_events_1, args.relabel_1)
+        setup_events_1 = relabel_events(setup_events_1, args.relabel_1)
+        init_events_1 = relabel_events(init_events_1, args.relabel_1)
+
+    if args.relabel_2:
+        all_events_2 = relabel_events(all_events_2, args.relabel_2)
+        setup_events_2 = relabel_events(setup_events_2, args.relabel_2)
+        init_events_2 = relabel_events(init_events_2, args.relabel_2)
+
+    # Track which operation names were originally in setup vs init (after relabeling)
+    setup_op_names_1 = set(e[0] for e in setup_events_1)
+    init_op_names_1 = set(e[0] for e in init_events_1)
+    setup_op_names_2 = set(e[0] for e in setup_events_2)
+    init_op_names_2 = set(e[0] for e in init_events_2)
+
+    # Build a mapping for combined labels
+    # If label1 is combined into label2, label2 should inherit label1's phase
+    def build_phase_mapping(combine_pairs, setup_names, init_names):
+        """Build mapping from combined label to phase (setup or init)"""
+        phase_map = {}
+        for label1, label2 in combine_pairs or []:
+            # If label1 was in setup, label2 should be considered setup
+            # If label1 was in init, label2 should be considered init
+            if label1 in setup_names:
+                phase_map[label2] = 'setup'
+            elif label1 in init_names:
+                phase_map[label2] = 'init'
+        return phase_map
+
+    phase_map_1 = build_phase_mapping(args.combine_1, setup_op_names_1, init_op_names_1)
+    phase_map_2 = build_phase_mapping(args.combine_2, setup_op_names_2, init_op_names_2)
+
+    # Update the phase sets with the combined mappings
+    for label, phase in phase_map_1.items():
+        if phase == 'setup':
+            setup_op_names_1.add(label)
+        else:
+            init_op_names_1.add(label)
+
+    for label, phase in phase_map_2.items():
+        if phase == 'setup':
+            setup_op_names_2.add(label)
+        else:
+            init_op_names_2.add(label)
+
+    # Apply label combinations for proc 1
+    if args.combine_1:
+        all_events_1 = combine_events(all_events_1, args.combine_1)
+
+    # Apply label combinations for proc 2
+    if args.combine_2:
+        all_events_2 = combine_events(all_events_2, args.combine_2)
+
+    # Apply subtraction operations (after relabeling and combining, but before omitting)
+    if args.subtract_1_from_2:
+        all_events_2 = subtract_event_durations(all_events_2, all_events_1, args.subtract_1_from_2)
+
+    if args.subtract_2_from_1:
+        all_events_1 = subtract_event_durations(all_events_1, all_events_2, args.subtract_2_from_1)
+
+    # Apply omit filters for proc 1
+    if args.omit_1:
+        all_events_1 = [e for e in all_events_1 if e[0] not in args.omit_1]
+
+    # Apply omit filters for proc 2
+    if args.omit_2:
+        all_events_2 = [e for e in all_events_2 if e[0] not in args.omit_2]
+
+    # Re-split into setup and init events for proc 1
+    setup_events_1 = [e for e in all_events_1 if e[0] in setup_op_names_1]
+    init_events_1 = [e for e in all_events_1 if e[0] in init_op_names_1]
+
+    # Re-split into setup and init events for proc 2
+    setup_events_2 = [e for e in all_events_2 if e[0] in setup_op_names_2]
+    init_events_2 = [e for e in all_events_2 if e[0] in init_op_names_2]
 
     # Collect all unique operation names
     all_ops = set()

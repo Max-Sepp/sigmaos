@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	db "sigmaos/debug"
 	spproxyproto "sigmaos/proxy/sigmap/proto"
@@ -169,8 +170,9 @@ func (rpcc *RPCClnt) OutgoingDelegatedRPC(rpcIdx uint64, method string, arg prot
 	blob := &rpcproto.Blob{}
 	blob.SetIoVec(iniov)
 	req := &spproxyproto.SigmaOutgoingDelegatedRPCReq{
-		RPCIdx: rpcIdx,
-		Blob:   blob,
+		RPCIdx:          rpcIdx,
+		Blob:            blob,
+		TransferStartPB: timestamppb.New(time.Now()),
 	}
 	rep := &spproxyproto.SigmaErrRep{}
 	if err := rpcc.rpc(true, "SPProxySrvAPI.OutgoingDelegatedRPC", req, rep); err != nil {

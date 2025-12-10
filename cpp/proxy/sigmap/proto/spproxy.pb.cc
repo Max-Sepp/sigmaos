@@ -405,6 +405,7 @@ PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORIT
 PROTOBUF_CONSTEXPR SigmaOutgoingDelegatedRPCReq::SigmaOutgoingDelegatedRPCReq(
     ::_pbi::ConstantInitialized): _impl_{
     /*decltype(_impl_.blob_)*/nullptr
+  , /*decltype(_impl_.transferstartpb_)*/nullptr
   , /*decltype(_impl_.rpcidx_)*/uint64_t{0u}
   , /*decltype(_impl_._cached_size_)*/{}} {}
 struct SigmaOutgoingDelegatedRPCReqDefaultTypeInternal {
@@ -715,6 +716,7 @@ const uint32_t TableStruct_proxy_2fsigmap_2fproto_2fspproxy_2eproto::offsets[] P
   ~0u,  // no _inlined_string_donated_
   PROTOBUF_FIELD_OFFSET(::SigmaOutgoingDelegatedRPCReq, _impl_.rpcidx_),
   PROTOBUF_FIELD_OFFSET(::SigmaOutgoingDelegatedRPCReq, _impl_.blob_),
+  PROTOBUF_FIELD_OFFSET(::SigmaOutgoingDelegatedRPCReq, _impl_.transferstartpb_),
   ~0u,  // no _has_bits_
   PROTOBUF_FIELD_OFFSET(::SigmaDelegatedRPCReq, _internal_metadata_),
   ~0u,  // no _extensions_
@@ -782,10 +784,10 @@ static const ::_pbi::MigrationSchema schemas[] PROTOBUF_SECTION_VARIABLE(protode
   { 205, -1, -1, sizeof(::SigmaRegisterEPReq)},
   { 213, -1, -1, sizeof(::SigmaExitedReq)},
   { 221, -1, -1, sizeof(::SigmaOutgoingDelegatedRPCReq)},
-  { 229, -1, -1, sizeof(::SigmaDelegatedRPCReq)},
-  { 237, -1, -1, sizeof(::SigmaDelegatedRPCRep)},
-  { 249, -1, -1, sizeof(::SigmaMultiDelegatedRPCReq)},
-  { 256, -1, -1, sizeof(::SigmaMultiDelegatedRPCRep)},
+  { 230, -1, -1, sizeof(::SigmaDelegatedRPCReq)},
+  { 238, -1, -1, sizeof(::SigmaDelegatedRPCRep)},
+  { 250, -1, -1, sizeof(::SigmaMultiDelegatedRPCReq)},
+  { 257, -1, -1, sizeof(::SigmaMultiDelegatedRPCRep)},
 };
 
 static const ::_pb::Message* const file_default_instances[] = {
@@ -867,20 +869,21 @@ const char descriptor_table_protodef_proxy_2fsigmap_2fproto_2fspproxy_2eproto[] 
   "(\0132\007.Rerror\"E\n\022SigmaRegisterEPReq\022\014\n\004pat"
   "h\030\001 \001(\t\022!\n\010endpoint\030\002 \001(\0132\017.TendpointPro"
   "to\"-\n\016SigmaExitedReq\022\016\n\006status\030\001 \001(\r\022\013\n\003"
-  "msg\030\002 \001(\t\"C\n\034SigmaOutgoingDelegatedRPCRe"
-  "q\022\016\n\006rPCIdx\030\001 \001(\004\022\023\n\004blob\030\002 \001(\0132\005.Blob\"8"
-  "\n\024SigmaDelegatedRPCReq\022\016\n\006rPCIdx\030\001 \001(\004\022\020"
-  "\n\010useShmem\030\002 \001(\010\"\252\001\n\024SigmaDelegatedRPCRe"
-  "p\022\023\n\004blob\030\001 \001(\0132\005.Blob\022\024\n\003err\030\002 \001(\0132\007.Re"
-  "rror\022\020\n\010useShmem\030\003 \001(\010\022\017\n\007shmOffs\030\004 \003(\004\022"
-  "\017\n\007shmLens\030\005 \003(\004\0223\n\017transferStartPB\030\006 \001("
-  "\0132\032.google.protobuf.Timestamp\",\n\031SigmaMu"
-  "ltiDelegatedRPCReq\022\017\n\007rPCIdxs\030\001 \003(\004\"\213\001\n\031"
-  "SigmaMultiDelegatedRPCRep\022\023\n\004blob\030\001 \001(\0132"
-  "\005.Blob\022\r\n\005nIOVs\030\002 \003(\004\022\025\n\004errs\030\003 \003(\0132\007.Re"
-  "rror\0223\n\017transferStartPB\030\004 \001(\0132\032.google.p"
-  "rotobuf.TimestampB\034Z\032sigmaos/proxy/sigma"
-  "p/protob\006proto3"
+  "msg\030\002 \001(\t\"x\n\034SigmaOutgoingDelegatedRPCRe"
+  "q\022\016\n\006rPCIdx\030\001 \001(\004\022\023\n\004blob\030\002 \001(\0132\005.Blob\0223"
+  "\n\017transferStartPB\030\003 \001(\0132\032.google.protobu"
+  "f.Timestamp\"8\n\024SigmaDelegatedRPCReq\022\016\n\006r"
+  "PCIdx\030\001 \001(\004\022\020\n\010useShmem\030\002 \001(\010\"\252\001\n\024SigmaD"
+  "elegatedRPCRep\022\023\n\004blob\030\001 \001(\0132\005.Blob\022\024\n\003e"
+  "rr\030\002 \001(\0132\007.Rerror\022\020\n\010useShmem\030\003 \001(\010\022\017\n\007s"
+  "hmOffs\030\004 \003(\004\022\017\n\007shmLens\030\005 \003(\004\0223\n\017transfe"
+  "rStartPB\030\006 \001(\0132\032.google.protobuf.Timesta"
+  "mp\",\n\031SigmaMultiDelegatedRPCReq\022\017\n\007rPCId"
+  "xs\030\001 \003(\004\"\213\001\n\031SigmaMultiDelegatedRPCRep\022\023"
+  "\n\004blob\030\001 \001(\0132\005.Blob\022\r\n\005nIOVs\030\002 \003(\004\022\025\n\004er"
+  "rs\030\003 \003(\0132\007.Rerror\0223\n\017transferStartPB\030\004 \001"
+  "(\0132\032.google.protobuf.TimestampB\034Z\032sigmao"
+  "s/proxy/sigmap/protob\006proto3"
   ;
 static const ::_pbi::DescriptorTable* const descriptor_table_proxy_2fsigmap_2fproto_2fspproxy_2eproto_deps[4] = {
   &::descriptor_table_google_2fprotobuf_2ftimestamp_2eproto,
@@ -890,7 +893,7 @@ static const ::_pbi::DescriptorTable* const descriptor_table_proxy_2fsigmap_2fpr
 };
 static ::_pbi::once_flag descriptor_table_proxy_2fsigmap_2fproto_2fspproxy_2eproto_once;
 const ::_pbi::DescriptorTable descriptor_table_proxy_2fsigmap_2fproto_2fspproxy_2eproto = {
-    false, false, 2255, descriptor_table_protodef_proxy_2fsigmap_2fproto_2fspproxy_2eproto,
+    false, false, 2308, descriptor_table_protodef_proxy_2fsigmap_2fproto_2fspproxy_2eproto,
     "proxy/sigmap/proto/spproxy.proto",
     &descriptor_table_proxy_2fsigmap_2fproto_2fspproxy_2eproto_once, descriptor_table_proxy_2fsigmap_2fproto_2fspproxy_2eproto_deps, 4, 32,
     schemas, file_default_instances, TableStruct_proxy_2fsigmap_2fproto_2fspproxy_2eproto::offsets,
@@ -7321,17 +7324,28 @@ void SigmaExitedReq::InternalSwap(SigmaExitedReq* other) {
 class SigmaOutgoingDelegatedRPCReq::_Internal {
  public:
   static const ::Blob& blob(const SigmaOutgoingDelegatedRPCReq* msg);
+  static const ::PROTOBUF_NAMESPACE_ID::Timestamp& transferstartpb(const SigmaOutgoingDelegatedRPCReq* msg);
 };
 
 const ::Blob&
 SigmaOutgoingDelegatedRPCReq::_Internal::blob(const SigmaOutgoingDelegatedRPCReq* msg) {
   return *msg->_impl_.blob_;
 }
+const ::PROTOBUF_NAMESPACE_ID::Timestamp&
+SigmaOutgoingDelegatedRPCReq::_Internal::transferstartpb(const SigmaOutgoingDelegatedRPCReq* msg) {
+  return *msg->_impl_.transferstartpb_;
+}
 void SigmaOutgoingDelegatedRPCReq::clear_blob() {
   if (GetArenaForAllocation() == nullptr && _impl_.blob_ != nullptr) {
     delete _impl_.blob_;
   }
   _impl_.blob_ = nullptr;
+}
+void SigmaOutgoingDelegatedRPCReq::clear_transferstartpb() {
+  if (GetArenaForAllocation() == nullptr && _impl_.transferstartpb_ != nullptr) {
+    delete _impl_.transferstartpb_;
+  }
+  _impl_.transferstartpb_ = nullptr;
 }
 SigmaOutgoingDelegatedRPCReq::SigmaOutgoingDelegatedRPCReq(::PROTOBUF_NAMESPACE_ID::Arena* arena,
                          bool is_message_owned)
@@ -7344,12 +7358,16 @@ SigmaOutgoingDelegatedRPCReq::SigmaOutgoingDelegatedRPCReq(const SigmaOutgoingDe
   SigmaOutgoingDelegatedRPCReq* const _this = this; (void)_this;
   new (&_impl_) Impl_{
       decltype(_impl_.blob_){nullptr}
+    , decltype(_impl_.transferstartpb_){nullptr}
     , decltype(_impl_.rpcidx_){}
     , /*decltype(_impl_._cached_size_)*/{}};
 
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   if (from._internal_has_blob()) {
     _this->_impl_.blob_ = new ::Blob(*from._impl_.blob_);
+  }
+  if (from._internal_has_transferstartpb()) {
+    _this->_impl_.transferstartpb_ = new ::PROTOBUF_NAMESPACE_ID::Timestamp(*from._impl_.transferstartpb_);
   }
   _this->_impl_.rpcidx_ = from._impl_.rpcidx_;
   // @@protoc_insertion_point(copy_constructor:SigmaOutgoingDelegatedRPCReq)
@@ -7361,6 +7379,7 @@ inline void SigmaOutgoingDelegatedRPCReq::SharedCtor(
   (void)is_message_owned;
   new (&_impl_) Impl_{
       decltype(_impl_.blob_){nullptr}
+    , decltype(_impl_.transferstartpb_){nullptr}
     , decltype(_impl_.rpcidx_){uint64_t{0u}}
     , /*decltype(_impl_._cached_size_)*/{}
   };
@@ -7378,6 +7397,7 @@ SigmaOutgoingDelegatedRPCReq::~SigmaOutgoingDelegatedRPCReq() {
 inline void SigmaOutgoingDelegatedRPCReq::SharedDtor() {
   GOOGLE_DCHECK(GetArenaForAllocation() == nullptr);
   if (this != internal_default_instance()) delete _impl_.blob_;
+  if (this != internal_default_instance()) delete _impl_.transferstartpb_;
 }
 
 void SigmaOutgoingDelegatedRPCReq::SetCachedSize(int size) const {
@@ -7394,6 +7414,10 @@ void SigmaOutgoingDelegatedRPCReq::Clear() {
     delete _impl_.blob_;
   }
   _impl_.blob_ = nullptr;
+  if (GetArenaForAllocation() == nullptr && _impl_.transferstartpb_ != nullptr) {
+    delete _impl_.transferstartpb_;
+  }
+  _impl_.transferstartpb_ = nullptr;
   _impl_.rpcidx_ = uint64_t{0u};
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
@@ -7416,6 +7440,14 @@ const char* SigmaOutgoingDelegatedRPCReq::_InternalParse(const char* ptr, ::_pbi
       case 2:
         if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 18)) {
           ptr = ctx->ParseMessage(_internal_mutable_blob(), ptr);
+          CHK_(ptr);
+        } else
+          goto handle_unusual;
+        continue;
+      // .google.protobuf.Timestamp transferStartPB = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 26)) {
+          ptr = ctx->ParseMessage(_internal_mutable_transferstartpb(), ptr);
           CHK_(ptr);
         } else
           goto handle_unusual;
@@ -7462,6 +7494,13 @@ uint8_t* SigmaOutgoingDelegatedRPCReq::_InternalSerialize(
         _Internal::blob(this).GetCachedSize(), target, stream);
   }
 
+  // .google.protobuf.Timestamp transferStartPB = 3;
+  if (this->_internal_has_transferstartpb()) {
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+      InternalWriteMessage(3, _Internal::transferstartpb(this),
+        _Internal::transferstartpb(this).GetCachedSize(), target, stream);
+  }
+
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
@@ -7483,6 +7522,13 @@ size_t SigmaOutgoingDelegatedRPCReq::ByteSizeLong() const {
     total_size += 1 +
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
         *_impl_.blob_);
+  }
+
+  // .google.protobuf.Timestamp transferStartPB = 3;
+  if (this->_internal_has_transferstartpb()) {
+    total_size += 1 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+        *_impl_.transferstartpb_);
   }
 
   // uint64 rPCIdx = 1;
@@ -7511,6 +7557,10 @@ void SigmaOutgoingDelegatedRPCReq::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& t
   if (from._internal_has_blob()) {
     _this->_internal_mutable_blob()->::Blob::MergeFrom(
         from._internal_blob());
+  }
+  if (from._internal_has_transferstartpb()) {
+    _this->_internal_mutable_transferstartpb()->::PROTOBUF_NAMESPACE_ID::Timestamp::MergeFrom(
+        from._internal_transferstartpb());
   }
   if (from._internal_rpcidx() != 0) {
     _this->_internal_set_rpcidx(from._internal_rpcidx());

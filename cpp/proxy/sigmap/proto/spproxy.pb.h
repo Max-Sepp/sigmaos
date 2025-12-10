@@ -4941,6 +4941,7 @@ class SigmaOutgoingDelegatedRPCReq final :
 
   enum : int {
     kBlobFieldNumber = 2,
+    kTransferStartPBFieldNumber = 3,
     kRPCIdxFieldNumber = 1,
   };
   // .Blob blob = 2;
@@ -4961,6 +4962,24 @@ class SigmaOutgoingDelegatedRPCReq final :
       ::Blob* blob);
   ::Blob* unsafe_arena_release_blob();
 
+  // .google.protobuf.Timestamp transferStartPB = 3;
+  bool has_transferstartpb() const;
+  private:
+  bool _internal_has_transferstartpb() const;
+  public:
+  void clear_transferstartpb();
+  const ::PROTOBUF_NAMESPACE_ID::Timestamp& transferstartpb() const;
+  PROTOBUF_NODISCARD ::PROTOBUF_NAMESPACE_ID::Timestamp* release_transferstartpb();
+  ::PROTOBUF_NAMESPACE_ID::Timestamp* mutable_transferstartpb();
+  void set_allocated_transferstartpb(::PROTOBUF_NAMESPACE_ID::Timestamp* transferstartpb);
+  private:
+  const ::PROTOBUF_NAMESPACE_ID::Timestamp& _internal_transferstartpb() const;
+  ::PROTOBUF_NAMESPACE_ID::Timestamp* _internal_mutable_transferstartpb();
+  public:
+  void unsafe_arena_set_allocated_transferstartpb(
+      ::PROTOBUF_NAMESPACE_ID::Timestamp* transferstartpb);
+  ::PROTOBUF_NAMESPACE_ID::Timestamp* unsafe_arena_release_transferstartpb();
+
   // uint64 rPCIdx = 1;
   void clear_rpcidx();
   uint64_t rpcidx() const;
@@ -4979,6 +4998,7 @@ class SigmaOutgoingDelegatedRPCReq final :
   typedef void DestructorSkippable_;
   struct Impl_ {
     ::Blob* blob_;
+    ::PROTOBUF_NAMESPACE_ID::Timestamp* transferstartpb_;
     uint64_t rpcidx_;
     mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   };
@@ -9173,6 +9193,91 @@ inline void SigmaOutgoingDelegatedRPCReq::set_allocated_blob(::Blob* blob) {
   }
   _impl_.blob_ = blob;
   // @@protoc_insertion_point(field_set_allocated:SigmaOutgoingDelegatedRPCReq.blob)
+}
+
+// .google.protobuf.Timestamp transferStartPB = 3;
+inline bool SigmaOutgoingDelegatedRPCReq::_internal_has_transferstartpb() const {
+  return this != internal_default_instance() && _impl_.transferstartpb_ != nullptr;
+}
+inline bool SigmaOutgoingDelegatedRPCReq::has_transferstartpb() const {
+  return _internal_has_transferstartpb();
+}
+inline const ::PROTOBUF_NAMESPACE_ID::Timestamp& SigmaOutgoingDelegatedRPCReq::_internal_transferstartpb() const {
+  const ::PROTOBUF_NAMESPACE_ID::Timestamp* p = _impl_.transferstartpb_;
+  return p != nullptr ? *p : reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Timestamp&>(
+      ::PROTOBUF_NAMESPACE_ID::_Timestamp_default_instance_);
+}
+inline const ::PROTOBUF_NAMESPACE_ID::Timestamp& SigmaOutgoingDelegatedRPCReq::transferstartpb() const {
+  // @@protoc_insertion_point(field_get:SigmaOutgoingDelegatedRPCReq.transferStartPB)
+  return _internal_transferstartpb();
+}
+inline void SigmaOutgoingDelegatedRPCReq::unsafe_arena_set_allocated_transferstartpb(
+    ::PROTOBUF_NAMESPACE_ID::Timestamp* transferstartpb) {
+  if (GetArenaForAllocation() == nullptr) {
+    delete reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(_impl_.transferstartpb_);
+  }
+  _impl_.transferstartpb_ = transferstartpb;
+  if (transferstartpb) {
+    
+  } else {
+    
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:SigmaOutgoingDelegatedRPCReq.transferStartPB)
+}
+inline ::PROTOBUF_NAMESPACE_ID::Timestamp* SigmaOutgoingDelegatedRPCReq::release_transferstartpb() {
+  
+  ::PROTOBUF_NAMESPACE_ID::Timestamp* temp = _impl_.transferstartpb_;
+  _impl_.transferstartpb_ = nullptr;
+#ifdef PROTOBUF_FORCE_COPY_IN_RELEASE
+  auto* old =  reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(temp);
+  temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+  if (GetArenaForAllocation() == nullptr) { delete old; }
+#else  // PROTOBUF_FORCE_COPY_IN_RELEASE
+  if (GetArenaForAllocation() != nullptr) {
+    temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+  }
+#endif  // !PROTOBUF_FORCE_COPY_IN_RELEASE
+  return temp;
+}
+inline ::PROTOBUF_NAMESPACE_ID::Timestamp* SigmaOutgoingDelegatedRPCReq::unsafe_arena_release_transferstartpb() {
+  // @@protoc_insertion_point(field_release:SigmaOutgoingDelegatedRPCReq.transferStartPB)
+  
+  ::PROTOBUF_NAMESPACE_ID::Timestamp* temp = _impl_.transferstartpb_;
+  _impl_.transferstartpb_ = nullptr;
+  return temp;
+}
+inline ::PROTOBUF_NAMESPACE_ID::Timestamp* SigmaOutgoingDelegatedRPCReq::_internal_mutable_transferstartpb() {
+  
+  if (_impl_.transferstartpb_ == nullptr) {
+    auto* p = CreateMaybeMessage<::PROTOBUF_NAMESPACE_ID::Timestamp>(GetArenaForAllocation());
+    _impl_.transferstartpb_ = p;
+  }
+  return _impl_.transferstartpb_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::Timestamp* SigmaOutgoingDelegatedRPCReq::mutable_transferstartpb() {
+  ::PROTOBUF_NAMESPACE_ID::Timestamp* _msg = _internal_mutable_transferstartpb();
+  // @@protoc_insertion_point(field_mutable:SigmaOutgoingDelegatedRPCReq.transferStartPB)
+  return _msg;
+}
+inline void SigmaOutgoingDelegatedRPCReq::set_allocated_transferstartpb(::PROTOBUF_NAMESPACE_ID::Timestamp* transferstartpb) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  if (message_arena == nullptr) {
+    delete reinterpret_cast< ::PROTOBUF_NAMESPACE_ID::MessageLite*>(_impl_.transferstartpb_);
+  }
+  if (transferstartpb) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(transferstartpb));
+    if (message_arena != submessage_arena) {
+      transferstartpb = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, transferstartpb, submessage_arena);
+    }
+    
+  } else {
+    
+  }
+  _impl_.transferstartpb_ = transferstartpb;
+  // @@protoc_insertion_point(field_set_allocated:SigmaOutgoingDelegatedRPCReq.transferStartPB)
 }
 
 // -------------------------------------------------------------------

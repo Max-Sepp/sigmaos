@@ -1722,8 +1722,8 @@ func TestStartLatency(t *testing.T) {
 				UseEPCache:   true,
 				DelegateInit: initscript,
 				Autoscale:    false,
-				NKeys:        75000,
-				ValSize:      1000,
+				NKeys:        3000,
+				ValSize:      5000,
 				TopNShards:   0,
 				ManuallyScale: &benchmarks.ManualScalingConfig{
 					Svc:         "cached",
@@ -1757,7 +1757,7 @@ func TestStartLatency(t *testing.T) {
 			etcdCfg := &benchmarks.EtcdBenchConfig{
 				JobCfg: &etcd.EtcdJobConfig{
 					Job:           "etcd-job",
-					SnapshotPath:  "9ps3/snapshot-10MB.db",
+					SnapshotPath:  "9ps3/snapshot.db",
 					Name:          "etcd-proc",
 					PeerPort:      6380,
 					ClientPort:    6379,

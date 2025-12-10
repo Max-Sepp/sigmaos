@@ -27,8 +27,8 @@ func TestGenSnapshot(t *testing.T) {
 	const (
 		PEER_PORT = 6380
 		CLNT_PORT = 6379
-		SNAP_PATH = "/tmp/snapshot.db"
-		N_KV      = 100000
+		SNAP_PATH = "/tmp/snapshot-20MB.db"
+		N_KV      = 200000
 	)
 
 	// Get the project root directory dynamically
