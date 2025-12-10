@@ -184,6 +184,7 @@ echo "Done generating imgresize writeout cost comparison..."
 
 echo "Generating cached start latency breakdown graph..."
 ./benchmarks/scripts/graph/start-latency-breakdown-timeline.py \
+  --paper \
   --dir_path_1 benchmarks/results/NEXT/start_latency_cached \
   --proc_name_1 cached-srv-cpp \
   --label_1 "Cached" \
@@ -195,6 +196,7 @@ echo "Done generating cached start latency breakdown graph..."
 
 echo "Generating memcached start latency breakdown graph..."
 ./benchmarks/scripts/graph/start-latency-breakdown-timeline.py \
+  --paper \
   --dir_path_1 benchmarks/results/NEXT/start_latency_memcached \
   --proc_name_1 memcached-shim \
   --label_1 "Memcached" \
