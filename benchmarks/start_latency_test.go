@@ -173,6 +173,7 @@ func NewStartLatencyJob(ts *test.RealmTstate, cfg *benchmarks.StartLatencyBenchC
 				if !assert.Nil(ji.Ts.T, err, "Err NewS3Clnt for %v: %v", st, err) {
 					return ji
 				}
+				db.DPrintf(db.TEST, "Force caching of %v %v on %v", bucket, key, st)
 				// Force each proxy to cache the memcached snapshot in-memory
 				if _, err := s3clnt.GetObject(bucket, key, true); !assert.Nil(ji.Ts.T, "GetObject[%v] cache: %v", st, err) {
 					return ji

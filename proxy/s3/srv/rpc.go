@@ -99,6 +99,7 @@ func (ra *S3RpcAPI) GetObject(ctx fs.CtxI, req proto.S3Req, rep *proto.S3Rep) er
 		}
 		db.DPrintf(db.ALWAYS, "S3 Get close %v", time.Since(start))
 		if req.Cache {
+			db.DPrintf("Cache put %v %v len %v", req.Bucket, req.Key, len(rep.Blob.Iov[0]))
 			ra.cachePut(req.Bucket, req.Key, rep.Blob.Iov[0])
 		}
 	} else {
