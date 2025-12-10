@@ -108,7 +108,7 @@ func NewStartLatencyJob(ts *test.RealmTstate, cfg *benchmarks.StartLatencyBenchC
 		if !assert.Nil(ts.Ts.T, err, "Err warming third msched with cossim bin: %v", err) {
 			return ji
 		}
-		db.DPrintf(db.TEST, "Warmed kid %v with %v bin", bin, ji.warmSrvKID)
+		db.DPrintf(db.TEST, "Warmed kid %v with %v bin", ji.warmSrvKID, bin)
 	}
 	// Create EPCache
 	ji.epcj, err = epsrv.NewEPCacheJob(ts.SigmaClnt)
