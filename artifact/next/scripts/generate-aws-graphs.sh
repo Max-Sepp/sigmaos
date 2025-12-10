@@ -47,8 +47,8 @@ echo "Done generating imgresize mem usage comparison..."
 
 echo "Generating imgresize writeout cost comparison..."
 ./benchmarks/scripts/graph/imgresize-cost-writeout.py \
-   --initscript_dir $RES_OUT_DIR/img_process_gvisor_initscript_writeout \
-   --noinitscript_dir $RES_OUT_DIR/img_process_gvisor_initscript \
+   --initscript_dir $RES_OUT_DIR/img_process_initscript_writeout \
+   --noinitscript_dir $RES_OUT_DIR/img_process_initscript \
    --output $GRAPH_OUT_DIR/imgresize-cost-writeout.pdf
 echo "Done generating imgresize writeout cost comparison..."
 
@@ -60,7 +60,7 @@ echo "Generating cached start latency breakdown graph..."
   --label_1 "Cached" \
   --dir_path_2 benchmarks/results/NEXT/start_latency_cached_initscript \
   --proc_name_2 cached-srv-cpp \
-  --label_2 "Cached (initscript)" \
+  --label_2 "Cached (co-sandbox)" \
   --output $GRAPH_OUT_DIR/cached-start-latency-breakdown-timeline.pdf
 echo "Done generating cached start latency breakdown graph..."
 
@@ -72,6 +72,6 @@ echo "Generating memcached start latency breakdown graph..."
   --label_1 "Memcached" \
   --dir_path_2 benchmarks/results/NEXT/start_latency_memcached_initscript \
   --proc_name_2 memcached-shim \
-  --label_2 "Memcached (initscript)" \
+  --label_2 "Memcached (co-sandbox)" \
   --output $GRAPH_OUT_DIR/memcached-start-latency-breakdown-timeline.pdf
 echo "Done generating memcached start latency breakdown graph..."

@@ -103,9 +103,13 @@ def main():
         print("Error: No PSS data found", file=sys.stderr)
         sys.exit(1)
 
-    # Calculate averages
-    avg_bootscript = np.mean(bootscript_pss) if bootscript_pss else 0
-    avg_no_bootscript = np.mean(no_bootscript_pss) if no_bootscript_pss else 0
+    # Calculate averages in KB, then convert to MB
+    avg_bootscript_kb = np.mean(bootscript_pss) if bootscript_pss else 0
+    avg_no_bootscript_kb = np.mean(no_bootscript_pss) if no_bootscript_pss else 0
+
+    # Convert to MB
+    avg_bootscript = avg_bootscript_kb / 1024
+    avg_no_bootscript = avg_no_bootscript_kb / 1024
 
     # Prepare data for plotting
     labels = ['Without InitScript', 'With InitScript']
@@ -117,7 +121,7 @@ def main():
     bars = ax.bar(labels, averages, color=colors)
 
     # Customize the plot
-    ax.set_ylabel('Memory Usage (KB)', fontsize=12)
+    ax.set_ylabel('Memory Usage (MB)', fontsize=12)
     ax.grid(axis='y', alpha=0.3, linestyle='--')
 
     # Add value labels on top of bars
@@ -125,7 +129,7 @@ def main():
         height = bar.get_height()
         if height > 0:
             ax.text(bar.get_x() + bar.get_width()/2., height,
-                   f'{height:.0f}KB',
+                   f'{height:.1f}MB',
                    ha='center', va='bottom', fontsize=10)
 
     # Add headroom at the top for labels
@@ -143,16 +147,16 @@ def main():
 
     # Without BootScript stats
     if no_bootscript_pss:
-        std_no_bootscript = np.std(no_bootscript_pss)
-        median_no_bootscript = np.median(no_bootscript_pss)
-        min_no_bootscript = np.min(no_bootscript_pss)
-        max_no_bootscript = np.max(no_bootscript_pss)
+        std_no_bootscript = np.std(no_bootscript_pss) / 1024
+        median_no_bootscript = np.median(no_bootscript_pss) / 1024
+        min_no_bootscript = np.min(no_bootscript_pss) / 1024
+        max_no_bootscript = np.max(no_bootscript_pss) / 1024
         print(f"Without BootScript: {len(no_bootscript_pss)} samples")
-        print(f"  Avg:    {avg_no_bootscript:.2f}KB")
-        print(f"  Median: {median_no_bootscript:.2f}KB")
-        print(f"  StdDev: {std_no_bootscript:.2f}KB")
-        print(f"  Min:    {min_no_bootscript:.2f}KB")
-        print(f"  Max:    {max_no_bootscript:.2f}KB")
+        print(f"  Avg:    {avg_no_bootscript:.1f}MB")
+        print(f"  Median: {median_no_bootscript:.1f}MB")
+        print(f"  StdDev: {std_no_bootscript:.1f}MB")
+        print(f"  Min:    {min_no_bootscript:.1f}MB")
+        print(f"  Max:    {max_no_bootscript:.1f}MB")
     else:
         print("Without BootScript: No data")
 
@@ -160,16 +164,16 @@ def main():
 
     # With BootScript stats
     if bootscript_pss:
-        std_bootscript = np.std(bootscript_pss)
-        median_bootscript = np.median(bootscript_pss)
-        min_bootscript = np.min(bootscript_pss)
-        max_bootscript = np.max(bootscript_pss)
+        std_bootscript = np.std(bootscript_pss) / 1024
+        median_bootscript = np.median(bootscript_pss) / 1024
+        min_bootscript = np.min(bootscript_pss) / 1024
+        max_bootscript = np.max(bootscript_pss) / 1024
         print(f"With BootScript:    {len(bootscript_pss)} samples")
-        print(f"  Avg:    {avg_bootscript:.2f}KB")
-        print(f"  Median: {median_bootscript:.2f}KB")
-        print(f"  StdDev: {std_bootscript:.2f}KB")
-        print(f"  Min:    {min_bootscript:.2f}KB")
-        print(f"  Max:    {max_bootscript:.2f}KB")
+        print(f"  Avg:    {avg_bootscript:.1f}MB")
+        print(f"  Median: {median_bootscript:.1f}MB")
+        print(f"  StdDev: {std_bootscript:.1f}MB")
+        print(f"  Min:    {min_bootscript:.1f}MB")
+        print(f"  Max:    {max_bootscript:.1f}MB")
     else:
         print("With BootScript: No data")
 
@@ -179,7 +183,7 @@ def main():
     if avg_no_bootscript > 0 and avg_bootscript > 0:
         diff = avg_bootscript - avg_no_bootscript
         pct = (diff / avg_no_bootscript) * 100
-        print(f"Difference (avg):    {diff:.2f}KB ({pct:.1f}%)")
+        print(f"Difference (avg):    {diff:.1f}MB ({pct:.1f}%)")
 
 
 if __name__ == "__main__":

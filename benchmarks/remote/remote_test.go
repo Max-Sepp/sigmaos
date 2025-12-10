@@ -1563,7 +1563,7 @@ func TestImgProcess(t *testing.T) {
 	// Hotel benchmark configuration parameters
 	var (
 		nrounds        int    = 1
-		ntasks         int    = 100
+		ntasks         int    = 50
 		ninputsPerTask int    = 1
 		withGVisor     []bool = []bool{
 			false,
