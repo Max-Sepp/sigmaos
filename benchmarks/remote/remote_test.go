@@ -1547,7 +1547,7 @@ func TestHotelMatchTailLatency(t *testing.T) {
 func TestImgProcess(t *testing.T) {
 	var (
 		benchNameBase string = "img_process"
-		driverVM      int    = 12
+		driverVM      int    = 8
 	)
 	// Cluster configuration parameters
 	var (
@@ -1668,7 +1668,7 @@ func TestImgProcess(t *testing.T) {
 func TestStartLatency(t *testing.T) {
 	var (
 		benchNameBase string = "start_latency"
-		driverVM      int    = 12
+		driverVM      int    = 8
 	)
 	// Cluster configuration parameters
 	var (
@@ -1744,7 +1744,7 @@ func TestStartLatency(t *testing.T) {
 					NVec:      12000,
 					VecDim:    128,
 					EagerInit: true,
-					SrvMcpu:   proc.Tmcpu(1000),
+					SrvMcpu:   proc.Tmcpu(4000),
 					CacheCfg: &cachegrpmgr.CacheJobConfig{
 						NSrv: 1,
 						MCPU: proc.Tmcpu(1000),
