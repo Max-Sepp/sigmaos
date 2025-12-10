@@ -10,11 +10,12 @@ import numpy as np
 
 def parse_time_line(line):
     """
-    Parse a line containing "ALWAYS Time " and extract the time value in milliseconds.
-    Expected format: ... ALWAYS Time ... XXXms
+    Parse a line containing "ALWAYS Time " or "Time transferOutgoingDelegatedRPC"
+    and extract the time value in milliseconds.
+    Expected format: ... ALWAYS Time ... XXXms or ... Time transferOutgoingDelegatedRPC ... XXXms
     Returns the time in milliseconds or None if parsing fails.
     """
-    if "ALWAYS Time " not in line:
+    if "ALWAYS Time " not in line and "Time transferOutgoingDelegatedRPC" not in line:
         return None
 
     # Extract the last word
@@ -40,7 +41,7 @@ def parse_time_line(line):
 def extract_time_values(dir_path):
     """
     Search all log files in dir_path/sigmaos-node-logs for lines containing "ALWAYS Time "
-    and extract time values.
+    or "Time transferOutgoingDelegatedRPC" and extract time values.
     Returns a dict mapping operation names to lists of time values in milliseconds.
     """
     log_dir = os.path.join(dir_path, "sigmaos-node-logs")
@@ -67,7 +68,8 @@ def extract_time_values(dir_path):
         try:
             with open(log_file, 'r') as f:
                 for line in f:
-                    if "ALWAYS Time " not in line:
+                    # Skip lines that don't contain either pattern
+                    if "ALWAYS Time " not in line and "Time transferOutgoingDelegatedRPC" not in line:
                         continue
 
                     time_ms = parse_time_line(line)
@@ -75,6 +77,9 @@ def extract_time_values(dir_path):
                         # Special case: if line contains "e2e resize", use that as the key
                         if "e2e resize" in line:
                             operation_text = "e2e resize"
+                        # Special case: if line contains "transferOutgoingDelegatedRPC", use that as the key
+                        elif "transferOutgoingDelegatedRPC" in line:
+                            operation_text = "transferOutgoingDelegatedRPC"
                         else:
                             # Extract everything after "ALWAYS Time " but before the time value
                             # Remove the last word (which is the time value)
