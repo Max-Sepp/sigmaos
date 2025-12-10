@@ -23,6 +23,7 @@ echo "Generating imgresize time comparison..."
 ./benchmarks/scripts/graph/imgresize-time.py \
    --dir_path_noinitscripts $RES_OUT_DIR/img_process_gvisor \
    --dir_path_initscripts $RES_OUT_DIR/img_process_gvisor_initscript \
+   --dir_path_initscripts_writeout $RES_OUT_DIR/img_process_gvisor_initscript_writeout \
    --output $GRAPH_OUT_DIR/imgresize-time.pdf
 echo "Done generating imgresize time comparison..."
 
