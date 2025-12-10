@@ -65,38 +65,48 @@ func (ra *S3RpcAPI) GetObject(ctx fs.CtxI, req proto.S3Req, rep *proto.S3Rep) er
 		db.DPrintf(db.ERROR, "Err getClient: %v", err1)
 		return err1
 	}
-	db.DPrintf(db.ALWAYS, "S3 clnt get lat: %v", time.Since(start))
-	input := &s3.GetObjectInput{
-		Bucket: &req.Bucket,
-		Key:    &req.Key,
-	}
-	result, err := clnt.GetObject(context.TODO(), input)
+	b, err := ra.cacheGet(req.Bucket, req.Key)
 	if err != nil {
-		db.DPrintf(db.S3_ERR, "Err GetObject: %v", err)
-		db.DPrintf(db.ERROR, "Err GetObject: %v", err)
-		return err
-	}
-	db.DPrintf(db.ALWAYS, "S3 Get getobject %v", time.Since(start))
-	nbyte := int(*result.ContentLength)
-	// Set up the reply IOVec
-	rep.Blob = &rpcproto.Blob{
-		Iov: [][]byte{make([]byte, nbyte)},
-	}
-	n, err := io.ReadAtLeast(result.Body, rep.Blob.Iov[0], nbyte)
-	if n != nbyte || err != nil {
-		db.DPrintf(db.S3_ERR, "Err Read: %v", err)
-		db.DPrintf(db.ERROR, "Err Read: %v", err)
-		return err
-	}
-	db.DPrintf(db.ALWAYS, "S3 Get read %v", time.Since(start))
-	if err := result.Body.Close(); err != nil {
-		db.DPrintf(db.S3_ERR, "Err Close: %v", err)
-		db.DPrintf(db.ERROR, "Err Close: %v", err)
-		return err
-	}
-	db.DPrintf(db.ALWAYS, "S3 Get close %v", time.Since(start))
-	if req.Cache {
-		ra.cachePut(req.Bucket, req.Key, rep.Blob.Iov[0])
+		db.DPrintf(db.ALWAYS, "Cache get miss: %v", err)
+		db.DPrintf(db.ALWAYS, "S3 clnt get lat: %v", time.Since(start))
+		input := &s3.GetObjectInput{
+			Bucket: &req.Bucket,
+			Key:    &req.Key,
+		}
+		result, err := clnt.GetObject(context.TODO(), input)
+		if err != nil {
+			db.DPrintf(db.S3_ERR, "Err GetObject: %v", err)
+			db.DPrintf(db.ERROR, "Err GetObject: %v", err)
+			return err
+		}
+		db.DPrintf(db.ALWAYS, "S3 Get getobject %v", time.Since(start))
+		nbyte := int(*result.ContentLength)
+		// Set up the reply IOVec
+		rep.Blob = &rpcproto.Blob{
+			Iov: [][]byte{make([]byte, nbyte)},
+		}
+		n, err := io.ReadAtLeast(result.Body, rep.Blob.Iov[0], nbyte)
+		if n != nbyte || err != nil {
+			db.DPrintf(db.S3_ERR, "Err Read: %v", err)
+			db.DPrintf(db.ERROR, "Err Read: %v", err)
+			return err
+		}
+		db.DPrintf(db.ALWAYS, "S3 Get read %v", time.Since(start))
+		if err := result.Body.Close(); err != nil {
+			db.DPrintf(db.S3_ERR, "Err Close: %v", err)
+			db.DPrintf(db.ERROR, "Err Close: %v", err)
+			return err
+		}
+		db.DPrintf(db.ALWAYS, "S3 Get close %v", time.Since(start))
+		if req.Cache {
+			ra.cachePut(req.Bucket, req.Key, rep.Blob.Iov[0])
+		}
+	} else {
+		db.DPrintf(db.ALWAYS, "Cache get hit: %v", err)
+		// Set up the reply IOVec
+		rep.Blob = &rpcproto.Blob{
+			Iov: [][]byte{b},
+		}
 	}
 	db.DPrintf(db.S3, "GetObject RPC success: bucket:%v key:%v cache:%v", req.Bucket, req.Key, req.Cache)
 	db.DPrintf(db.ALWAYS, "S3 Get e2e nbyte %v: %v", nbyte, time.Since(start))
