@@ -189,6 +189,7 @@ func (psm *ProcStateMgr) GetRPCChannel(sc *sigmaclnt.SigmaClnt, pid sp.Tpid, rpc
 		db.DPrintf(db.SPPROXYSRV_ERR, "Try to get delegated RPC reply for unknown proc: %v", pid)
 		return nil, fmt.Errorf("Can't find proc stae: %v", pid)
 	}
+	ps.logWasmScriptBooted()
 	return ps.rpcReps.GetRPCChannel(sc, rpcIdx, pn)
 }
 
@@ -227,6 +228,8 @@ type procState struct {
 	epcc                     *epcacheclnt.EndpointCacheClnt
 	shm                      *shmem.Segment
 	delRPCStart              time.Time
+	wasmScriptStart          time.Time
+	wasmScriptBooted         bool
 	delRPCStartSet           bool
 	shmAlloc                 malloc.Allocator
 	err                      error // Creation result
@@ -352,6 +355,17 @@ func (ps *procState) getDelRPCStart(s time.Time) time.Time {
 	return ps.delRPCStart
 }
 
+// Return the time point at which loading state via delRPC started
+func (ps *procState) logWasmScriptBooted() {
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
+
+	if !ps.wasmScriptBooted {
+		ps.wasmScriptBooted = true
+		perf.LogSpawnLatency("Paper.Initialization.CoSandboxStart", ps.sc.ProcEnv().GetPID(), ps.sc.ProcEnv().GetSpawnTime(), ps.wasmScriptStart)
+	}
+}
+
 func (ps *procState) createSigmaClnt(spps *SPProxySrv) {
 	db.DPrintf(db.SPPROXYSRV, "createSigmaClnt for %v withProcClnt %v", ps.pe.GetPID(), ps.pe.UseSPProxyProcClnt)
 	start := time.Now()
@@ -367,6 +381,7 @@ func (ps *procState) createSigmaClnt(spps *SPProxySrv) {
 		rpcAPI := NewWASMRPCProxy(spps, sc, ps.p)
 		ps.wrt = wasmrt.NewWasmerRuntime(rpcAPI)
 		perf.LogSpawnLatency("Create wasmRT", ps.pe.GetPID(), ps.pe.GetSpawnTime(), start)
+		ps.wasmScriptStart = time.Now()
 		go func() {
 			// Run the module
 			err := ps.wrt.RunModule(ps.p.GetPid(), ps.p.GetSpawnTime(), ps.p.GetBootScript(), ps.p.GetBootScriptInput())
