@@ -80,7 +80,10 @@ for vm in $vms; do
 #sudo groupadd docker
 #sudo usermod -aG docker ubuntu
 #sudo usermod -aG docker ubuntu
-docker --version
+#docker --version
+cd sigmaos
+./set-cores.sh --start 4 --end 16 --set 0
+nproc
 ENDSSH
 done
 
