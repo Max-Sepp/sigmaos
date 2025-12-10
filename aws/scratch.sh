@@ -60,10 +60,27 @@ for vm in $vms; do
 #  sed -i.old '1s;^;export PATH=\$PATH:/usr/local/go/bin\n;' ~/.profile
 #  sed -i.old '1s;^;export PATH=\$PATH:/usr/local/go/bin\n;' ~/.bashrc
 #  go version
-echo "N Procq:"
-ps -fax | grep "bin/kernel/" | grep "/procq" | wc -l
-echo "N schedd:"
-ps -fax | grep "bin/kernel/" | grep "schedd" | wc -l
+#echo "N Procq:"
+#ps -fax | grep "bin/kernel/" | grep "/procq" | wc -l
+#echo "N schedd:"
+#ps -fax | grep "bin/kernel/" | grep "schedd" | wc -l
+#sudo apt-get remove -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+#sudo apt-get install -y docker-ce=5:28.2.2-1~ubuntu.22.04~jammy docker-ce-cli=5:28.2.2-1~ubuntu.22.04~jammy containerd.io docker-buildx-plugin docker-compose-plugin
+#printf "{\n\"exec-opts\": [\"native.cgroupdriver=systemd\"]\n}" | sudo tee /etc/docker/daemon.json
+#sudo systemctl daemon-reload
+#sudo systemctl restart docker
+#sudo systemctl restart kubelet
+#sudo containerd config default | sudo tee /etc/containerd/config.toml
+#sudo sed -i 's/            SystemdCgroup = false/            SystemdCgroup = true/' /etc/containerd/config.toml
+#sudo systemctl daemon-reload
+#sudo systemctl restart docker
+#sudo systemctl restart containerd
+#sudo systemctl restart kubelet
+#sudo systemctl restart containerd
+#sudo groupadd docker
+#sudo usermod -aG docker ubuntu
+#sudo usermod -aG docker ubuntu
+docker --version
 ENDSSH
 done
 
