@@ -21,8 +21,8 @@ GRAPH_OUT_DIR=$ROOT_DIR/benchmarks/results/graphs
 
 echo "Generating imgresize time comparison..."
 ./benchmarks/scripts/graph/imgresize-time.py \
-   --dir_path_noinitscripts $RES_OUT_DIR/img_process \
-   --dir_path_initscripts $RES_OUT_DIR/img_process_initscript \
+   --dir_path_noinitscripts $RES_OUT_DIR/img_process_gvisor \
+   --dir_path_initscripts $RES_OUT_DIR/img_process_gvisor_initscript \
    --output $GRAPH_OUT_DIR/imgresize-time.pdf
 echo "Done generating imgresize time comparison..."
 
@@ -47,8 +47,8 @@ echo "Done generating imgresize mem usage comparison..."
 
 echo "Generating imgresize writeout cost comparison..."
 ./benchmarks/scripts/graph/imgresize-cost-writeout.py \
-   --initscript_dir $RES_OUT_DIR/img_process_initscript_writeout \
-   --noinitscript_dir $RES_OUT_DIR/img_process_initscript \
+   --initscript_dir $RES_OUT_DIR/img_process_gvisor_initscript_writeout \
+   --noinitscript_dir $RES_OUT_DIR/img_process_gvisor_initscript \
    --output $GRAPH_OUT_DIR/imgresize-cost-writeout.pdf
 echo "Done generating imgresize writeout cost comparison..."
 
@@ -86,6 +86,21 @@ echo "Generating memcached start latency breakdown graph..."
   --subtract_1_from_2 "GlobalScheduling" "DownloadInitScript" \
   --output $GRAPH_OUT_DIR/memcached-start-latency-breakdown-timeline.pdf
 echo "Done generating memcached start latency breakdown graph..."
+
+echo "Imgresize breakdown..."
+./benchmarks/scripts/graph/imgresize-time-breakdown.py \
+  --input_dir $RES_OUT_DIR/img_process_gvisor
+echo "Imgresize breakdown..."
+
+echo "Imgresize (initscript) breakdown..."
+./benchmarks/scripts/graph/imgresize-time-breakdown.py \
+  --input_dir $RES_OUT_DIR/img_process_gvisor_initscript
+echo "Imgresize (initscript) breakdown..."
+
+echo "Imgresize (writeout) breakdown..."
+./benchmarks/scripts/graph/imgresize-time-breakdown.py \
+  --input_dir $RES_OUT_DIR/img_process_gvisor_initscript_writeout
+echo "Imgresize (writeout) breakdown..."
 
 #echo "..............................................Cached, no initscript.............................................."
 #./benchmarks/scripts/graph/start-latency-breakdown-setup-init.py \
