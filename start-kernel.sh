@@ -231,7 +231,10 @@ if [ -z ${CID} ]; then
 fi
 
 IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' ${CID})
-if [ -z  ${IP} ]; then
+if [ "${IP}" == "invalid IP" ]; then
+  IP=""
+fi
+if [ -z  "${IP}" ]; then
     # find out what host's IP is (e.g., when running with --network bridge)
     IP=$(ip route get 8.8.8.8 | head -1 | cut -d ' ' -f 7)
 fi
