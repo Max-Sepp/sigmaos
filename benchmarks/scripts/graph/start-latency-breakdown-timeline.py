@@ -527,16 +527,21 @@ def main():
     setup_events_2 = [e for e in all_events_2 if e[0] in setup_op_names_2]
     init_events_2 = [e for e in all_events_2 if e[0] in init_op_names_2]
 
-    # Collect all unique operation names
-    all_ops = set()
-    for op_name, _, _ in all_events_1 + all_events_2:
-        all_ops.add(op_name)
-    all_ops = sorted(all_ops)
+    # Define colors for each phase
+    phase_colors = {
+        'setup': 'steelblue',
+        'init': 'coral'
+    }
 
-    # Generate a color palette for all operations
-    import matplotlib.cm as cm
-    colors = cm.get_cmap('tab20')(np.linspace(0, 1, len(all_ops)))
-    op_colors = {op: colors[i] for i, op in enumerate(all_ops)}
+    # Create a mapping from operation name to phase (setup or init)
+    def get_phase_color(op_name, setup_names, init_names):
+        """Get the color for an operation based on its phase."""
+        if op_name in setup_names:
+            return phase_colors['setup']
+        elif op_name in init_names:
+            return phase_colors['init']
+        else:
+            return 'gray'  # Default color if not in either phase
 
     def assign_lanes(events):
         """

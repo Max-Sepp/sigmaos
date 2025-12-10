@@ -262,8 +262,8 @@ def main():
     width = 0.35
 
     fig, ax = plt.subplots(figsize=(6.4, 2.4))
-    bars1 = ax.bar(x - width/2, without_initscript, width, label='Without Initscript', color='steelblue')
-    bars2 = ax.bar(x + width/2, with_initscript, width, label='With Initscript', color='coral')
+    bars1 = ax.bar(x - width/2, without_initscript, width, label='Without co-sandbox', color='steelblue')
+    bars2 = ax.bar(x + width/2, with_initscript, width, label='With co-sandbox', color='coral')
 
     # Customize the plot
     ax.set_xlabel('Service', fontsize=12)
