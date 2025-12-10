@@ -1757,7 +1757,7 @@ func TestStartLatency(t *testing.T) {
 			etcdCfg := &benchmarks.EtcdBenchConfig{
 				JobCfg: &etcd.EtcdJobConfig{
 					Job:           "etcd-job",
-					SnapshotPath:  "9ps3/snapshot.db",
+					SnapshotPath:  "9ps3/snapshot-14MB.db",
 					Name:          "etcd-proc",
 					PeerPort:      6380,
 					ClientPort:    6379,

@@ -10,12 +10,12 @@ GRAPH_OUT_DIR=$ROOT_DIR/benchmarks/results/graphs
 #echo "..............................................Cached, no initscript.............................................."
 #./benchmarks/scripts/graph/start-latency-breakdown-setup-init.py \
 #  --start \
-#  --dir_path benchmarks/results/NEXT/start_latency_cached \
+#  --dir_path benchmarks/results/$VERSION/start_latency_cached \
 #  --proc_name cached-srv-cpp
 #echo "..............................................Cached, initscript.............................................."
 #./benchmarks/scripts/graph/start-latency-breakdown-setup-init.py \
 #  --start \
-#  --dir_path benchmarks/results/NEXT/start_latency_cached_initscript \
+#  --dir_path benchmarks/results/$VERSION/start_latency_cached_initscript \
 #  --proc_name cached-srv-cpp
 #printf "\n\n\n"
 
@@ -55,23 +55,46 @@ echo "Done generating imgresize writeout cost comparison..."
 echo "Generating cached start latency breakdown graph..."
 ./benchmarks/scripts/graph/start-latency-breakdown-timeline.py \
   --paper \
-  --dir_path_1 benchmarks/results/NEXT/start_latency_cached \
+  --dir_path_1 benchmarks/results/$VERSION/start_latency_cached \
   --proc_name_1 cached-srv-cpp \
   --label_1 "Cached" \
-  --dir_path_2 benchmarks/results/NEXT/start_latency_cached_initscript \
+  --combine_1 "InitSPProxyConn" "ConnectionSetup" \
+  --relabel_1 "ConnectionSetup" "ConnectionSetup-2" \
+  --relabel_1 "InitSPProxyConn" "ConnectionSetup-1" \
+  --omit_1 "GlobalScheduling" \
+  --dir_path_2 benchmarks/results/$VERSION/start_latency_cached_initscript \
   --proc_name_2 cached-srv-cpp \
   --label_2 "Cached (co-sandbox)" \
+  --relabel_2 "ConnectionSetup" "ConnectionSetup-1" \
+  --relabel_2 "InitSPProxyConn" "ConnectionSetup-2" \
+  --omit_2 "GlobalScheduling" \
+  --subtract_1_from_2 "GlobalScheduling" "DownloadInitScript" \
   --output $GRAPH_OUT_DIR/cached-start-latency-breakdown-timeline.pdf
 echo "Done generating cached start latency breakdown graph..."
 
 echo "Generating memcached start latency breakdown graph..."
 ./benchmarks/scripts/graph/start-latency-breakdown-timeline.py \
   --paper \
-  --dir_path_1 benchmarks/results/NEXT/start_latency_memcached \
+  --dir_path_1 benchmarks/results/$VERSION/start_latency_memcached \
   --proc_name_1 memcached-shim \
   --label_1 "Memcached" \
-  --dir_path_2 benchmarks/results/NEXT/start_latency_memcached_initscript \
+  --omit_1 "GlobalScheduling" \
+  --dir_path_2 benchmarks/results/$VERSION/start_latency_memcached_initscript \
   --proc_name_2 memcached-shim \
   --label_2 "Memcached (co-sandbox)" \
+  --omit_2 "GlobalScheduling" \
+  --subtract_1_from_2 "GlobalScheduling" "DownloadInitScript" \
   --output $GRAPH_OUT_DIR/memcached-start-latency-breakdown-timeline.pdf
 echo "Done generating memcached start latency breakdown graph..."
+
+#echo "..............................................Cached, no initscript.............................................."
+#./benchmarks/scripts/graph/start-latency-breakdown-setup-init.py \
+#  --start \
+#  --dir_path benchmarks/results/$VERSION/start_latency_cossim \
+#  --proc_name cossim-srv-cpp
+#echo "..............................................Cached, initscript.............................................."
+#./benchmarks/scripts/graph/start-latency-breakdown-setup-init.py \
+#  --start \
+#  --dir_path benchmarks/results/$VERSION/start_latency_cossim_initscript \
+#  --proc_name cossim-srv-cpp
+#printf "\n\n\n"
