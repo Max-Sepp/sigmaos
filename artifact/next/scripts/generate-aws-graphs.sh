@@ -62,12 +62,14 @@ echo "Generating cached start latency breakdown graph..."
   --combine_1 "InitSPProxyConn" "ConnectionSetup" \
   --relabel_1 "ConnectionSetup" "ConnectionSetup-2" \
   --relabel_1 "InitSPProxyConn" "ConnectionSetup-1" \
+  --relabel_1 "DownloadInitScript" "DownloadCoSandbox" \
   --omit_1 "GlobalScheduling" \
   --dir_path_2 benchmarks/results/$VERSION/start_latency_cached_initscript \
   --proc_name_2 cached-srv-cpp \
   --label_2 "Cached (co-sandbox)" \
   --relabel_2 "ConnectionSetup" "ConnectionSetup-1" \
   --relabel_2 "InitSPProxyConn" "ConnectionSetup-2" \
+  --relabel_2 "DownloadInitScript" "DownloadCoSandbox" \
   --omit_2 "GlobalScheduling" \
   --subtract_1_from_2 "GlobalScheduling" "DownloadInitScript" \
   --output $GRAPH_OUT_DIR/cached-start-latency-breakdown-timeline.pdf
@@ -80,10 +82,12 @@ echo "Generating memcached start latency breakdown graph..."
   --proc_name_1 memcached-shim \
   --label_1 "Memcached" \
   --omit_1 "GlobalScheduling" \
+  --relabel_1 "DownloadInitScript" "DownloadCoSandbox" \
   --dir_path_2 benchmarks/results/$VERSION/start_latency_memcached_initscript \
   --proc_name_2 memcached-shim \
   --label_2 "Memcached (co-sandbox)" \
   --omit_2 "GlobalScheduling" \
+  --relabel_2 "DownloadInitScript" "DownloadCoSandbox" \
   --subtract_1_from_2 "GlobalScheduling" "DownloadInitScript" \
   --output $GRAPH_OUT_DIR/memcached-start-latency-breakdown-timeline.pdf
 echo "Done generating memcached start latency breakdown graph..."
