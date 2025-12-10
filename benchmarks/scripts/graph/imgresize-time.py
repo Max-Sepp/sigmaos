@@ -131,7 +131,7 @@ def main():
 
     # Prepare data for plotting
     if args.dir_path_initscripts_writeout:
-        labels = ['Without co-sandbox', 'With co-sandbox (input)', 'With co-sandbox (input+output)']
+        labels = ['No co-sandbox', 'co-sandbox (input)', 'co-sandbox (input+output)']
         averages = [avg_noinitscripts, avg_initscripts, avg_initscripts_writeout]
         colors = ['steelblue', 'coral', 'mediumseagreen']
     else:

@@ -112,7 +112,7 @@ def main():
     avg_no_bootscript = avg_no_bootscript_kb / 1024
 
     # Prepare data for plotting
-    labels = ['Without co-sandbox', 'With co-sandbox']
+    labels = ['No co-sandbox', 'co-sandbox']
     averages = [avg_no_bootscript, avg_bootscript]
     colors = ['steelblue', 'coral']
 
