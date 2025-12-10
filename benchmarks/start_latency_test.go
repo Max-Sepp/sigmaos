@@ -145,13 +145,13 @@ func NewStartLatencyJob(ts *test.RealmTstate, cfg *benchmarks.StartLatencyBenchC
 		ji.cossimClnt = ji.cossimJob.Clnt
 	case "etcd":
 		// Create etcd job
-		ji.etcdJob, err = etcd.NewEtcdJob(ji.etcdCfg.JobCfg, ts.SigmaClnt)
+		ji.etcdJob, err = etcd.NewEtcdJob(ji.etcdCfg.JobCfg, ts.SigmaClnt, ji.epcj)
 		if !assert.Nil(ts.Ts.T, err, "Err new etcd job: %v", err) {
 			return ji
 		}
 	case "memcached":
 		// Create memcached job
-		ji.memcachedJob, err = memcached.NewMemcachedJob(ji.memcachedCfg.JobCfg, ts.SigmaClnt)
+		ji.memcachedJob, err = memcached.NewMemcachedJob(ji.memcachedCfg.JobCfg, ts.SigmaClnt, ji.epcj)
 		if !assert.Nil(ts.Ts.T, err, "Err new memcached job: %v", err) {
 			return ji
 		}
