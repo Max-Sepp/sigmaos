@@ -52,7 +52,8 @@ std::expected<int, sigmaos::serr::Error> Clnt::BatchFetchDelegatedRPCs(
 }
 
 // Retrieve the result of a delegated RPC
-std::expected<int, sigmaos::serr::Error> Clnt::DelegatedRPC(
+std::expected<google::protobuf::Timestamp, sigmaos::serr::Error>
+Clnt::DelegatedRPC(
     uint64_t rpc_idx, google::protobuf::Message &delegated_rep,
     std::shared_ptr<std::vector<std::shared_ptr<std::string_view>>> views) {
   log(RPCCLNT, "DelegatedRPC {}", (int)rpc_idx);
@@ -90,7 +91,7 @@ std::expected<int, sigmaos::serr::Error> Clnt::DelegatedRPC(
   {
     auto res = _cache.Get(rpc_idx, out_iov);
     if (!res.has_value()) {
-      return res;
+      return std::unexpected(res.error());
     }
     reply_cached = res.value();
   }
@@ -101,7 +102,7 @@ std::expected<int, sigmaos::serr::Error> Clnt::DelegatedRPC(
     // If there was no cached reply, run the delegated RPC
     auto res = rpc(true, "SPProxySrvAPI.GetDelegatedRPCReply", req, *rep);
     if (!res.has_value()) {
-      return res;
+      return std::unexpected(res.error());
     }
   }
   // If using shared memory
@@ -143,7 +144,10 @@ std::expected<int, sigmaos::serr::Error> Clnt::DelegatedRPC(
     // above)
     auto blob = rep->release_blob();
   }
-  return res;
+  if (!res.has_value()) {
+    return std::unexpected(res.error());
+  }
+  return rep->transferstartpb();
 }
 
 // Perform an RPC

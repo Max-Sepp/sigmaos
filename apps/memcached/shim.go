@@ -97,7 +97,7 @@ func RunMemcachedShim(snapPn string, port string) error {
 		db.DFatalf("Err RegisterEP: %v", err)
 	}
 	perf.LogSpawnLatency("Memcached.RegisterEP", pe.GetPID(), pe.GetSpawnTime(), start)
-	perf.LogSpawnLatency("Paper.Initialization.ServiceDiscovery", pe.GetPID(), pe.GetSpawnTime(), start2)
+	perf.LogSpawnLatency("Paper.Initialization.ServiceDiscovery", pe.GetPID(), pe.GetSpawnTime(), start)
 
 	// Mark memcached as started
 	if err := ssrv.SigmaClnt().Started(); err != nil {
@@ -157,6 +157,7 @@ func (ms *MemcachedShim) restoreSnapshot(snapPn string) (time.Time, error) {
 		db.DPrintf(db.MEMCACHED, "Done direct get")
 		perf.LogSpawnLatency("Paper.Initialization.DownloadState", pe.GetPID(), pe.GetSpawnTime(), start)
 	}
+	start = time.Now()
 	// Get meta file
 	b2, err := ms.s3Clnt.GetObject(bucket, key+".meta")
 	if err != nil {
@@ -166,7 +167,6 @@ func (ms *MemcachedShim) restoreSnapshot(snapPn string) (time.Time, error) {
 	}
 	db.DPrintf(db.MEMCACHED, "Done direct get")
 	perf.LogSpawnLatency("Initialization.DownloadState", pe.GetPID(), pe.GetSpawnTime(), start)
-	start = time.Now()
 	// Create tmpfs mount (shim always runs in Docker/gVisor)
 	//	if err := MakeTmpfs(TMPFS_MOUNT); err != nil {
 	if err := os.Mkdir(TMPFS_MOUNT, 0777); err != nil {

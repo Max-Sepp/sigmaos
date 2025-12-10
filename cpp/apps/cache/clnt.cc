@@ -404,10 +404,12 @@ std::expected<int, sigmaos::serr::Error> Clnt::BatchFetchDelegatedRPCs(
 }
 
 std::expected<
-    std::shared_ptr<std::map<
-        uint32_t,
+    std::pair<
         std::shared_ptr<std::map<
-            std::string, std::shared_ptr<sigmaos::apps::cache::Value>>>>>,
+            uint32_t,
+            std::shared_ptr<std::map<
+                std::string, std::shared_ptr<sigmaos::apps::cache::Value>>>>>,
+        google::protobuf::Timestamp>,
     sigmaos::serr::Error>
 Clnt::DelegatedMultiDumpShard(uint64_t rpc_idx, std::vector<uint32_t> &shards) {
   log(CACHECLNT, "DelegatedMultiDumpShard({}) nshard {}", (int)rpc_idx,
@@ -442,6 +444,7 @@ Clnt::DelegatedMultiDumpShard(uint64_t rpc_idx, std::vector<uint32_t> &shards) {
     }
   }
   rep.set_allocated_blob(&blob);
+  google::protobuf::Timestamp transfer_start;
   auto shard_map = std::make_shared<std::map<
       uint32_t,
       std::shared_ptr<std::map<
@@ -452,6 +455,7 @@ Clnt::DelegatedMultiDumpShard(uint64_t rpc_idx, std::vector<uint32_t> &shards) {
       log(CACHECLNT_ERR, "Error DelegatedRPC: {}", res.error().String());
       return std::unexpected(res.error());
     }
+    transfer_start = res.value();
     for (auto &shard : shards) {
       (*shard_map)[shard] = std::make_shared<std::map<
           std::string, std::shared_ptr<sigmaos::apps::cache::Value>>>();
@@ -496,7 +500,7 @@ Clnt::DelegatedMultiDumpShard(uint64_t rpc_idx, std::vector<uint32_t> &shards) {
     log(PROXY_RPC_LAT, "CacheClnt.Construct map lat:{}ms", LatencyMS(start));
   }
   log(CACHECLNT, "DelegatedMultiDumpShard({}) ok", (int)rpc_idx);
-  return shard_map;
+  return std::make_pair(shard_map, transfer_start);
 }
 
 std::expected<
