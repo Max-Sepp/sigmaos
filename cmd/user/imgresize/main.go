@@ -160,6 +160,7 @@ func (ip *ImgProcess) Work(i int, output string) *proc.Status {
 		key := filepath.Join(pn[1:]...)
 		var b []byte
 		var err error
+		start = time.Now()
 		if ip.ProcEnv().GetRunBootScript() {
 			var transferTime time.Duration
 			b, transferTime, err = ip.s3Clnt.DelegatedGetObject(0)
@@ -174,6 +175,7 @@ func (ip *ImgProcess) Work(i int, output string) *proc.Status {
 				return proc.NewStatusErr(fmt.Sprintf("Err GetObject bucket:%v key:%v", bucket, key), err)
 			}
 		}
+		db.DPrintf(db.ALWAYS, "Time %v S3Get: %v", ip.inputs[i], time.Since(start))
 		rdr = io.NopCloser(bytes.NewReader(b))
 	} else {
 		rdr, err = ip.OpenReader(ip.inputs[i])
@@ -230,6 +232,7 @@ func (ip *ImgProcess) Work(i int, output string) *proc.Status {
 
 	jpeg.Encode(wrt, img1, nil)
 	if ip.useS3Clnt {
+		start := time.Now()
 		pn := strings.Split(output, "/")
 		bucket := pn[0]
 		key := filepath.Join(pn[1:]...)
@@ -242,6 +245,7 @@ func (ip *ImgProcess) Work(i int, output string) *proc.Status {
 				return proc.NewStatusErr(fmt.Sprintf("Err PutObject bucket:%v key:%v", bucket, key), err)
 			}
 		}
+		db.DPrintf(db.ALWAYS, "Time %v S3Put: %v", ip.inputs[i], time.Since(start))
 	}
 	return proc.NewStatus(proc.StatusOK)
 }
