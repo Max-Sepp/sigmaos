@@ -15,6 +15,7 @@ import (
 
 	"sigmaos/apps/memcached"
 	db "sigmaos/debug"
+	"sigmaos/proc"
 	sp "sigmaos/sigmap"
 	"sigmaos/test"
 )
