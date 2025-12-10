@@ -50,7 +50,7 @@ type ImgSrv struct {
 
 func NewImgSrv(args []string) (*ImgSrv, error) {
 	if len(args) != 12 {
-		return nil, fmt.Errorf("NewImgSrv: wrong number of arguments: %v", args)
+		db.DFatalf("NewImgSrv: wrong number of arguments: %v", args)
 	}
 	imgd := &ImgSrv{}
 	sc, err := sigmaclnt.NewSigmaClnt(proc.GetProcEnv())
