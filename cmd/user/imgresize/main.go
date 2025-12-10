@@ -18,6 +18,7 @@ import (
 	db "sigmaos/debug"
 	"sigmaos/proc"
 	s3clnt "sigmaos/proxy/s3/clnt"
+	"sigmaos/rpc"
 	"sigmaos/sigmaclnt"
 	sp "sigmaos/sigmap"
 	"sigmaos/util/crash"
@@ -146,6 +147,14 @@ func (ip *ImgProcess) Work(i int, output string) *proc.Status {
 	var rdr io.ReadCloser
 	var err error
 	if ip.useS3Clnt {
+		start := time.Now()
+		s3pn := filepath.Join(sp.S3, sp.LOCAL)
+		if ep, ok := ip.ProcEnv().GetCachedEndpoint(s3pn); ok {
+			if err := ip.MountTree(ep, rpc.RPC, filepath.Join(s3pn, rpc.RPC)); err != nil {
+				db.DFatalf("Err mount S3 rpc file: %v", err)
+			}
+		}
+		db.DPrintf(db.ALWAYS, "Time %v mount S3: %v", ip.inputs[0], time.Since(start))
 		pn := strings.Split(ip.inputs[i], "/")
 		bucket := pn[0]
 		key := filepath.Join(pn[1:]...)

@@ -1628,10 +1628,12 @@ func TestImgProcess(t *testing.T) {
 							benchName += "_writeout"
 						}
 						bsMcpu := proc.Tmcpu(0)
-						workerMcpu := proc.Tmcpu(2000)
+						workerMcpu := proc.Tmcpu(3100)
+						imgdMcpu := proc.Tmcpu(1000)
 						if sequential {
 							bsMcpu = proc.Tmcpu(10)
 							workerMcpu = proc.Tmcpu(900)
+							imgdMcpu = proc.Tmcpu(50)
 						}
 						if pss {
 							workerMcpu = proc.Tmcpu(3100)
@@ -1645,7 +1647,7 @@ func TestImgProcess(t *testing.T) {
 								Persist:               false,
 								NRounds:               nrounds,
 								ImgDim:                160,
-								ImgdMcpu:              proc.Tmcpu(50),
+								ImgdMcpu:              imgdMcpu,
 								UseSPProxy:            true,
 								UseBootScript:         initscript,
 								WriteOutViaBootScript: initscriptWriteout,
@@ -1653,6 +1655,7 @@ func TestImgProcess(t *testing.T) {
 								WorkerBootScriptMcpu:  bsMcpu,
 								WorkerBootScriptMem:   proc.Tmem(0),
 								FTTaskSrvMcpu:         proc.Tmcpu(50),
+								PremountS3:            true,
 							},
 							InputPath:      inputPath,
 							NTasks:         ntasks,
