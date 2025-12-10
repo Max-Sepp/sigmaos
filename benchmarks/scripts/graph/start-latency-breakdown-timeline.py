@@ -426,6 +426,11 @@ def main():
         metavar=("PROC2_LABEL", "PROC1_LABEL"),
         help="Subtract the duration of PROC2_LABEL (from proc 2) from PROC1_LABEL (from proc 1). The events can have different names. Can be specified multiple times. Format: --subtract_2_from_1 PROC2_LABEL PROC1_LABEL"
     )
+    parser.add_argument(
+        "--simplified",
+        action="store_true",
+        help="Combine all setup events into one bar and all initialization events into another bar for each proc"
+    )
 
     args = parser.parse_args()
 
@@ -526,6 +531,54 @@ def main():
     # Re-split into setup and init events for proc 2
     setup_events_2 = [e for e in all_events_2 if e[0] in setup_op_names_2]
     init_events_2 = [e for e in all_events_2 if e[0] in init_op_names_2]
+
+    # Apply simplified mode if requested
+    if args.simplified:
+        # Combine all setup events into one bar for proc 1
+        if setup_events_1:
+            all_starts_setup_1 = [s for _, s, d in setup_events_1]
+            all_ends_setup_1 = [s + d for _, s, d in setup_events_1]
+            combined_start_setup_1 = min(all_starts_setup_1)
+            combined_end_setup_1 = max(all_ends_setup_1)
+            combined_duration_setup_1 = combined_end_setup_1 - combined_start_setup_1
+            setup_events_1 = [("Setup", combined_start_setup_1, combined_duration_setup_1)]
+
+        # Combine all init events into one bar for proc 1
+        if init_events_1:
+            all_starts_init_1 = [s for _, s, d in init_events_1]
+            all_ends_init_1 = [s + d for _, s, d in init_events_1]
+            combined_start_init_1 = min(all_starts_init_1)
+            combined_end_init_1 = max(all_ends_init_1)
+            combined_duration_init_1 = combined_end_init_1 - combined_start_init_1
+            init_events_1 = [("Initialization", combined_start_init_1, combined_duration_init_1)]
+
+        # Combine all setup events into one bar for proc 2
+        if setup_events_2:
+            all_starts_setup_2 = [s for _, s, d in setup_events_2]
+            all_ends_setup_2 = [s + d for _, s, d in setup_events_2]
+            combined_start_setup_2 = min(all_starts_setup_2)
+            combined_end_setup_2 = max(all_ends_setup_2)
+            combined_duration_setup_2 = combined_end_setup_2 - combined_start_setup_2
+            setup_events_2 = [("Setup", combined_start_setup_2, combined_duration_setup_2)]
+
+        # Combine all init events into one bar for proc 2
+        if init_events_2:
+            all_starts_init_2 = [s for _, s, d in init_events_2]
+            all_ends_init_2 = [s + d for _, s, d in init_events_2]
+            combined_start_init_2 = min(all_starts_init_2)
+            combined_end_init_2 = max(all_ends_init_2)
+            combined_duration_init_2 = combined_end_init_2 - combined_start_init_2
+            init_events_2 = [("Initialization", combined_start_init_2, combined_duration_init_2)]
+
+        # Update all_events to include the simplified events
+        all_events_1 = setup_events_1 + init_events_1
+        all_events_2 = setup_events_2 + init_events_2
+
+        # Update phase name sets for simplified mode
+        setup_op_names_1 = {"Setup"}
+        init_op_names_1 = {"Initialization"}
+        setup_op_names_2 = {"Setup"}
+        init_op_names_2 = {"Initialization"}
 
     # Define colors for each phase
     phase_colors = {
