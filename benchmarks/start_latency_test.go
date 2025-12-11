@@ -189,7 +189,7 @@ func (ji *StartLatencyJobInstance) RunJob(rs *benchmarks.Results, crash bool) bo
 	switch ji.cfg.App {
 	case "cached":
 		// Add a cached server
-		err := ji.cacheJob.AddScalerServerWithSigmaPath(chunk.ChunkdPath(ji.warmSrvKID), ji.cacheCfg.DelegateInit, ji.cacheCfg.CPP, true)
+		err := ji.cacheJob.AddScalerServerWithSigmaPath(chunk.ChunkdPath(ji.warmSrvKID), ji.cacheCfg.DelegateInit, ji.cacheCfg.CPP, ji.cacheCfg.Shmem)
 		if !assert.Nil(ji.Ts.T, err, "Err add cached srv: %v", err) {
 			return false
 		}

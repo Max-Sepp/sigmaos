@@ -61,6 +61,7 @@ var DefaultCacheBenchConfig = &CacheBenchConfig{
 	UseEPCache:    false,
 	DelegateInit:  false,
 	Autoscale:     false,
+	Shmem:         false,
 	NKeys:         1000,
 	ValSize:       100,
 	TopNShards:    1,

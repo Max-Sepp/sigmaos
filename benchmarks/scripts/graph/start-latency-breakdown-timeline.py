@@ -679,7 +679,7 @@ def main():
     max_time_1 = max([start + dur for _, start, dur in all_events_1]) if all_events_1 else 0
     max_time_2 = max([start + dur for _, start, dur in all_events_2]) if all_events_2 else 0
     max_time = max(max_time_1, max_time_2)
-    ax.set_xlim(0, max_time * 1.05)
+    ax.set_xlim(0, max_time * 1.15)
 
     ax.grid(axis='x', alpha=0.3, linestyle='--')
 
@@ -689,7 +689,7 @@ def main():
         Patch(facecolor=phase_colors['setup'], edgecolor='black', label='Setup'),
         Patch(facecolor=phase_colors['init'], edgecolor='black', label='Initialization')
     ]
-    ax.legend(handles=legend_elements, loc='upper right', fontsize=10)
+    ax.legend(handles=legend_elements, loc='lower right', fontsize=10)
 
     plt.tight_layout()
     plt.savefig(args.output, dpi=300, bbox_inches='tight')

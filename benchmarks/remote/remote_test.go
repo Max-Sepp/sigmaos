@@ -452,6 +452,7 @@ func TestHotelTailLatency(t *testing.T) {
 		},
 		CacheBenchCfg: &benchmarks.CacheBenchConfig{
 			JobCfg:    &cachegrpmgr.CacheJobConfig{NSrv: numCaches, MCPU: proc.Tmcpu(2000), GC: true},
+			Shmem:     true,
 			Autoscale: autoscaleCache,
 			ManuallyScale: &benchmarks.ManualScalingConfig{
 				Svc:         "cached",
@@ -564,6 +565,7 @@ func TestHotelScaleGeo(t *testing.T) {
 					},
 					CacheBenchCfg: &benchmarks.CacheBenchConfig{
 						JobCfg:    &cachegrpmgr.CacheJobConfig{NSrv: numCaches, MCPU: proc.Tmcpu(2000), GC: true},
+						Shmem:     true,
 						Autoscale: autoscaleCache,
 						ManuallyScale: &benchmarks.ManualScalingConfig{
 							Svc:         "cached",
@@ -676,6 +678,7 @@ func TestHotelGeoReqScaleGeo(t *testing.T) {
 					},
 					CacheBenchCfg: &benchmarks.CacheBenchConfig{
 						JobCfg:    &cachegrpmgr.CacheJobConfig{NSrv: numCaches, MCPU: proc.Tmcpu(2000), GC: true},
+						Shmem:     true,
 						Autoscale: autoscaleCache,
 						ManuallyScale: &benchmarks.ManualScalingConfig{
 							Svc:         "cached",
@@ -785,6 +788,7 @@ func TestHotelScaleCache(t *testing.T) {
 					},
 					CacheBenchCfg: &benchmarks.CacheBenchConfig{
 						JobCfg:    &cachegrpmgr.CacheJobConfig{NSrv: numCaches, MCPU: proc.Tmcpu(2000), GC: true},
+						Shmem:     true,
 						Autoscale: autoscaleCache,
 						ManuallyScale: &benchmarks.ManualScalingConfig{
 							Svc:         "cached",
@@ -959,6 +963,7 @@ func TestLCBEHotelImgResizeMultiplexing(t *testing.T) {
 		},
 		CacheBenchCfg: &benchmarks.CacheBenchConfig{
 			JobCfg:    &cachegrpmgr.CacheJobConfig{NSrv: numCaches, MCPU: proc.Tmcpu(2000), GC: true},
+			Shmem:     true,
 			Autoscale: autoscaleCache,
 			ManuallyScale: &benchmarks.ManualScalingConfig{
 				Svc:         "cached",
@@ -1068,6 +1073,7 @@ func TestLCBEHotelImgResizeRPCMultiplexing(t *testing.T) {
 		},
 		CacheBenchCfg: &benchmarks.CacheBenchConfig{
 			JobCfg:    &cachegrpmgr.CacheJobConfig{NSrv: numCaches, MCPU: proc.Tmcpu(2000), GC: true},
+			Shmem:     true,
 			Autoscale: autoscaleCache,
 			ManuallyScale: &benchmarks.ManualScalingConfig{
 				Svc:         "cached",
@@ -1260,6 +1266,7 @@ func TestScaleCachedScaler(t *testing.T) {
 						JobCfg:        cacheCfg,
 						CPP:           cpp,
 						RunSleeper:    true,
+						Shmem:         true,
 						CosSimBackend: cossimBackend,
 						UseEPCache:    useEPCache,
 						DelegateInit:  delegate,
@@ -1509,6 +1516,7 @@ func TestHotelMatchTailLatency(t *testing.T) {
 				},
 				CacheBenchCfg: &benchmarks.CacheBenchConfig{
 					JobCfg:       &cachegrpmgr.CacheJobConfig{NSrv: numCaches, MCPU: proc.Tmcpu(4000), GC: true},
+					Shmem:        true,
 					Autoscale:    autoscaleCache,
 					DelegateInit: delInit,
 					UseEPCache:   true,
@@ -1687,6 +1695,10 @@ func TestStartLatency(t *testing.T) {
 	)
 	// Benchmark configuration parameters
 	var (
+		withShmem []bool = []bool{
+			false,
+			true,
+		}
 		withInitScript []bool = []bool{
 			false,
 			true,
@@ -1708,80 +1720,90 @@ func TestStartLatency(t *testing.T) {
 	}
 	for app, useGVisor := range apps {
 		for _, initscript := range withInitScript {
-			benchName := benchNameBase + "_" + app
-			if initscript {
-				benchName += "_initscript"
-			}
-			db.DPrintf(db.ALWAYS, "Benchmark configuration:\n%v", ts)
-			startLatencyCfg := &benchmarks.StartLatencyBenchConfig{
-				App: app,
-			}
-			// Create default configs for each app
-			cacheBenchCfg := &benchmarks.CacheBenchConfig{
-				JobCfg: &cachegrpmgr.CacheJobConfig{
-					NSrv: 1,
-					MCPU: proc.Tmcpu(4000),
-					GC:   true,
-				},
-				CPP:          true,
-				UseEPCache:   true,
-				DelegateInit: initscript,
-				Autoscale:    false,
-				NKeys:        3000,
-				ValSize:      5000,
-				TopNShards:   0,
-				ManuallyScale: &benchmarks.ManualScalingConfig{
-					Svc:         "cached",
-					Scale:       true,
-					ScaleDelays: []time.Duration{5 * time.Second},
-					ScaleDeltas: []int{1},
-				},
-				Migrate: &benchmarks.MigrationConfig{
-					Svc:              "cached",
-					Migrate:          false,
-					MigrationDelays:  []time.Duration{},
-					MigrationTargets: []int{},
-				},
-			}
-			cossimCfg := &benchmarks.CosSimBenchConfig{
-				JobCfg: &cossimsrv.CosSimJobConfig{
-					Job:       "cossim-job",
-					InitNSrv:  1,
-					NVec:      9000,
-					VecDim:    128,
-					EagerInit: true,
-					SrvMcpu:   proc.Tmcpu(4000),
-					CacheCfg: &cachegrpmgr.CacheJobConfig{
+			for _, shmem := range withShmem {
+				benchName := benchNameBase + "_" + app
+				if initscript {
+					benchName += "_initscript"
+				}
+				if !shmem {
+					benchName += "_noshmem"
+					// Only test cached without shmem
+					if app != "cached" {
+						continue
+					}
+				}
+				db.DPrintf(db.ALWAYS, "Benchmark configuration:\n%v", ts)
+				startLatencyCfg := &benchmarks.StartLatencyBenchConfig{
+					App: app,
+				}
+				// Create default configs for each app
+				cacheBenchCfg := &benchmarks.CacheBenchConfig{
+					JobCfg: &cachegrpmgr.CacheJobConfig{
 						NSrv: 1,
-						MCPU: proc.Tmcpu(1000),
+						MCPU: proc.Tmcpu(4000),
 						GC:   true,
 					},
-					DelegateInitRPCs: initscript,
-				},
+					CPP:          true,
+					Shmem:        true,
+					UseEPCache:   true,
+					DelegateInit: initscript,
+					Autoscale:    false,
+					NKeys:        3000,
+					ValSize:      5000,
+					TopNShards:   0,
+					ManuallyScale: &benchmarks.ManualScalingConfig{
+						Svc:         "cached",
+						Scale:       true,
+						ScaleDelays: []time.Duration{5 * time.Second},
+						ScaleDeltas: []int{1},
+					},
+					Migrate: &benchmarks.MigrationConfig{
+						Svc:              "cached",
+						Migrate:          false,
+						MigrationDelays:  []time.Duration{},
+						MigrationTargets: []int{},
+					},
+				}
+				cossimCfg := &benchmarks.CosSimBenchConfig{
+					JobCfg: &cossimsrv.CosSimJobConfig{
+						Job:       "cossim-job",
+						InitNSrv:  1,
+						NVec:      9000,
+						VecDim:    128,
+						EagerInit: true,
+						SrvMcpu:   proc.Tmcpu(4000),
+						CacheCfg: &cachegrpmgr.CacheJobConfig{
+							NSrv: 1,
+							MCPU: proc.Tmcpu(1000),
+							GC:   true,
+						},
+						DelegateInitRPCs: initscript,
+					},
+				}
+				etcdCfg := &benchmarks.EtcdBenchConfig{
+					JobCfg: &etcd.EtcdJobConfig{
+						Job:           "etcd-job",
+						SnapshotPath:  "9ps3/snapshot-14MB.db",
+						Name:          "etcd-proc",
+						PeerPort:      6380,
+						ClientPort:    6379,
+						UseInitScript: initscript,
+						Mcpu:          proc.Tmcpu(4000),
+					},
+				}
+				memcachedCfg := &benchmarks.MemcachedBenchConfig{
+					JobCfg: &memcached.MemcachedJobConfig{
+						Job:           "memcached-job",
+						SnapshotPath:  "9ps3/memcached-snapshot-40M",
+						Port:          11211,
+						UseInitScript: initscript,
+						Mcpu:          proc.Tmcpu(4000),
+					},
+					Cache: false,
+				}
+				cmdFn := GetStartLatencyCmdConstructor(startLatencyCfg, cacheBenchCfg, cossimCfg, etcdCfg, memcachedCfg, initscript, useGVisor)
+				ts.RunStandardBenchmark(benchName, driverVM, cmdFn, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost, useGVisor)
 			}
-			etcdCfg := &benchmarks.EtcdBenchConfig{
-				JobCfg: &etcd.EtcdJobConfig{
-					Job:           "etcd-job",
-					SnapshotPath:  "9ps3/snapshot-14MB.db",
-					Name:          "etcd-proc",
-					PeerPort:      6380,
-					ClientPort:    6379,
-					UseInitScript: initscript,
-					Mcpu:          proc.Tmcpu(4000),
-				},
-			}
-			memcachedCfg := &benchmarks.MemcachedBenchConfig{
-				JobCfg: &memcached.MemcachedJobConfig{
-					Job:           "memcached-job",
-					SnapshotPath:  "9ps3/memcached-snapshot-40M",
-					Port:          11211,
-					UseInitScript: initscript,
-					Mcpu:          proc.Tmcpu(4000),
-				},
-				Cache: false,
-			}
-			cmdFn := GetStartLatencyCmdConstructor(startLatencyCfg, cacheBenchCfg, cossimCfg, etcdCfg, memcachedCfg, initscript, useGVisor)
-			ts.RunStandardBenchmark(benchName, driverVM, cmdFn, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost, useGVisor)
 		}
 	}
 }
