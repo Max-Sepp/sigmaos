@@ -1744,7 +1744,7 @@ func TestStartLatency(t *testing.T) {
 						GC:   true,
 					},
 					CPP:          true,
-					Shmem:        true,
+					Shmem:        shmem,
 					UseEPCache:   true,
 					DelegateInit: initscript,
 					Autoscale:    false,

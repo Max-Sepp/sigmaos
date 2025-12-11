@@ -53,6 +53,29 @@ echo "Generating imgresize writeout cost comparison..."
    --output $GRAPH_OUT_DIR/imgresize-cost-writeout.pdf
 echo "Done generating imgresize writeout cost comparison..."
 
+echo "Generating vecdb start latency breakdown simplified graph..."
+./benchmarks/scripts/graph/start-latency-breakdown-timeline.py \
+  --paper \
+  --dir_path_1 benchmarks/results/$VERSION/start_latency_cossim \
+  --proc_name_1 cossim-srv-cpp \
+  --label_1 "VecDB" \
+  --combine_1 "InitSPProxyConn" "ConnectionSetup" \
+  --relabel_1 "ConnectionSetup" "ConnectionSetup-2" \
+  --relabel_1 "InitSPProxyConn" "ConnectionSetup-1" \
+  --relabel_1 "DownloadInitScript" "DownloadCoSandbox" \
+  --omit_1 "GlobalScheduling" \
+  --dir_path_2 benchmarks/results/$VERSION/start_latency_cossim_initscript \
+  --proc_name_2 cossim-srv-cpp \
+  --label_2 "VecDB (co-sandbox)" \
+  --relabel_2 "ConnectionSetup" "ConnectionSetup-1" \
+  --relabel_2 "InitSPProxyConn" "ConnectionSetup-2" \
+  --relabel_2 "DownloadInitScript" "DownloadCoSandbox" \
+  --omit_2 "GlobalScheduling" \
+  --subtract_1_from_2 "GlobalScheduling" "DownloadInitScript" \
+  --simplified \
+  --output $GRAPH_OUT_DIR/vecdb-start-latency-breakdown-timeline-simplified.pdf
+echo "Done generating vecdb start latency breakdown simplified graph..."
+
 echo "Generating cached start latency breakdown graph..."
 ./benchmarks/scripts/graph/start-latency-breakdown-timeline.py \
   --paper \
@@ -64,14 +87,22 @@ echo "Generating cached start latency breakdown graph..."
   --relabel_1 "InitSPProxyConn" "ConnectionSetup-1" \
   --relabel_1 "DownloadInitScript" "DownloadCoSandbox" \
   --omit_1 "GlobalScheduling" \
-  --dir_path_2 benchmarks/results/$VERSION/start_latency_cached_initscript \
+  --dir_path_2 benchmarks/results/$VERSION/start_latency_cached_initscript_noshmem \
   --proc_name_2 cached-srv-cpp \
-  --label_2 "Cached (co-sandbox)" \
+  --label_2 "Cached (co-sandbox, no shmem)" \
   --relabel_2 "ConnectionSetup" "ConnectionSetup-1" \
   --relabel_2 "InitSPProxyConn" "ConnectionSetup-2" \
   --relabel_2 "DownloadInitScript" "DownloadCoSandbox" \
   --omit_2 "GlobalScheduling" \
   --subtract_1_from_2 "GlobalScheduling" "DownloadInitScript" \
+  --dir_path_3 benchmarks/results/$VERSION/start_latency_cached_initscript \
+  --proc_name_3 cached-srv-cpp \
+  --label_3 "Cached (co-sandbox, shmem)" \
+  --relabel_3 "ConnectionSetup" "ConnectionSetup-1" \
+  --relabel_3 "InitSPProxyConn" "ConnectionSetup-2" \
+  --relabel_3 "DownloadInitScript" "DownloadCoSandbox" \
+  --omit_3 "GlobalScheduling" \
+  --subtract_1_from_3 "GlobalScheduling" "DownloadInitScript" \
   --output $GRAPH_OUT_DIR/cached-start-latency-breakdown-timeline.pdf
 echo "Done generating cached start latency breakdown graph..."
 

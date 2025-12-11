@@ -353,6 +353,16 @@ def main():
         help="Proc name for second directory"
     )
     parser.add_argument(
+        "--dir_path_3",
+        required=False,
+        help="Path to third benchmark output directory (optional)"
+    )
+    parser.add_argument(
+        "--proc_name_3",
+        required=False,
+        help="Proc name for third directory (optional)"
+    )
+    parser.add_argument(
         "--label_1",
         default=None,
         help="Label for first proc (defaults to proc_name_1)"
@@ -361,6 +371,11 @@ def main():
         "--label_2",
         default=None,
         help="Label for second proc (defaults to proc_name_2)"
+    )
+    parser.add_argument(
+        "--label_3",
+        default=None,
+        help="Label for third proc (defaults to proc_name_3)"
     )
     parser.add_argument(
         "--output",
@@ -387,6 +402,13 @@ def main():
         help="Combine two labels in proc 2 into a single bar named LABEL2. Can be specified multiple times. Format: --combine_2 LABEL1 LABEL2"
     )
     parser.add_argument(
+        "--combine_3",
+        action="append",
+        nargs=2,
+        metavar=("LABEL1", "LABEL2"),
+        help="Combine two labels in proc 3 into a single bar named LABEL2. Can be specified multiple times. Format: --combine_3 LABEL1 LABEL2"
+    )
+    parser.add_argument(
         "--omit_1",
         action="append",
         metavar="LABEL",
@@ -397,6 +419,12 @@ def main():
         action="append",
         metavar="LABEL",
         help="Omit bars with this label from proc 2. Can be specified multiple times."
+    )
+    parser.add_argument(
+        "--omit_3",
+        action="append",
+        metavar="LABEL",
+        help="Omit bars with this label from proc 3. Can be specified multiple times."
     )
     parser.add_argument(
         "--relabel_1",
@@ -413,6 +441,13 @@ def main():
         help="Rename a label in proc 2 from OLD_LABEL to NEW_LABEL. Can be specified multiple times. Format: --relabel_2 OLD_LABEL NEW_LABEL"
     )
     parser.add_argument(
+        "--relabel_3",
+        action="append",
+        nargs=2,
+        metavar=("OLD_LABEL", "NEW_LABEL"),
+        help="Rename a label in proc 3 from OLD_LABEL to NEW_LABEL. Can be specified multiple times. Format: --relabel_3 OLD_LABEL NEW_LABEL"
+    )
+    parser.add_argument(
         "--subtract_1_from_2",
         action="append",
         nargs=2,
@@ -427,6 +462,13 @@ def main():
         help="Subtract the duration of PROC2_LABEL (from proc 2) from PROC1_LABEL (from proc 1). The events can have different names. Can be specified multiple times. Format: --subtract_2_from_1 PROC2_LABEL PROC1_LABEL"
     )
     parser.add_argument(
+        "--subtract_1_from_3",
+        action="append",
+        nargs=2,
+        metavar=("PROC1_LABEL", "PROC3_LABEL"),
+        help="Subtract the duration of PROC1_LABEL (from proc 1) from PROC3_LABEL (from proc 3). The events can have different names. Can be specified multiple times. Format: --subtract_1_from_3 PROC1_LABEL PROC3_LABEL"
+    )
+    parser.add_argument(
         "--simplified",
         action="store_true",
         help="Combine all setup events into one bar and all initialization events into another bar for each proc"
@@ -434,9 +476,13 @@ def main():
 
     args = parser.parse_args()
 
+    # Check if third proc is provided
+    has_proc_3 = args.dir_path_3 is not None and args.proc_name_3 is not None
+
     # Use proc names as labels if not specified
     label_1 = args.label_1 if args.label_1 else args.proc_name_1
     label_2 = args.label_2 if args.label_2 else args.proc_name_2
+    label_3 = args.label_3 if args.label_3 and has_proc_3 else (args.proc_name_3 if has_proc_3 else None)
 
     # Extract data for both procs
     setup_events_1, init_events_1 = get_detailed_times(args.dir_path_1, args.proc_name_1, args.paper)
@@ -450,9 +496,19 @@ def main():
         print(f"Error: Could not extract data for {args.proc_name_2} from {args.dir_path_2}", file=sys.stderr)
         sys.exit(1)
 
+    # Extract data for third proc if provided
+    if has_proc_3:
+        setup_events_3, init_events_3 = get_detailed_times(args.dir_path_3, args.proc_name_3, args.paper)
+        if setup_events_3 is None or init_events_3 is None:
+            print(f"Error: Could not extract data for {args.proc_name_3} from {args.dir_path_3}", file=sys.stderr)
+            sys.exit(1)
+    else:
+        setup_events_3, init_events_3 = [], []
+
     # Combine all events for each proc
     all_events_1 = setup_events_1 + init_events_1
     all_events_2 = setup_events_2 + init_events_2
+    all_events_3 = setup_events_3 + init_events_3
 
     # Apply relabeling first (before tracking phase names)
     if args.relabel_1:
@@ -465,11 +521,18 @@ def main():
         setup_events_2 = relabel_events(setup_events_2, args.relabel_2)
         init_events_2 = relabel_events(init_events_2, args.relabel_2)
 
+    if args.relabel_3 and has_proc_3:
+        all_events_3 = relabel_events(all_events_3, args.relabel_3)
+        setup_events_3 = relabel_events(setup_events_3, args.relabel_3)
+        init_events_3 = relabel_events(init_events_3, args.relabel_3)
+
     # Track which operation names were originally in setup vs init (after relabeling)
     setup_op_names_1 = set(e[0] for e in setup_events_1)
     init_op_names_1 = set(e[0] for e in init_events_1)
     setup_op_names_2 = set(e[0] for e in setup_events_2)
     init_op_names_2 = set(e[0] for e in init_events_2)
+    setup_op_names_3 = set(e[0] for e in setup_events_3)
+    init_op_names_3 = set(e[0] for e in init_events_3)
 
     # Build a mapping for combined labels
     # If label1 is combined into label2, label2 should inherit label1's phase
@@ -487,6 +550,7 @@ def main():
 
     phase_map_1 = build_phase_mapping(args.combine_1, setup_op_names_1, init_op_names_1)
     phase_map_2 = build_phase_mapping(args.combine_2, setup_op_names_2, init_op_names_2)
+    phase_map_3 = build_phase_mapping(args.combine_3, setup_op_names_3, init_op_names_3)
 
     # Update the phase sets with the combined mappings
     for label, phase in phase_map_1.items():
@@ -501,6 +565,12 @@ def main():
         else:
             init_op_names_2.add(label)
 
+    for label, phase in phase_map_3.items():
+        if phase == 'setup':
+            setup_op_names_3.add(label)
+        else:
+            init_op_names_3.add(label)
+
     # Apply label combinations for proc 1
     if args.combine_1:
         all_events_1 = combine_events(all_events_1, args.combine_1)
@@ -509,12 +579,19 @@ def main():
     if args.combine_2:
         all_events_2 = combine_events(all_events_2, args.combine_2)
 
+    # Apply label combinations for proc 3
+    if args.combine_3 and has_proc_3:
+        all_events_3 = combine_events(all_events_3, args.combine_3)
+
     # Apply subtraction operations (after relabeling and combining, but before omitting)
     if args.subtract_1_from_2:
         all_events_2 = subtract_event_durations(all_events_2, all_events_1, args.subtract_1_from_2)
 
     if args.subtract_2_from_1:
         all_events_1 = subtract_event_durations(all_events_1, all_events_2, args.subtract_2_from_1)
+
+    if args.subtract_1_from_3 and has_proc_3:
+        all_events_3 = subtract_event_durations(all_events_3, all_events_1, args.subtract_1_from_3)
 
     # Apply omit filters for proc 1
     if args.omit_1:
@@ -524,6 +601,10 @@ def main():
     if args.omit_2:
         all_events_2 = [e for e in all_events_2 if e[0] not in args.omit_2]
 
+    # Apply omit filters for proc 3
+    if args.omit_3 and has_proc_3:
+        all_events_3 = [e for e in all_events_3 if e[0] not in args.omit_3]
+
     # Re-split into setup and init events for proc 1
     setup_events_1 = [e for e in all_events_1 if e[0] in setup_op_names_1]
     init_events_1 = [e for e in all_events_1 if e[0] in init_op_names_1]
@@ -531,6 +612,10 @@ def main():
     # Re-split into setup and init events for proc 2
     setup_events_2 = [e for e in all_events_2 if e[0] in setup_op_names_2]
     init_events_2 = [e for e in all_events_2 if e[0] in init_op_names_2]
+
+    # Re-split into setup and init events for proc 3
+    setup_events_3 = [e for e in all_events_3 if e[0] in setup_op_names_3]
+    init_events_3 = [e for e in all_events_3 if e[0] in init_op_names_3]
 
     # Apply simplified mode if requested
     if args.simplified:
@@ -570,15 +655,36 @@ def main():
             combined_duration_init_2 = combined_end_init_2 - combined_start_init_2
             init_events_2 = [("Initialization", combined_start_init_2, combined_duration_init_2)]
 
+        # Combine all setup events into one bar for proc 3
+        if has_proc_3 and setup_events_3:
+            all_starts_setup_3 = [s for _, s, d in setup_events_3]
+            all_ends_setup_3 = [s + d for _, s, d in setup_events_3]
+            combined_start_setup_3 = min(all_starts_setup_3)
+            combined_end_setup_3 = max(all_ends_setup_3)
+            combined_duration_setup_3 = combined_end_setup_3 - combined_start_setup_3
+            setup_events_3 = [("Setup", combined_start_setup_3, combined_duration_setup_3)]
+
+        # Combine all init events into one bar for proc 3
+        if has_proc_3 and init_events_3:
+            all_starts_init_3 = [s for _, s, d in init_events_3]
+            all_ends_init_3 = [s + d for _, s, d in init_events_3]
+            combined_start_init_3 = min(all_starts_init_3)
+            combined_end_init_3 = max(all_ends_init_3)
+            combined_duration_init_3 = combined_end_init_3 - combined_start_init_3
+            init_events_3 = [("Initialization", combined_start_init_3, combined_duration_init_3)]
+
         # Update all_events to include the simplified events
         all_events_1 = setup_events_1 + init_events_1
         all_events_2 = setup_events_2 + init_events_2
+        all_events_3 = setup_events_3 + init_events_3
 
         # Update phase name sets for simplified mode
         setup_op_names_1 = {"Setup"}
         init_op_names_1 = {"Initialization"}
         setup_op_names_2 = {"Setup"}
         init_op_names_2 = {"Initialization"}
+        setup_op_names_3 = {"Setup"}
+        init_op_names_3 = {"Initialization"}
 
     # Define colors for each phase
     phase_colors = {
@@ -614,23 +720,34 @@ def main():
     # Assign lanes to avoid overlaps
     events_with_lanes_1 = assign_lanes(all_events_1)
     events_with_lanes_2 = assign_lanes(all_events_2)
+    events_with_lanes_3 = assign_lanes(all_events_3) if has_proc_3 else []
 
     # Calculate how many lanes we need for each proc
     max_lanes_1 = max([lane for _, _, _, lane in events_with_lanes_1]) + 1 if events_with_lanes_1 else 1
     max_lanes_2 = max([lane for _, _, _, lane in events_with_lanes_2]) + 1 if events_with_lanes_2 else 1
+    max_lanes_3 = max([lane for _, _, _, lane in events_with_lanes_3]) + 1 if events_with_lanes_3 else 0
 
     # Create timeline plot with enough vertical space
     lane_height = 0.3
-    spacing_between_procs = 1.0
+    spacing_between_procs = 0.5
     total_height_1 = max_lanes_1 * lane_height
     total_height_2 = max_lanes_2 * lane_height
+    total_height_3 = max_lanes_3 * lane_height if has_proc_3 else 0
 
-    fig_height = max(4, (total_height_1 + total_height_2 + spacing_between_procs) * 0.8)
+    num_procs = 3 if has_proc_3 else 2
+    total_spacing = spacing_between_procs * (num_procs - 1)
+    fig_height = max(3, (total_height_1 + total_height_2 + total_height_3 + total_spacing) * 0.7)
     fig, ax = plt.subplots(figsize=(10, fig_height))
 
     # Calculate base y-positions for each proc's timeline
-    base_y_1 = total_height_2 + spacing_between_procs
-    base_y_2 = 0
+    if has_proc_3:
+        base_y_1 = total_height_2 + total_height_3 + 2 * spacing_between_procs
+        base_y_2 = total_height_3 + spacing_between_procs
+        base_y_3 = 0
+    else:
+        base_y_1 = total_height_2 + spacing_between_procs
+        base_y_2 = 0
+        base_y_3 = None
 
     # Plot events for proc 1
     for op_name, start_time, duration, lane in events_with_lanes_1:
@@ -664,21 +781,66 @@ def main():
                ha='left', va='center', fontsize=7,
                color='black')
 
+    # Plot events for proc 3 (if provided)
+    if has_proc_3:
+        for op_name, start_time, duration, lane in events_with_lanes_3:
+            y_pos = base_y_3 + lane * lane_height
+            # Ensure minimum visible width for very small durations
+            visible_duration = max(duration, 1.0)
+            # Get color based on phase
+            bar_color = get_phase_color(op_name, setup_op_names_3, init_op_names_3)
+            ax.barh(y_pos, visible_duration, left=start_time, height=lane_height * 0.9,
+                   color=bar_color, edgecolor='black', linewidth=0.5)
+
+            # Add label to the right of the bar
+            ax.text(start_time + visible_duration, y_pos,
+                   f'{op_name} ({duration:.0f}ms)',
+                   ha='left', va='center', fontsize=7,
+                   color='black')
+
     # Customize the plot
     ax.set_xlabel('Time since spawn (ms)', fontsize=12)
 
     # Set y-ticks at the center of each proc's timeline
+    # Add line breaks to long labels to reduce horizontal spacing
+    def format_label(label, max_len=20):
+        """Add line breaks to labels longer than max_len characters."""
+        if len(label) <= max_len:
+            return label
+        words = label.split()
+        lines = []
+        current_line = []
+        current_len = 0
+        for word in words:
+            if current_len + len(word) + 1 <= max_len:
+                current_line.append(word)
+                current_len += len(word) + 1
+            else:
+                if current_line:
+                    lines.append(' '.join(current_line))
+                current_line = [word]
+                current_len = len(word)
+        if current_line:
+            lines.append(' '.join(current_line))
+        return '\n'.join(lines)
+
     y_tick_1 = base_y_1 + (max_lanes_1 * lane_height) / 2
     y_tick_2 = base_y_2 + (max_lanes_2 * lane_height) / 2
-    ax.set_yticks([y_tick_2, y_tick_1])
-    ax.set_yticklabels([label_2, label_1], rotation=90, va='center')
+    if has_proc_3:
+        y_tick_3 = base_y_3 + (max_lanes_3 * lane_height) / 2
+        ax.set_yticks([y_tick_3, y_tick_2, y_tick_1])
+        ax.set_yticklabels([format_label(label_3), format_label(label_2), format_label(label_1)], rotation=0, va='center', fontsize=9)
+    else:
+        ax.set_yticks([y_tick_2, y_tick_1])
+        ax.set_yticklabels([format_label(label_2), format_label(label_1)], rotation=0, va='center', fontsize=9)
 
-    ax.set_ylim(-lane_height, base_y_1 + total_height_1 + lane_height)
+    ax.set_ylim(-lane_height * 0.5, base_y_1 + total_height_1 + lane_height * 0.5)
 
-    # Find max time across both timelines
+    # Find max time across all timelines
     max_time_1 = max([start + dur for _, start, dur in all_events_1]) if all_events_1 else 0
     max_time_2 = max([start + dur for _, start, dur in all_events_2]) if all_events_2 else 0
-    max_time = max(max_time_1, max_time_2)
+    max_time_3 = max([start + dur for _, start, dur in all_events_3]) if all_events_3 else 0
+    max_time = max(max_time_1, max_time_2, max_time_3)
     ax.set_xlim(0, max_time * 1.15)
 
     ax.grid(axis='x', alpha=0.3, linestyle='--')
@@ -734,11 +896,39 @@ def main():
     print(f"  TOTAL:          {total_2:.2f}ms")
     print()
 
+    if has_proc_3:
+        total_3 = sum([dur for _, _, dur in all_events_3])
+        setup_total_3 = sum([dur for _, _, dur in setup_events_3])
+        init_total_3 = sum([dur for _, _, dur in init_events_3])
+
+        print(f"{label_3}:")
+        print(f"  Setup operations:")
+        for op_name, start_time, duration in sorted(setup_events_3, key=lambda x: x[1]):
+            print(f"    {op_name:<40} {start_time:.2f}ms -> {start_time + duration:.2f}ms ({duration:.2f}ms)")
+        print(f"  Setup Total:    {setup_total_3:.2f}ms")
+        print()
+        print(f"  Initialization operations:")
+        for op_name, start_time, duration in sorted(init_events_3, key=lambda x: x[1]):
+            print(f"    {op_name:<40} {start_time:.2f}ms -> {start_time + duration:.2f}ms ({duration:.2f}ms)")
+        print(f"  Init Total:     {init_total_3:.2f}ms")
+        print(f"  TOTAL:          {total_3:.2f}ms")
+        print()
+
     # Comparison
     if total_1 > 0 and total_2 > 0:
         diff = total_1 - total_2
         pct = (diff / total_1) * 100
         print(f"Difference (total): {diff:.2f}ms ({pct:.1f}%)")
+
+    if has_proc_3 and total_1 > 0 and total_3 > 0:
+        diff = total_1 - total_3
+        pct = (diff / total_1) * 100
+        print(f"Difference (proc 1 vs proc 3): {diff:.2f}ms ({pct:.1f}%)")
+
+    if has_proc_3 and total_2 > 0 and total_3 > 0:
+        diff = total_2 - total_3
+        pct = (diff / total_2) * 100
+        print(f"Difference (proc 2 vs proc 3): {diff:.2f}ms ({pct:.1f}%)")
 
 
 if __name__ == "__main__":
