@@ -1778,7 +1778,7 @@ func TestStartLatency(t *testing.T) {
 					UseInitScript: initscript,
 					Mcpu:          proc.Tmcpu(4000),
 				},
-				Cache: true,
+				Cache: false,
 			}
 			cmdFn := GetStartLatencyCmdConstructor(startLatencyCfg, cacheBenchCfg, cossimCfg, etcdCfg, memcachedCfg, initscript, useGVisor)
 			ts.RunStandardBenchmark(benchName, driverVM, cmdFn, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost, useGVisor)

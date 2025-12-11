@@ -22,7 +22,7 @@ import (
 const (
 	TMPFS_MOUNT      = "/tmp/memcached"
 	SNAP_FILE        = "snapshot"
-	MEMCACHED_MEM_SZ = "200" // Min mem sz for memcached is 39 MB
+	MEMCACHED_MEM_SZ = "40" // Min mem sz for memcached is 39 MB
 )
 
 type MemcachedShim struct {
