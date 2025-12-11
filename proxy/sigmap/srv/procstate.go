@@ -362,7 +362,7 @@ func (ps *procState) logWasmScriptBooted() {
 
 	if !ps.wasmScriptBooted {
 		ps.wasmScriptBooted = true
-		perf.LogSpawnLatency("Paper.Initialization.CoSandboxStart", ps.sc.ProcEnv().GetPID(), ps.sc.ProcEnv().GetSpawnTime(), ps.wasmScriptStart)
+		perf.LogSpawnLatency("Paper.Initialization.CoSandboxStart", ps.pe.GetPID(), ps.pe.GetSpawnTime(), ps.wasmScriptStart)
 	}
 }
 
