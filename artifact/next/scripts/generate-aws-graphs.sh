@@ -89,7 +89,7 @@ echo "Generating cached start latency breakdown graph..."
   --omit_1 "GlobalScheduling" \
   --dir_path_2 benchmarks/results/$VERSION/start_latency_cached_initscript_noshmem \
   --proc_name_2 cached-srv-cpp \
-  --label_2 "Cached (co-sandbox, no shmem)" \
+  --label_2 "Cached (co-sandbox, no shared-memory)" \
   --relabel_2 "ConnectionSetup" "ConnectionSetup-1" \
   --relabel_2 "InitSPProxyConn" "ConnectionSetup-2" \
   --relabel_2 "DownloadInitScript" "DownloadCoSandbox" \
@@ -97,7 +97,7 @@ echo "Generating cached start latency breakdown graph..."
   --subtract_1_from_2 "GlobalScheduling" "DownloadInitScript" \
   --dir_path_3 benchmarks/results/$VERSION/start_latency_cached_initscript \
   --proc_name_3 cached-srv-cpp \
-  --label_3 "Cached (co-sandbox, shmem)" \
+  --label_3 "Cached (co-sandbox, shared-memory)" \
   --relabel_3 "ConnectionSetup" "ConnectionSetup-1" \
   --relabel_3 "InitSPProxyConn" "ConnectionSetup-2" \
   --relabel_3 "DownloadInitScript" "DownloadCoSandbox" \

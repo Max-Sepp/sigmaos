@@ -829,10 +829,10 @@ def main():
     if has_proc_3:
         y_tick_3 = base_y_3 + (max_lanes_3 * lane_height) / 2
         ax.set_yticks([y_tick_3, y_tick_2, y_tick_1])
-        ax.set_yticklabels([format_label(label_3), format_label(label_2), format_label(label_1)], rotation=0, va='center', fontsize=9)
+        ax.set_yticklabels([format_label(label_3), format_label(label_2), format_label(label_1)], rotation=90, va='center', fontsize=9)
     else:
         ax.set_yticks([y_tick_2, y_tick_1])
-        ax.set_yticklabels([format_label(label_2), format_label(label_1)], rotation=0, va='center', fontsize=9)
+        ax.set_yticklabels([format_label(label_2), format_label(label_1)], rotation=90, va='center', fontsize=9)
 
     ax.set_ylim(-lane_height * 0.5, base_y_1 + total_height_1 + lane_height * 0.5)
 
@@ -841,7 +841,7 @@ def main():
     max_time_2 = max([start + dur for _, start, dur in all_events_2]) if all_events_2 else 0
     max_time_3 = max([start + dur for _, start, dur in all_events_3]) if all_events_3 else 0
     max_time = max(max_time_1, max_time_2, max_time_3)
-    ax.set_xlim(0, max_time * 1.15)
+    ax.set_xlim(0, max_time * 1.20)
 
     ax.grid(axis='x', alpha=0.3, linestyle='--')
 
