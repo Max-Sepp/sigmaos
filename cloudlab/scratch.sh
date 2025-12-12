@@ -40,6 +40,15 @@ for vm in $vms; do
 #  ps -fax | grep "bin/kernel/" | grep "/procq" | wc -l
 #  echo "N schedd:"
 #  ps -fax | grep "bin/kernel/" | grep "schedd" | wc -l
-  sudo kill -SIGTERM $(ps -fax | grep "argv0 procq" | cut -d " " -f2 | tail -n1)
+#  sudo usermod -aG docker arielck
+#  sudo kill -SIGTERM $(ps -fax | grep "argv0 procq" | cut -d " " -f2 | tail -n1)
+#  cd sigmaos
+#  git checkout cpp
+#  git pull
+#  echo -n > ~/.hushlogin
+
+#  docker ps -a && nproc
+#  cd sigmaos && git branch
+ls /tmp/sigmaos-perf
 ENDSSH
 done
