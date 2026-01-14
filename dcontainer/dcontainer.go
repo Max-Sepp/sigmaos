@@ -48,7 +48,7 @@ type cpustats struct {
 	util                float64
 }
 
-func StartDockerContainer(p *proc.Proc, kernelId, user, netmode string) (*DContainer, error) {
+func StartDockerContainer(p *proc.Proc, kernelId, user, netmode string, useGVisor bool) (*DContainer, error) {
 	image := "sigmauser"
 	tmpBase := "/tmp"
 	if user != sp.NOT_SET {
@@ -109,8 +109,7 @@ func StartDockerContainer(p *proc.Proc, kernelId, user, netmode string) (*DConta
 		)
 	}
 
-	// TODO: only mount if running with gvisor
-	if true {
+	if useGVisor {
 		mnts = append(mnts,
 			mount.Mount{
 				Type:     mount.TypeBind,
