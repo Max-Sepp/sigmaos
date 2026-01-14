@@ -370,6 +370,8 @@ if ! [ -z "$TAG" ]; then
 fi
 
 # If gVisor rootfs doesn't exist, create it
+GVISOR_BUNDLE=/tmp/sigmaos-base-user-bundle
 if [ "${REFRESH_GVISOR_BUNDLE}" == "true" ] || ! [ -d $GVISOR_BUNDLE ]; then
+  echo "========== Refresh GVisor Bundle =========="
   ./create-gvisor-bundle.sh
 fi
