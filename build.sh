@@ -367,11 +367,13 @@ if ! [ -z "$TAG" ]; then
   docker push arielszekely/sigmaos:$TAG
   docker tag sigmauser arielszekely/sigmauser:$TAG
   docker push arielszekely/sigmauser:$TAG
+  echo "========== Done pushing container images to DockerHub =========="
 fi
 
 # If gVisor rootfs doesn't exist, create it
 GVISOR_BUNDLE=/tmp/sigmaos-base-user-bundle
 if [ "${REFRESH_GVISOR_BUNDLE}" == "true" ] || ! [ -d $GVISOR_BUNDLE ]; then
-  echo "========== Refresh GVisor Bundle =========="
+  echo "========== Create GVisor Bundle =========="
   ./create-gvisor-bundle.sh
+  echo "========== Done creating GVisor Bundle =========="
 fi
