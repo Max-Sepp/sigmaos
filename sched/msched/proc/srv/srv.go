@@ -548,6 +548,7 @@ func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 func (ps *ProcSrv) downloadFullBinary(versionedProg string, pid sp.Tpid, realm sp.Trealm, s3secret *sp.SecretProto, path []string, ndEP *sp.TendpointProto) error {
 	// If already cached, bail out
 	if cached, ok := ps.cachedBins.Lookup(versionedProg); cached && ok {
+		db.DPrintf(db.PROCD, "Already cached full binary %v", versionedProg)
 		return nil
 	}
 	st, _, err := ps.ckclnt.GetFileStat(ps.kernelId, versionedProg, pid, realm, s3secret, path, ndEP)
