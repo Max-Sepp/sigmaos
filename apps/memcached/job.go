@@ -107,6 +107,7 @@ func (j *MemcachedJob) Start(sigmaPath string) error {
 	p.SetMcpu(j.conf.Mcpu)
 	// Configure proc environment
 	p.GetProcEnv().UseSPProxy = j.conf.UseInitScript
+	p.GetProcEnv().UseShmem = true
 	p.SetBootScript(j.bootScript, j.bootScriptInput)
 	p.SetRunBootScript(j.conf.UseInitScript)
 	// Set the proc's sigma path

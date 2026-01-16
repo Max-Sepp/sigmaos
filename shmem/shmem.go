@@ -35,7 +35,7 @@ import (
 )
 
 const (
-	SHMEM_SIZE = 40 * sp.MBYTE
+	SHMEM_SIZE = 42 * sp.MBYTE
 )
 
 type Segment struct {
