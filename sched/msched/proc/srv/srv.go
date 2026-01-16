@@ -96,6 +96,7 @@ type ProcSrv struct {
 	spproxydPID     sp.Tpid
 	schedPolicySet  bool
 	procs           *syncmap.SyncMap[int, *procEntry]
+	cachedBins      *syncmap.SyncMap[string, bool]
 	ckclnt          *chunkclnt.ChunkClnt
 	pq              *ProcQueue
 	nRunning        atomic.Int64
@@ -544,6 +545,10 @@ func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 }
 
 func (ps *ProcSrv) downloadFullBinary(versionedProg string, pid sp.Tpid, realm sp.Trealm, s3secret *sp.SecretProto, path []string, ndEP *sp.TendpointProto) error {
+	// If already cached, bail out
+	if cached, ok := ps.cachedBins.Lookup(versionedProg); cached && ok {
+		return nil
+	}
 	st, _, err := ps.ckclnt.GetFileStat(ps.kernelId, versionedProg, pid, realm, s3secret, path, ndEP)
 	if err != nil {
 		return err
@@ -551,6 +556,7 @@ func (ps *ProcSrv) downloadFullBinary(versionedProg string, pid sp.Tpid, realm s
 	if _, err := ps.ckclnt.FetchBinary(ps.kernelId, versionedProg, pid, realm, s3secret, st.Tsize(), path, ndEP); err != nil {
 		return err
 	}
+	ps.cachedBins.Insert(versionedProg, true)
 	return nil
 }
 
