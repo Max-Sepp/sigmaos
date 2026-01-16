@@ -268,8 +268,17 @@ func (pe *ProcEnvProto) GetRunBootScript() bool {
 	return pe.RunBootScriptFlag
 }
 
-func (pe *ProcEnvProto) SetUseShmem(use bool) {
-	pe.UseShmem = use
+func (pe *ProcEnvProto) SetShmemMB(mb Tmem) {
+	if mb > 0 {
+		pe.UseShmem = true
+	} else {
+		pe.UseShmem = false
+	}
+	pe.ShmemMBInt = uint64(mb)
+}
+
+func (pe *ProcEnvProto) GetShmemMB() Tmem {
+	return Tmem(pe.ShmemMBInt)
 }
 
 func (pe *ProcEnvProto) SetSigmaPath(buildTag string) {

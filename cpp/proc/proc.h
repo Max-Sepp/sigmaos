@@ -40,6 +40,7 @@ class ProcEnv {
   std::string GetPerf() { return _proto.perf(); }
   bool GetRunBootScript() { return _proto.runbootscriptflag(); }
   bool GetUseShmem() { return _proto.useshmem(); }
+  size_t GetShmemMB() { return (size_t)_proto.shmemmbint(); }
   std::pair<std::shared_ptr<TendpointProto>, bool> GetCachedEndpoint(
       std::string &pn);
 

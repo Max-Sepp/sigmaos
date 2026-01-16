@@ -469,12 +469,16 @@ func (p *Proc) GetRunBootScript() bool {
 	return p.ProcEnvProto.GetRunBootScript()
 }
 
-func (p *Proc) SetUseShmem(use bool) {
-	p.ProcEnvProto.SetUseShmem(use)
-}
-
 func (p *Proc) GetUseShmem() bool {
 	return p.ProcEnvProto.GetUseShmem()
+}
+
+func (p *Proc) SetShmemMB(mb Tmem) {
+	p.ProcEnvProto.SetShmemMB(mb)
+}
+
+func (p *Proc) GetShmemMB() Tmem {
+	return p.ProcEnvProto.GetShmemMB()
 }
 
 func (p *Proc) GetResourceReservation() *ResourceReservation {

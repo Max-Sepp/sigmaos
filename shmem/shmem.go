@@ -31,16 +31,12 @@ import (
 	"golang.org/x/sys/unix"
 
 	db "sigmaos/debug"
-	sp "sigmaos/sigmap"
-)
-
-const (
-	SHMEM_SIZE = 42 * sp.MBYTE
+	"sigmaos/proc"
 )
 
 type Segment struct {
 	idStr string
-	size  int // Segment size
+	size  int // Segment size, in bytes
 	fd    int // File descriptor for POSIX shared memory
 	buf   []byte
 }
@@ -72,10 +68,10 @@ func shmUnlink(name string) error {
 }
 
 // Open (and optionally create) a shared memory segment
-func NewSegment(idStr string, size int, create bool) (*Segment, error) {
+func NewSegment(idStr string, size proc.Tmem, create bool) (*Segment, error) {
 	sms := &Segment{
 		idStr: idStr,
-		size:  size,
+		size:  int(size),
 	}
 	// Create POSIX shared memory object with name based on idStr
 	name := "/" + idStr
@@ -99,7 +95,7 @@ func NewSegment(idStr string, size int, create bool) (*Segment, error) {
 		}
 	}
 	// Map the shared memory object into the process address space
-	buf, err := unix.Mmap(fd, 0, size, unix.PROT_READ|unix.PROT_WRITE, unix.MAP_SHARED)
+	buf, err := unix.Mmap(fd, 0, sms.size, unix.PROT_READ|unix.PROT_WRITE, unix.MAP_SHARED)
 	if err != nil {
 		db.DPrintf(db.ERROR, "Err mmap: %v", err)
 		unix.Close(fd)

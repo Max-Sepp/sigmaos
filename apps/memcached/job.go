@@ -14,6 +14,8 @@ import (
 	sp "sigmaos/sigmap"
 )
 
+const SHMEM_MB proc.Tmem = 42
+
 type MemcachedJobConfig struct {
 	Job           string     `json:"job"`
 	SnapshotPath  string     `json:"snapshot_path"` // Path to snapshot file in SigmaOS
@@ -107,7 +109,7 @@ func (j *MemcachedJob) Start(sigmaPath string) error {
 	p.SetMcpu(j.conf.Mcpu)
 	// Configure proc environment
 	p.GetProcEnv().UseSPProxy = j.conf.UseInitScript
-	p.GetProcEnv().UseShmem = true
+	p.GetProcEnv().SetShmemMB(SHMEM_MB)
 	p.SetBootScript(j.bootScript, j.bootScriptInput)
 	p.SetRunBootScript(j.conf.UseInitScript)
 	// Set the proc's sigma path

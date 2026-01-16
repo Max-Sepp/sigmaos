@@ -14,8 +14,6 @@
 namespace sigmaos {
 namespace shmem {
 
-const size_t SEGMENT_SZ = 40 * sigmaos::sigmap::constants::MBYTE;
-
 const std::string SHMEM = "SHMEM";
 const std::string SHMEM_ERR = SHMEM + sigmaos::util::log::ERR;
 

@@ -24,6 +24,8 @@ import (
 	sp "sigmaos/sigmap"
 )
 
+const SHMEM_MB proc.Tmem = 20
+
 type CachedSvc struct {
 	sync.Mutex
 	*sigmaclnt.SigmaClnt
@@ -167,7 +169,7 @@ func (cs *CachedSvc) addScalerServerWithSigmaPath(sigmaPath string, delegatedIni
 		bin = "cached-srv-cpp"
 	}
 	p := proc.NewProc(bin, []string{filepath.Join(cs.pn, cachegrp.SRVDIR), cs.job, strconv.Itoa(srvID), strconv.FormatBool(cs.useEPCache), strconv.Itoa(oldNSrv), strconv.Itoa(newNSrv), strconv.Itoa(newNSrv - 1), "false"})
-	p.SetUseShmem(shmem)
+	p.SetShmemMB(SHMEM_MB)
 	db.DPrintf(db.TEST, "Scale %v", p.GetPid())
 	if !cs.cfg.GC {
 		p.AppendEnv("GOGC", "off")
@@ -248,12 +250,11 @@ func (cs *CachedSvc) addScalerServerWithSigmaPath(sigmaPath string, delegatedIni
 }
 
 func (cs *CachedSvc) migrateServerWithSigmaPath(cc *cacheclnt.CacheClnt, sigmaPath string, delegatedInit bool, srvID int) error {
-	shmem := true
 	nsrv := len(cs.servers)
 	bin := "cached-srv-cpp"
 	p := proc.NewProc(bin, []string{filepath.Join(cs.pn, cachegrp.SRVDIR), cs.job, strconv.Itoa(srvID), strconv.FormatBool(cs.useEPCache), strconv.Itoa(nsrv), strconv.Itoa(nsrv), strconv.Itoa(srvID), "true"})
 	db.DPrintf(db.TEST, "Migrate %v", p.GetPid())
-	p.SetUseShmem(shmem)
+	p.SetShmemMB(SHMEM_MB)
 	db.DPrintf(db.TEST, "Migrate(%v) %v -> %v", srvID, cs.servers[srvID], p.GetPid())
 	if !cs.cfg.GC {
 		p.AppendEnv("GOGC", "off")

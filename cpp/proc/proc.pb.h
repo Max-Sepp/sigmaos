@@ -661,7 +661,7 @@ class ProcEnvProto final :
     kVersionFieldNumber = 25,
     kFailFieldNumber = 26,
     kValgrindFieldNumber = 28,
-    kDebugProcsFieldNumber = 32,
+    kDebugProcsFieldNumber = 33,
     kPrincipalFieldNumber = 4,
     kSpawnTimePBFieldNumber = 17,
     kHowIntFieldNumber = 16,
@@ -669,8 +669,9 @@ class ProcEnvProto final :
     kUseSPProxyFieldNumber = 19,
     kUseDialProxyFieldNumber = 20,
     kRunBootScriptFlagFieldNumber = 29,
+    kShmemMBIntFieldNumber = 31,
     kUseShmemFieldNumber = 30,
-    kUseSPProxyProcClntFieldNumber = 31,
+    kUseSPProxyProcClntFieldNumber = 32,
   };
   // map<string, .TendpointProto> etcdEndpoints = 7;
   int etcdendpoints_size() const;
@@ -1009,7 +1010,7 @@ class ProcEnvProto final :
   std::string* _internal_mutable_valgrind();
   public:
 
-  // string debugProcs = 32;
+  // string debugProcs = 33;
   void clear_debugprocs();
   const std::string& debugprocs() const;
   template <typename ArgT0 = const std::string&, typename... ArgT>
@@ -1104,6 +1105,15 @@ class ProcEnvProto final :
   void _internal_set_runbootscriptflag(bool value);
   public:
 
+  // uint64 shmemMBInt = 31;
+  void clear_shmemmbint();
+  uint64_t shmemmbint() const;
+  void set_shmemmbint(uint64_t value);
+  private:
+  uint64_t _internal_shmemmbint() const;
+  void _internal_set_shmemmbint(uint64_t value);
+  public:
+
   // bool useShmem = 30;
   void clear_useshmem();
   bool useshmem() const;
@@ -1113,7 +1123,7 @@ class ProcEnvProto final :
   void _internal_set_useshmem(bool value);
   public:
 
-  // bool useSPProxyProcClnt = 31;
+  // bool useSPProxyProcClnt = 32;
   void clear_usespproxyprocclnt();
   bool usespproxyprocclnt() const;
   void set_usespproxyprocclnt(bool value);
@@ -1172,6 +1182,7 @@ class ProcEnvProto final :
     bool usespproxy_;
     bool usedialproxy_;
     bool runbootscriptflag_;
+    uint64_t shmemmbint_;
     bool useshmem_;
     bool usespproxyprocclnt_;
     mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
@@ -3124,7 +3135,27 @@ inline void ProcEnvProto::set_useshmem(bool value) {
   // @@protoc_insertion_point(field_set:ProcEnvProto.useShmem)
 }
 
-// bool useSPProxyProcClnt = 31;
+// uint64 shmemMBInt = 31;
+inline void ProcEnvProto::clear_shmemmbint() {
+  _impl_.shmemmbint_ = uint64_t{0u};
+}
+inline uint64_t ProcEnvProto::_internal_shmemmbint() const {
+  return _impl_.shmemmbint_;
+}
+inline uint64_t ProcEnvProto::shmemmbint() const {
+  // @@protoc_insertion_point(field_get:ProcEnvProto.shmemMBInt)
+  return _internal_shmemmbint();
+}
+inline void ProcEnvProto::_internal_set_shmemmbint(uint64_t value) {
+  
+  _impl_.shmemmbint_ = value;
+}
+inline void ProcEnvProto::set_shmemmbint(uint64_t value) {
+  _internal_set_shmemmbint(value);
+  // @@protoc_insertion_point(field_set:ProcEnvProto.shmemMBInt)
+}
+
+// bool useSPProxyProcClnt = 32;
 inline void ProcEnvProto::clear_usespproxyprocclnt() {
   _impl_.usespproxyprocclnt_ = false;
 }
@@ -3144,7 +3175,7 @@ inline void ProcEnvProto::set_usespproxyprocclnt(bool value) {
   // @@protoc_insertion_point(field_set:ProcEnvProto.useSPProxyProcClnt)
 }
 
-// string debugProcs = 32;
+// string debugProcs = 33;
 inline void ProcEnvProto::clear_debugprocs() {
   _impl_.debugprocs_.ClearToEmpty();
 }

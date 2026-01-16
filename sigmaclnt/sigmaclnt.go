@@ -60,8 +60,8 @@ func newFsLibFidClnt(pe *proc.ProcEnv, fidc *fidclnt.FidClnt) (*fslib.FsLib, err
 			db.DPrintf(db.ALWAYS, "newSPProxyClnt err %v", err)
 			return nil, err
 		}
-		if pe.UseShmem {
-			sm, err = shmem.NewSegment(pe.GetPID().String(), shmem.SHMEM_SIZE, false)
+		if pe.GetUseShmem() {
+			sm, err = shmem.NewSegment(pe.GetPID().String(), pe.GetShmemMB()*proc.Tmem(sp.MBYTE), false)
 			if err != nil {
 				db.DFatalf("shmem.NewSegment err %v", err)
 				return nil, err

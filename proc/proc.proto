@@ -48,8 +48,9 @@ message ProcEnvProto {
   string valgrind = 28;
   bool runBootScriptFlag = 29;
   bool useShmem = 30;
-  bool useSPProxyProcClnt = 31;
-  string debugProcs = 32;
+  uint64 shmemMBInt = 31;
+  bool useSPProxyProcClnt = 32;
+  string debugProcs = 33;
 }
 
 message ProcProto {

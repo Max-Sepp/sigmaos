@@ -24,6 +24,8 @@ import (
 	rd "sigmaos/util/rand"
 )
 
+const SHMEM_MB proc.Tmem = 10
+
 const (
 	TASKSVC = "imgresize-tasksvc"
 	IMGSVC  = "imgresize"
