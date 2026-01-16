@@ -13,6 +13,7 @@ import (
 	leaseclnt "sigmaos/ft/lease/clnt"
 	"sigmaos/proc"
 	spproxyclnt "sigmaos/proxy/sigmap/clnt"
+	"sigmaos/shmem"
 	"sigmaos/sigmaclnt/fidclnt"
 	"sigmaos/sigmaclnt/fsclnt"
 	"sigmaos/sigmaclnt/fslib"
@@ -52,16 +53,24 @@ type SigmaClntKernel struct {
 func newFsLibFidClnt(pe *proc.ProcEnv, fidc *fidclnt.FidClnt) (*fslib.FsLib, error) {
 	var err error
 	var s sos.FileAPI
+	var sm *shmem.Segment
 	if pe.UseSPProxy {
 		s, err = spproxyclnt.NewSPProxyClnt(pe, fidc.GetDialProxyClnt())
 		if err != nil {
 			db.DPrintf(db.ALWAYS, "newSPProxyClnt err %v", err)
 			return nil, err
 		}
+		if pe.UseShmem {
+			sm, err = shmem.NewSegment(pe.GetPID().String(), shmem.SHMEM_SIZE, false)
+			if err != nil {
+				db.DFatalf("shmem.NewSegment err %v", err)
+				return nil, err
+			}
+		}
 	} else {
 		s = fsclnt.NewFsClient(pe, fidc)
 	}
-	return fslib.NewFsLibAPI(pe, fidc.GetDialProxyClnt(), s)
+	return fslib.NewFsLibAPI(pe, fidc.GetDialProxyClnt(), s, sm)
 }
 
 func NewFsLib(pe *proc.ProcEnv, npc *dialproxyclnt.DialProxyClnt) (*fslib.FsLib, error) {

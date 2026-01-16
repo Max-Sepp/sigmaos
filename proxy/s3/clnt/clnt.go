@@ -6,6 +6,7 @@ import (
 	db "sigmaos/debug"
 	"sigmaos/proxy/s3/proto"
 	rpcclnt "sigmaos/rpc/clnt"
+	rpcclntopts "sigmaos/rpc/clnt/opts"
 	sprpcclnt "sigmaos/rpc/clnt/sigmap"
 	rpcproto "sigmaos/rpc/proto"
 	"sigmaos/sigmaclnt/fslib"
@@ -17,7 +18,7 @@ type S3Clnt struct {
 
 func NewS3ClntInit(fsl *fslib.FsLib, pn string, lazyInit bool) (*S3Clnt, error) {
 	db.DPrintf(db.S3CLNT2, "New S3Clnt: %v", pn)
-	rpcc, err := rpcclnt.NewRPCClnt(pn, sprpcclnt.WithSPChannel(fsl, lazyInit), sprpcclnt.WithDelegatedSPProxyChannel(fsl))
+	rpcc, err := rpcclnt.NewRPCClnt(pn, sprpcclnt.WithSPChannel(fsl, lazyInit), sprpcclnt.WithDelegatedSPProxyChannel(fsl), rpcclntopts.WithShmem(fsl.GetShmemSegment()))
 	if err != nil {
 		return nil, err
 	}

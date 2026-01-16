@@ -64,7 +64,7 @@ func TestResizeProc(t *testing.T) {
 	in := filepath.Join(sp.S3, sp.LOCAL, "9ps3/img-save/8.jpg")
 	out := filepath.Join(sp.S3, sp.LOCAL, "9ps3/img/8-thumb-xxx.jpg")
 	mrts.GetRealm(test.REALM1).Remove(out)
-	p := proc.NewProc("imgresize", []string{in, out, "1", "false", "false"})
+	p := proc.NewProc("imgresize", []string{in, out, "1", "false", "false", "70"})
 	err := mrts.GetRealm(test.REALM1).Spawn(p)
 	assert.Nil(t, err, "Spawn")
 	err = mrts.GetRealm(test.REALM1).WaitStart(p.GetPid())
@@ -94,8 +94,9 @@ func TestResizeProcInitScriptSimple(t *testing.T) {
 	if !assert.Nil(t, err, "Err construct bootscript input: %v", err) {
 		return
 	}
-	p := proc.NewProc("imgresize", []string{inS3, outS3, "1", "true", "false"})
+	p := proc.NewProc("imgresize", []string{inS3, outS3, "1", "true", "false", "70"})
 	p.GetProcEnv().UseSPProxy = true
+	p.GetProcEnv().UseShmem = true
 	p.SetBootScript(bootScript, bootScriptInput)
 	p.SetRunBootScript(true)
 	// Run after boot script
@@ -130,7 +131,7 @@ func TestResizeProcInitScriptWriteBack(t *testing.T) {
 	if !assert.Nil(t, err, "Err construct bootscript input: %v", err) {
 		return
 	}
-	p := proc.NewProc("imgresize", []string{inS3, outS3, "1", "true", "true"})
+	p := proc.NewProc("imgresize", []string{inS3, outS3, "1", "true", "true", "70"})
 	p.GetProcEnv().UseSPProxy = true
 	p.SetBootScript(bootScript, bootScriptInput)
 	p.SetRunBootScript(true)

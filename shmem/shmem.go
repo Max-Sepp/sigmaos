@@ -31,12 +31,17 @@ import (
 	"golang.org/x/sys/unix"
 
 	db "sigmaos/debug"
+	sp "sigmaos/sigmap"
+)
+
+const (
+	SHMEM_SIZE = 40 * sp.MBYTE
 )
 
 type Segment struct {
 	idStr string
-	size  int    // Segment size
-	fd    int    // File descriptor for POSIX shared memory
+	size  int // Segment size
+	fd    int // File descriptor for POSIX shared memory
 	buf   []byte
 }
 
@@ -66,26 +71,32 @@ func shmUnlink(name string) error {
 	return nil
 }
 
-// Create a shared memory segment
-func NewSegment(idStr string, size int) (*Segment, error) {
+// Open (and optionally create) a shared memory segment
+func NewSegment(idStr string, size int, create bool) (*Segment, error) {
 	sms := &Segment{
 		idStr: idStr,
 		size:  size,
 	}
 	// Create POSIX shared memory object with name based on idStr
 	name := "/" + idStr
-	fd, err := shmOpen(name, unix.O_CREAT|unix.O_EXCL|unix.O_RDWR, 0666)
+	flags := unix.O_RDWR
+	if create {
+		flags |= unix.O_CREAT | unix.O_EXCL
+	}
+	fd, err := shmOpen(name, flags, 0666)
 	if err != nil {
 		db.DPrintf(db.ERROR, "Err shm_open: %v", err)
 		return nil, fmt.Errorf("err shm_open: %v", err)
 	}
 	sms.fd = fd
-	// Set the size of the shared memory object
-	if err := unix.Ftruncate(fd, int64(size)); err != nil {
-		db.DPrintf(db.ERROR, "Err ftruncate: %v", err)
-		unix.Close(fd)
-		shmUnlink(name)
-		return nil, fmt.Errorf("err ftruncate: %v", err)
+	if create {
+		// Set the size of the shared memory object
+		if err := unix.Ftruncate(fd, int64(size)); err != nil {
+			db.DPrintf(db.ERROR, "Err ftruncate: %v", err)
+			unix.Close(fd)
+			shmUnlink(name)
+			return nil, fmt.Errorf("err ftruncate: %v", err)
+		}
 	}
 	// Map the shared memory object into the process address space
 	buf, err := unix.Mmap(fd, 0, size, unix.PROT_READ|unix.PROT_WRITE, unix.MAP_SHARED)

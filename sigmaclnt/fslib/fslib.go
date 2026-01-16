@@ -10,6 +10,7 @@ import (
 	"sigmaos/proc"
 	"sigmaos/proxy/s3/s3pathclnt"
 	"sigmaos/serr"
+	"sigmaos/shmem"
 	sp "sigmaos/sigmap"
 )
 
@@ -17,17 +18,19 @@ type FsLib struct {
 	pe  *proc.ProcEnv
 	npc *dialproxyclnt.DialProxyClnt
 	sos.FileAPI
+	sm *shmem.Segment
 
 	sync.Mutex
 	s3c *s3pathclnt.S3PathClnt
 }
 
-func NewFsLibAPI(pe *proc.ProcEnv, npc *dialproxyclnt.DialProxyClnt, sos sos.FileAPI) (*FsLib, error) {
+func NewFsLibAPI(pe *proc.ProcEnv, npc *dialproxyclnt.DialProxyClnt, sos sos.FileAPI, sm *shmem.Segment) (*FsLib, error) {
 	db.DPrintf(db.FSLIB, "NewFsLib: principal %s innerip %s addrs %v\n", pe.GetPrincipal(), pe.GetInnerContainerIP(), pe.GetEtcdEndpoints())
 	fl := &FsLib{
 		pe:      pe,
 		npc:     npc,
 		FileAPI: sos,
+		sm:      sm,
 	}
 	return fl, nil
 }
@@ -42,6 +45,10 @@ func (fl *FsLib) GetInnerContainerIP() sp.Tip {
 
 func (fl *FsLib) ProcEnv() *proc.ProcEnv {
 	return fl.pe
+}
+
+func (fl *FsLib) GetShmemSegment() *shmem.Segment {
+	return fl.sm
 }
 
 // TODO: should probably remove, and replace by a high-level SigmaOS API call.

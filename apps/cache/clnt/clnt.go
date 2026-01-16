@@ -18,6 +18,7 @@ import (
 	db "sigmaos/debug"
 	"sigmaos/rpc"
 	rpcclntcache "sigmaos/rpc/clnt/cache"
+	rpcclntopts "sigmaos/rpc/clnt/opts"
 	sprpcclnt "sigmaos/rpc/clnt/sigmap"
 	rpcdev "sigmaos/rpc/dev"
 	"sigmaos/sigmaclnt/fslib"
@@ -40,7 +41,7 @@ func NewCacheClnt(fsl *fslib.FsLib, job string, nshard int, lazyInit bool) *Cach
 	return &CacheClnt{
 		fsl:       fsl,
 		nshard:    uint32(nshard),
-		ClntCache: rpcclntcache.NewRPCClntCache(sprpcclnt.WithSPChannel(fsl, lazyInit), sprpcclnt.WithDelegatedSPProxyChannel(fsl)),
+		ClntCache: rpcclntcache.NewRPCClntCache(sprpcclnt.WithSPChannel(fsl, lazyInit), sprpcclnt.WithDelegatedSPProxyChannel(fsl), rpcclntopts.WithShmem(fsl.GetShmemSegment())),
 	}
 }
 

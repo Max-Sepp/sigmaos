@@ -22,10 +22,6 @@ import (
 	"sigmaos/util/perf"
 )
 
-const (
-	SHMEM_SIZE = 40 * sp.MBYTE
-)
-
 // Manages sigmaclnts on behalf of procs
 type ProcStateMgr struct {
 	mu   sync.Mutex
@@ -250,7 +246,7 @@ func newProcState(spps *SPProxySrv, pe *proc.ProcEnv, p *proc.Proc) *procState {
 	if pe.GetUseShmem() {
 		var err error
 		start := time.Now()
-		ps.shm, err = shmem.NewSegment(pe.GetPID().String(), SHMEM_SIZE)
+		ps.shm, err = shmem.NewSegment(pe.GetPID().String(), shmem.SHMEM_SIZE, true)
 		if err != nil {
 			db.DFatalf("Err shmem NewSegment: %v", err)
 		}
