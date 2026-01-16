@@ -6,13 +6,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	clientv3 "go.etcd.io/etcd/client/v3"
 
+	epsrv "sigmaos/apps/epcache/srv"
 	"sigmaos/apps/etcd"
 	db "sigmaos/debug"
 	"sigmaos/proc"
@@ -111,10 +111,7 @@ func TestGenSnapshot(t *testing.T) {
 
 func TestEtcd(t *testing.T) {
 	const (
-		PEER_PORT      = 6380
-		CLNT_PORT      = 6379
-		SNAP_PATH      = "/tmp/snapshot.db"
-		USE_INITSCRIPT = true
+		SNAP_PATH = "9ps3/snapshot-10MB.db"
 	)
 
 	// Only works when running with gVisor
@@ -128,58 +125,47 @@ func TestEtcd(t *testing.T) {
 	}
 	defer mrts.Shutdown()
 
-	//	// Upload snapshot
-	//	snapUXPn := filepath.Join(sp.UX, sp.LOCAL, "snapshot.db")
-	//	if err := mrts.GetRealm(test.REALM1).UploadFile(SNAP_PATH, snapUXPn); !assert.Nil(t, err, "Err Upload snapshot: %v", err) {
-	//		return
-	//	}
-	//
-	//	// Find the resolved snapshot path
-	//	resolvedPn, err := mrts.GetRealm(test.REALM1).ResolveMounts(snapUXPn)
-	//	if !assert.Nil(t, err, "Err resolve path: %v") {
-	//		return
-	//	}
+	ts := mrts.GetRealm(test.REALM1)
 
-	resolvedPn := "9ps3/snapshot-10MB.db"
-	db.DPrintf(db.TEST, "Resolved snapshot pathname: %v", resolvedPn)
+	// Create EPCache job
+	epcj, err := epsrv.NewEPCacheJob(ts.SigmaClnt)
+	if !assert.Nil(t, err, "Err new EPCacheJob: %v", err) {
+		return
+	}
+	defer epcj.Stop()
 
-	p := proc.NewProc("etcd-shim", []string{
-		resolvedPn,
+	// Create etcd job config
+	etcdCfg := etcd.NewEtcdJobConfig(
+		"etcd-job",
+		SNAP_PATH,
 		"etcd-proc",
-		fmt.Sprintf("http://127.0.0.1:%v", PEER_PORT),
-		fmt.Sprintf("http://127.0.0.1:%v", CLNT_PORT),
-		fmt.Sprintf("http://127.0.0.1:%v", CLNT_PORT),
-	})
-	// Add the etcd binary to be downloaded with the proc
-	p.AddBin("etcd-v1.0")
-	splitFN := strings.Split(resolvedPn, "/")
-	// Read the boot script
-	bootScript, err := etcd.GetBootScript(mrts.GetRealm(test.REALM1).SigmaClnt)
-	if !assert.Nil(t, err, "Err read bootscript: %v", err) {
-		return
-	}
-	// Construct the input to the bootscript
-	bootScriptInput, err := etcd.GetBootScriptInput(splitFN[0], filepath.Join(splitFN[1:]...), sp.LOCAL)
-	if !assert.Nil(t, err, "Err GetBootScriptInput: %v", err) {
-		return
-	}
-	p.GetProcEnv().UseSPProxy = USE_INITSCRIPT
-	p.SetBootScript(bootScript, bootScriptInput)
-	p.SetRunBootScript(USE_INITSCRIPT)
+		6380, // peer port
+		6379, // client port
+		true, // use init script
+		proc.Tmcpu(1000),
+	)
 
-	db.DPrintf(db.TEST, "Pre spawn")
-	err = mrts.GetRealm(test.REALM1).Spawn(p)
-	assert.Nil(t, err, "Spawn")
-	db.DPrintf(db.TEST, "Post spawn")
+	// Create etcd job
+	etcdJob, err := etcd.NewEtcdJob(etcdCfg, ts.SigmaClnt, epcj)
+	if !assert.Nil(t, err, "Err new etcd job: %v", err) {
+		return
+	}
+
+	db.DPrintf(db.TEST, "Starting etcd job")
+	// Start etcd
+	err = etcdJob.Start(sp.NOT_SET)
+	if !assert.Nil(t, err, "Err start etcd: %v", err) {
+		return
+	}
+	db.DPrintf(db.TEST, "Etcd started")
 
 	time.Sleep(5 * time.Second)
-	err = mrts.GetRealm(test.REALM1).Evict(p.GetPid())
-	assert.Nil(t, err, "Spawn")
-	db.DPrintf(db.TEST, "Evicted shim")
 
-	db.DPrintf(db.TEST, "Pre waitexit")
-	status, err := mrts.GetRealm(test.REALM1).WaitExit(p.GetPid())
-	db.DPrintf(db.TEST, "Post waitexit")
-	assert.Nil(t, err, "WaitExit error")
-	assert.True(t, status != nil && status.IsStatusEvicted(), "Exit status wrong: %v", status)
+	db.DPrintf(db.TEST, "Stopping etcd job")
+	// Stop etcd
+	err = etcdJob.Stop()
+	if !assert.Nil(t, err, "Err stop etcd: %v", err) {
+		return
+	}
+	db.DPrintf(db.TEST, "Etcd stopped")
 }
