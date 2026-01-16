@@ -14,13 +14,13 @@ import (
 )
 
 type EtcdJobConfig struct {
-	Job           string      `json:"job"`
-	SnapshotPath  string      `json:"snapshot_path"` // Path to snapshot file in SigmaOS
-	Name          string      `json:"name"`          // Etcd node name
-	PeerPort      int         `json:"peer_port"`
-	ClientPort    int         `json:"client_port"`
-	UseInitScript bool        `json:"use_init_script"`
-	Mcpu          proc.Tmcpu  `json:"mcpu"`
+	Job           string     `json:"job"`
+	SnapshotPath  string     `json:"snapshot_path"` // Path to snapshot file in SigmaOS
+	Name          string     `json:"name"`          // Etcd node name
+	PeerPort      int        `json:"peer_port"`
+	ClientPort    int        `json:"client_port"`
+	UseInitScript bool       `json:"use_init_script"`
+	Mcpu          proc.Tmcpu `json:"mcpu"`
 }
 
 func NewEtcdJobConfig(job, snapshotPath, name string, peerPort, clientPort int, useInitScript bool, mcpu proc.Tmcpu) *EtcdJobConfig {
@@ -113,6 +113,7 @@ func (j *EtcdJob) Start(sigmaPath string) error {
 	p.SetMcpu(j.conf.Mcpu)
 	// Configure proc environment
 	p.GetProcEnv().UseSPProxy = j.conf.UseInitScript
+	p.GetProcEnv().UseShmem = true
 	p.SetBootScript(j.bootScript, j.bootScriptInput)
 	p.SetRunBootScript(j.conf.UseInitScript)
 	// Set the proc's sigma path
