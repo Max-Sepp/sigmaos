@@ -120,6 +120,7 @@ func RunProcSrv(kernelId string, dialproxy bool, gvisor bool, spproxydPID sp.Tpi
 		realm:           sp.NO_REALM,
 		prefetchedStats: make(map[string]bool),
 		procs:           syncmap.NewSyncMap[int, *procEntry](),
+		cachedBins:      syncmap.NewSyncMap[string, bool](),
 		pq:              newProcQueue(),
 		gvisor:          gvisor,
 		k8s:             true, // TODO: set from above
