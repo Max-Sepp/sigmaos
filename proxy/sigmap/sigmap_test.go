@@ -202,7 +202,7 @@ func TestCachedDelegatedReshardCPPScaler(t *testing.T) {
 		return
 	}
 	// Sleep for a bit, for the list of hot shards to populate
-	if err := cm.AddScalerServerWithSigmaPath(sp.NOT_SET, DELEGATED_INIT, CPP, SHMEM); !assert.Nil(t, err, "Err add scaler server(%v): %v", err) {
+	if err := cm.AddScalerServerWithSigmaPath(sp.NOT_SET, DELEGATED_INIT, CPP, SHMEM); !assert.Nil(t, err, "Err add scaler server: %v", err) {
 		return
 	}
 	time.Sleep(2 * time.Second)
