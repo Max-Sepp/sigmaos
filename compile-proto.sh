@@ -27,6 +27,7 @@ for PP in \
   apps/socialnetwork \
   proxy/sigmap \
   proxy/s3 \
+  proxy/ux \
   sched/msched/proc/chunk \
   apps/imgresize \
   proxy/mongo \

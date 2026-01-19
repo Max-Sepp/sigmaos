@@ -14,6 +14,7 @@ import (
 	dialproxyclnt "sigmaos/dialproxy/clnt"
 	"sigmaos/path"
 	"sigmaos/proc"
+	uxclnt "sigmaos/proxy/ux/clnt"
 	"sigmaos/serr"
 	"sigmaos/sigmaclnt"
 	sp "sigmaos/sigmap"
@@ -61,6 +62,34 @@ func TestFile(t *testing.T) {
 
 	d1, err := ts.GetFile(fn + "f")
 	assert.Equal(t, string(d), string(d1))
+
+	err = ts.Remove(fn + "f")
+	assert.Equal(t, nil, err)
+
+	ts.Shutdown()
+}
+
+func TestFileRPCClnt(t *testing.T) {
+	ts, err1 := test.NewTstateAll(t)
+	if !assert.Nil(t, err1, "Error New Tstate: %v", err1) {
+		return
+	}
+
+	d := []byte("hello")
+	_, err := ts.PutFile(fn+"f", 0777, sp.OWRITE, d)
+	assert.Equal(t, nil, err)
+
+	// Use UX client to get the file via RPC
+	uxClnt, err := uxclnt.NewUXClnt(ts.FsLib, sp.UX)
+	if !assert.Nil(t, err, "Error creating UX client: %v", err) {
+		return
+	}
+
+	d1, err := uxClnt.GetFile("f")
+	if !assert.Nil(t, err, "Error getting file via RPC: %v", err) {
+		return
+	}
+	assert.Equal(t, string(d), string(d1), "File contents should match")
 
 	err = ts.Remove(fn + "f")
 	assert.Equal(t, nil, err)

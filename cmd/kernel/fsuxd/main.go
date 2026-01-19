@@ -5,7 +5,7 @@ import (
 	"path"
 
 	db "sigmaos/debug"
-	"sigmaos/proxy/ux"
+	uxsrv "sigmaos/proxy/ux/srv"
 )
 
 func main() {
@@ -17,5 +17,5 @@ func main() {
 	if err := os.MkdirAll(path.Join(rootux, "bin", "user"), 0755); err != nil {
 		db.DFatalf("Error MkdirAll: %v", err)
 	}
-	fsux.RunFsUx(rootux)
+	uxsrv.RunFsUx(rootux)
 }

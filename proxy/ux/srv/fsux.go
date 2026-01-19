@@ -19,7 +19,8 @@ var fsux *FsUx
 type FsUx struct {
 	*sigmaclnt.SigmaClnt
 	*sigmasrv.SigmaSrv
-	mount string
+	mount    string
+	UXRpcAPI *UXRpcAPI
 
 	sync.Mutex
 	ot *ObjTable
@@ -43,6 +44,9 @@ func RunFsUx(rootux string) {
 		db.DFatalf("NewSigmaSrvRootClnt %v\n", err)
 	}
 	fsux.SigmaSrv = srv
+	if err := srv.MountRPCSrv(fsux.UXRpcAPI); err != nil {
+		db.DFatalf("Err add UXRpcAPI: %v", err)
+	}
 
 	crash.Failer(sc.FsLib, crash.UX_CRASH, func(e crash.Tevent) {
 		crash.Crash()
@@ -58,7 +62,9 @@ func RunFsUx(rootux string) {
 }
 
 func NewUx(rootux string) (*FsUx, fs.Dir) {
-	fsux = &FsUx{}
+	fsux = &FsUx{
+		UXRpcAPI: newUXRpcAPI(rootux),
+	}
 	fsux.ot = NewObjTable()
 	root, sr := newDir([]string{rootux})
 	if sr != nil {

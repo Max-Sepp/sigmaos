@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+import "rpc/proto/rpc.proto";
+
+option go_package = "sigmaos/proxy/ux/proto";
+
+message UXReq {
+  string path = 1;
+  Blob blob = 2;
+}
+
+message UXRep {
+  bool oK = 1;
+  Blob blob = 2;
+}

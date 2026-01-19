@@ -225,6 +225,9 @@ const (
 	S3CLNT2                  = "S3CLNT2"
 	S3CLNT2_ERR              = S3CLNT2 + ERR
 	UX                       = "UX"
+	UX_ERR                   = UX + ERR
+	UXCLNT                   = "UXCLNT"
+	UXCLNT_ERR               = UXCLNT + ERR
 	DB                       = "DB"
 	MONGO                    = "MONGO"
 	MONGO_ERR                = "MONGO" + ERR
