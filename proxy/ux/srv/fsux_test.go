@@ -80,7 +80,7 @@ func TestFileRPCClnt(t *testing.T) {
 	assert.Equal(t, nil, err)
 
 	// Use UX client to get the file via RPC
-	uxClnt, err := uxclnt.NewUXClnt(ts.FsLib, sp.UX)
+	uxClnt, err := uxclnt.NewUXClnt(ts.FsLib, fn)
 	if !assert.Nil(t, err, "Error creating UX client: %v", err) {
 		return
 	}
