@@ -40,10 +40,6 @@ import (
 	"sigmaos/util/syncmap"
 )
 
-const (
-	PSS_SLEEP = 100 * time.Millisecond
-)
-
 // Lookup may try to read proc in a proc's procEntry before procsrv
 // has set it.  To handle this case, procEntry has a condition
 // varialble on which Lookup sleeps until procsrv sets proc.
@@ -378,7 +374,7 @@ func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 		perf.LogSpawnLatency("Paper.Setup.DownloadInitScript", uproc.GetPid(), uproc.GetSpawnTime(), uproc.GetSpawnTime())
 	}
 	perf.LogSpawnLatency("Paper.Setup.GlobalScheduling", uproc.GetPid(), uproc.GetSpawnTime(), uproc.GetSpawnTime())
-	recordPSS := db.WillBePrinted(db.PSS) && uproc.GetProgram() == "imgresize"
+	recordPSS := db.WillBePrinted(db.PSS) && uproc.GetMeasurePSS()
 	db.DPrintf(db.PROCD, "Run uproc %v", uproc)
 	perf.LogSpawnLatency("ProcSrv.Run recvd proc", uproc.GetPid(), uproc.GetSpawnTime(), perf.TIME_NOT_SET)
 	// Spawn, but don't actually run the dummy proc
@@ -517,7 +513,7 @@ func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 	}
 	if recordPSS {
 		go func(uproc *proc.Proc, ctr container.ProcContainer) {
-			time.Sleep(PSS_SLEEP)
+			time.Sleep(time.Duration(uproc.GetMeasurePSSDelayMS()) * time.Millisecond)
 			pss, err := ctr.GetPSS()
 			if err != nil {
 				db.DPrintf(db.PSS_ERR, "Err GetPss: %v", err)

@@ -1352,9 +1352,11 @@ class ProcProto final :
     kBlobFieldNumber = 5,
     kResourceResFieldNumber = 10,
     kBootScriptResourceResFieldNumber = 11,
+    kQueueableResourcePoolIDFieldNumber = 9,
     kTypeIntFieldNumber = 7,
     kRunAfterBootScriptFieldNumber = 8,
-    kQueueableResourcePoolIDFieldNumber = 9,
+    kMeasurePSSFieldNumber = 12,
+    kMeasurePSSDelayMSFieldNumber = 13,
   };
   // repeated string args = 2;
   int args_size() const;
@@ -1507,6 +1509,15 @@ class ProcProto final :
       ::ResourceReservationProto* bootscriptresourceres);
   ::ResourceReservationProto* unsafe_arena_release_bootscriptresourceres();
 
+  // uint64 queueableResourcePoolID = 9;
+  void clear_queueableresourcepoolid();
+  uint64_t queueableresourcepoolid() const;
+  void set_queueableresourcepoolid(uint64_t value);
+  private:
+  uint64_t _internal_queueableresourcepoolid() const;
+  void _internal_set_queueableresourcepoolid(uint64_t value);
+  public:
+
   // uint32 typeInt = 7;
   void clear_typeint();
   uint32_t typeint() const;
@@ -1525,13 +1536,22 @@ class ProcProto final :
   void _internal_set_runafterbootscript(bool value);
   public:
 
-  // uint64 queueableResourcePoolID = 9;
-  void clear_queueableresourcepoolid();
-  uint64_t queueableresourcepoolid() const;
-  void set_queueableresourcepoolid(uint64_t value);
+  // bool measurePSS = 12;
+  void clear_measurepss();
+  bool measurepss() const;
+  void set_measurepss(bool value);
   private:
-  uint64_t _internal_queueableresourcepoolid() const;
-  void _internal_set_queueableresourcepoolid(uint64_t value);
+  bool _internal_measurepss() const;
+  void _internal_set_measurepss(bool value);
+  public:
+
+  // uint64 measurePSSDelayMS = 13;
+  void clear_measurepssdelayms();
+  uint64_t measurepssdelayms() const;
+  void set_measurepssdelayms(uint64_t value);
+  private:
+  uint64_t _internal_measurepssdelayms() const;
+  void _internal_set_measurepssdelayms(uint64_t value);
   public:
 
   // @@protoc_insertion_point(class_scope:ProcProto)
@@ -1554,9 +1574,11 @@ class ProcProto final :
     ::Blob* blob_;
     ::ResourceReservationProto* resourceres_;
     ::ResourceReservationProto* bootscriptresourceres_;
+    uint64_t queueableresourcepoolid_;
     uint32_t typeint_;
     bool runafterbootscript_;
-    uint64_t queueableresourcepoolid_;
+    bool measurepss_;
+    uint64_t measurepssdelayms_;
     mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   };
   union { Impl_ _impl_; };
@@ -3873,6 +3895,46 @@ inline void ProcProto::set_allocated_bootscriptresourceres(::ResourceReservation
   }
   _impl_.bootscriptresourceres_ = bootscriptresourceres;
   // @@protoc_insertion_point(field_set_allocated:ProcProto.bootScriptResourceRes)
+}
+
+// bool measurePSS = 12;
+inline void ProcProto::clear_measurepss() {
+  _impl_.measurepss_ = false;
+}
+inline bool ProcProto::_internal_measurepss() const {
+  return _impl_.measurepss_;
+}
+inline bool ProcProto::measurepss() const {
+  // @@protoc_insertion_point(field_get:ProcProto.measurePSS)
+  return _internal_measurepss();
+}
+inline void ProcProto::_internal_set_measurepss(bool value) {
+  
+  _impl_.measurepss_ = value;
+}
+inline void ProcProto::set_measurepss(bool value) {
+  _internal_set_measurepss(value);
+  // @@protoc_insertion_point(field_set:ProcProto.measurePSS)
+}
+
+// uint64 measurePSSDelayMS = 13;
+inline void ProcProto::clear_measurepssdelayms() {
+  _impl_.measurepssdelayms_ = uint64_t{0u};
+}
+inline uint64_t ProcProto::_internal_measurepssdelayms() const {
+  return _impl_.measurepssdelayms_;
+}
+inline uint64_t ProcProto::measurepssdelayms() const {
+  // @@protoc_insertion_point(field_get:ProcProto.measurePSSDelayMS)
+  return _internal_measurepssdelayms();
+}
+inline void ProcProto::_internal_set_measurepssdelayms(uint64_t value) {
+  
+  _impl_.measurepssdelayms_ = value;
+}
+inline void ProcProto::set_measurepssdelayms(uint64_t value) {
+  _internal_set_measurepssdelayms(value);
+  // @@protoc_insertion_point(field_set:ProcProto.measurePSSDelayMS)
 }
 
 #ifdef __GNUC__

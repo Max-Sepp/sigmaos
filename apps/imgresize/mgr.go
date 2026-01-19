@@ -47,6 +47,7 @@ type ImgdJobConfig struct {
 	FTTaskSrvMcpu         proc.Tmcpu `json:"ft_task_srv_mcpu"`
 	ImgDim                int        `json:"img_dim"`
 	PremountS3            bool       `json:"premount_s3"`
+	MeasurePSS            bool       `json:"measure_pss"`
 }
 
 func NewImgdJobConfig(job string, workerMcpu proc.Tmcpu, workerMem proc.Tmem, persist bool, nrounds int, imgdMcpu proc.Tmcpu, useSPProxy bool, useBootScript bool, useS3Clnt bool, workerBootScriptMcpu proc.Tmcpu, workerBootScriptMem proc.Tmem, ftTaskSrvMcpu proc.Tmcpu) *ImgdJobConfig {
@@ -67,7 +68,7 @@ func NewImgdJobConfig(job string, workerMcpu proc.Tmcpu, workerMem proc.Tmem, pe
 }
 
 func (cfg *ImgdJobConfig) String() string {
-	return fmt.Sprintf("&{ job:%v workerMcpu:%v workerMem:%v persist:%v nrounds:%v imgdMcpu:%v useSPProxy:%v useBootScript:%v useS3Clnt:%v workerBootScriptMcpu:%v workerBootScriptMem:%v ftTaskSrvMcpu:%v imgDim:%v premountS3:%v }", cfg.Job, cfg.WorkerMcpu, cfg.WorkerMem, cfg.Persist, cfg.NRounds, cfg.ImgdMcpu, cfg.UseSPProxy, cfg.UseBootScript, cfg.UseS3Clnt, cfg.WorkerBootScriptMcpu, cfg.WorkerBootScriptMem, cfg.FTTaskSrvMcpu, cfg.ImgDim, cfg.PremountS3)
+	return fmt.Sprintf("&{ job:%v workerMcpu:%v workerMem:%v persist:%v nrounds:%v imgdMcpu:%v useSPProxy:%v useBootScript:%v useS3Clnt:%v workerBootScriptMcpu:%v workerBootScriptMem:%v ftTaskSrvMcpu:%v imgDim:%v premountS3:%v measurePSS:%v }", cfg.Job, cfg.WorkerMcpu, cfg.WorkerMem, cfg.Persist, cfg.NRounds, cfg.ImgdMcpu, cfg.UseSPProxy, cfg.UseBootScript, cfg.UseS3Clnt, cfg.WorkerBootScriptMcpu, cfg.WorkerBootScriptMem, cfg.FTTaskSrvMcpu, cfg.ImgDim, cfg.PremountS3, cfg.MeasurePSS)
 }
 
 func GetBootScriptWriteOut(sc *sigmaclnt.SigmaClnt) ([]byte, error) {
@@ -148,7 +149,7 @@ func NewImgdMgr[Data any](sc *sigmaclnt.SigmaClnt, jobCfg *ImgdJobConfig, em *cr
 		return nil, err
 	}
 
-	cfg := procgroupmgr.NewProcGroupConfig(1, "imgresized", []string{strconv.Itoa(int(jobCfg.WorkerMcpu)), strconv.Itoa(int(jobCfg.WorkerMem)), strconv.Itoa(jobCfg.NRounds), TaskSvcId(imgd.job), strconv.FormatBool(jobCfg.UseSPProxy), strconv.FormatBool(jobCfg.UseBootScript), strconv.Itoa(int(jobCfg.WorkerBootScriptMcpu)), strconv.Itoa(int(jobCfg.WorkerBootScriptMem)), strconv.FormatBool(jobCfg.WriteOutViaBootScript), strconv.Itoa(jobCfg.ImgDim), strconv.FormatBool(jobCfg.PremountS3)}, jobCfg.ImgdMcpu, ImgSvcId(jobCfg.Job))
+	cfg := procgroupmgr.NewProcGroupConfig(1, "imgresized", []string{strconv.Itoa(int(jobCfg.WorkerMcpu)), strconv.Itoa(int(jobCfg.WorkerMem)), strconv.Itoa(jobCfg.NRounds), TaskSvcId(imgd.job), strconv.FormatBool(jobCfg.UseSPProxy), strconv.FormatBool(jobCfg.UseBootScript), strconv.Itoa(int(jobCfg.WorkerBootScriptMcpu)), strconv.Itoa(int(jobCfg.WorkerBootScriptMem)), strconv.FormatBool(jobCfg.WriteOutViaBootScript), strconv.Itoa(jobCfg.ImgDim), strconv.FormatBool(jobCfg.PremountS3), strconv.FormatBool(jobCfg.MeasurePSS)}, jobCfg.ImgdMcpu, ImgSvcId(jobCfg.Job))
 
 	if jobCfg.Persist {
 		cfg.Persist(sc.FsLib)
@@ -223,7 +224,7 @@ func IsThumbNail(fn string) bool {
 	return strings.Contains(fn, "-thumb")
 }
 
-func GetMkProcFn(serverId task.FtTaskSvcId, nrounds int, imgDim int, workerMcpu proc.Tmcpu, workerMem proc.Tmem, workerBootScriptMcpu proc.Tmcpu, workerBootScriptMem proc.Tmem, bootScript []byte, bootScriptWriteOut []byte, useSPProxy bool, premountS3 bool, s3EP *sp.Tendpoint) fttask_mgr.TnewProc[Ttask] {
+func GetMkProcFn(serverId task.FtTaskSvcId, nrounds int, imgDim int, workerMcpu proc.Tmcpu, workerMem proc.Tmem, workerBootScriptMcpu proc.Tmcpu, workerBootScriptMem proc.Tmem, bootScript []byte, bootScriptWriteOut []byte, useSPProxy bool, premountS3 bool, s3EP *sp.Tendpoint, measurePSS bool) fttask_mgr.TnewProc[Ttask] {
 	return func(task fttask_clnt.Task[Ttask]) (*proc.Proc, error) {
 		db.DPrintf(db.IMGD, "mkProc %v", task)
 		fn := task.Data.FileName
@@ -231,6 +232,7 @@ func GetMkProcFn(serverId task.FtTaskSvcId, nrounds int, imgDim int, workerMcpu 
 		p.SetMcpu(workerMcpu)
 		p.SetMem(workerMem)
 		p.SetShmemMB(SHMEM_MB)
+		p.SetMeasurePSS(measurePSS, 100)
 		if premountS3 {
 			p.SetCachedEndpoint(filepath.Join(sp.S3, sp.LOCAL), s3EP)
 		}

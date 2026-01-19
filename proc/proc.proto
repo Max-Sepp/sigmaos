@@ -65,4 +65,6 @@ message ProcProto {
   uint64 queueableResourcePoolID = 9;
   ResourceReservationProto resourceRes = 10;
   ResourceReservationProto bootScriptResourceRes = 11;
+  bool measurePSS = 12;
+  uint64 measurePSSDelayMS = 13;
 }

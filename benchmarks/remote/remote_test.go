@@ -1665,6 +1665,7 @@ func TestImgProcess(t *testing.T) {
 								WorkerBootScriptMem:   proc.Tmem(0),
 								FTTaskSrvMcpu:         proc.Tmcpu(50),
 								PremountS3:            true,
+								MeasurePSS:            pss,
 							},
 							InputPath:      inputPath,
 							NTasks:         ntasks,

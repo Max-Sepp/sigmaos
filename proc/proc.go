@@ -481,6 +481,11 @@ func (p *Proc) GetShmemMB() Tmem {
 	return p.ProcEnvProto.GetShmemMB()
 }
 
+func (p *Proc) SetMeasurePSS(measure bool, delayMS int) {
+	p.MeasurePSS = measure
+	p.MeasurePSSDelayMS = uint64(delayMS)
+}
+
 func (p *Proc) GetResourceReservation() *ResourceReservation {
 	return &ResourceReservation{p.ResourceRes}
 }
