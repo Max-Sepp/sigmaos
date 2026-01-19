@@ -230,6 +230,7 @@ func GetMkProcFn(serverId task.FtTaskSvcId, nrounds int, imgDim int, workerMcpu 
 		p := proc.NewProcPid(sp.GenPid(string(serverId)), "imgresize", []string{fn, ThumbName(fn), strconv.Itoa(nrounds), strconv.FormatBool(task.Data.UseS3Clnt), strconv.FormatBool(task.Data.WriteOutViaBootScript), strconv.Itoa(imgDim)})
 		p.SetMcpu(workerMcpu)
 		p.SetMem(workerMem)
+		p.SetShmemMB(SHMEM_MB)
 		if premountS3 {
 			p.SetCachedEndpoint(filepath.Join(sp.S3, sp.LOCAL), s3EP)
 		}

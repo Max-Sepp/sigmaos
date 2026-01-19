@@ -96,7 +96,7 @@ func TestResizeProcInitScriptSimple(t *testing.T) {
 	}
 	p := proc.NewProc("imgresize", []string{inS3, outS3, "1", "true", "false", "70"})
 	p.GetProcEnv().UseSPProxy = true
-	p.GetProcEnv().SetShmemMB(imgresize.SHMEM_MB)
+	p.SetShmemMB(imgresize.SHMEM_MB)
 	p.SetBootScript(bootScript, bootScriptInput)
 	p.SetRunBootScript(true)
 	// Run after boot script
