@@ -25,6 +25,7 @@ import (
 	kernelclnt "sigmaos/kernel/clnt"
 	"sigmaos/proc"
 	spproxysrv "sigmaos/proxy/sigmap/srv"
+	wasmrpc "sigmaos/proxy/wasm/rpc"
 	chunkclnt "sigmaos/sched/msched/proc/chunk/clnt"
 	chunksrv "sigmaos/sched/msched/proc/chunk/srv"
 	"sigmaos/sched/msched/proc/proto"
@@ -425,10 +426,11 @@ func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 		informedWG.Wait()
 		db.DPrintf(db.PROCD, "[%v] Wait for bootscript completion", uproc.GetPid())
 		start := time.Now()
-		if err := ps.spc.WaitBootScriptCompletion(uproc.GetPid()); err != nil {
+		status, msg, err := ps.spc.WaitBootScriptCompletion(uproc.GetPid())
+		if err != nil {
 			db.DFatalf("[%v] Wait for boot script completion err: %v", uproc.GetPid(), err)
 		}
-		db.DPrintf(db.PROCD, "[%v] Done waiting for bootscript completion", uproc.GetPid())
+		db.DPrintf(db.PROCD, "[%v] Done waiting for bootscript completion: %v %v", uproc.GetPid(), status, msg)
 		perf.LogSpawnLatency("ProcSrv.Run WaitBootScriptCompletion", uproc.GetPid(), uproc.GetSpawnTime(), start)
 		if recordPSS {
 			pssPost, err := ps.spc.GetPSS()
@@ -436,6 +438,9 @@ func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 				db.DPrintf(db.PSS_ERR, "Err GetPss spproxy post: %v", err)
 			}
 			db.DPrintf(db.PSS, "[%v] BootScript PSS: %vKB", uproc.GetPid(), pssPost-pssPre)
+		}
+		if status == wasmrpc.EXIT_ABORT_LAUNCH {
+			return fmt.Errorf("Aborted launch: %v", msg)
 		}
 	}
 	if uproc.GetIsQueueable() {
