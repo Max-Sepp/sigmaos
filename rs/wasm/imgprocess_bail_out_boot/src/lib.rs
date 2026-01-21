@@ -30,6 +30,7 @@ pub fn boot(b: *mut c_char, buf_sz: usize) {
     let rpc_bytes = get_req.write_to_bytes().unwrap();
     let pn = "name/s3/".to_owned() + &kid;
     sigmaos::send_rpc(buf, 0, &pn, "S3RpcAPI.GetObject", &rpc_bytes, 2);
+    sigmaos::exit(buf, sigmaos::EXIT_STATUS_OK, sigmaos::EXIT_MSG_OK);
 }
 
 // TODO: abort

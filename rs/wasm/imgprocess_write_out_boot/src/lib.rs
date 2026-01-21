@@ -35,4 +35,5 @@ pub fn boot(b: *mut c_char, buf_sz: usize) {
     sigmaos::recv_rpc(1, false) as usize;
     // Forward the result to S3 to be written back
     sigmaos::forward_rpc(buf, 1, 2, &pn, 1);
+    sigmaos::exit(buf, sigmaos::EXIT_STATUS_OK, sigmaos::EXIT_MSG_OK);
 }

@@ -5,6 +5,7 @@ import (
 	db "sigmaos/debug"
 	"sigmaos/proc"
 	spproto "sigmaos/proxy/sigmap/proto"
+	wasmrpc "sigmaos/proxy/wasm/rpc"
 	"sigmaos/rpc"
 	rpcclnt "sigmaos/rpc/clnt"
 	rpcchan "sigmaos/rpc/clnt/channel/rpcchannel"
@@ -59,21 +60,23 @@ func (scc *CtrlClnt) InformIncomingProc(p *proc.Proc) error {
 }
 
 // Wait until a proc's bootscript has completed
-func (scc *CtrlClnt) WaitBootScriptCompletion(pid sp.Tpid) error {
+func (scc *CtrlClnt) WaitBootScriptCompletion(pid sp.Tpid) (wasmrpc.Tstatus, string, error) {
 	db.DPrintf(db.SPPROXYCLNT, "[%v] Wait for boot script completion", pid)
 	req := spproto.SigmaWaitBootScriptReq{
 		PIDStr: pid.String(),
 	}
-	rep := spproto.SigmaErrRep{}
+	rep := spproto.SigmaWaitBootScriptRep{}
 	err := scc.rpcc.RPC("CtrlAPI.WaitBootScriptCompletion", &req, &rep)
-	db.DPrintf(db.SPPROXYCLNT, "[%v] Done waiting for boot script completion", pid)
+	status := wasmrpc.Tstatus(rep.Status)
+	msg := rep.Msg
+	db.DPrintf(db.SPPROXYCLNT, "[%v] Done waiting for boot script completion: %v %v", pid, status, msg)
 	if err != nil {
-		return err
+		return 0, sp.NOT_SET, err
 	}
 	if rep.Err.TErrCode() != serr.TErrNoError {
-		return sp.NewErr(rep.Err)
+		return 0, sp.NOT_SET, sp.NewErr(rep.Err)
 	}
-	return nil
+	return status, msg, nil
 }
 
 // Tell spproxyd a proc is done

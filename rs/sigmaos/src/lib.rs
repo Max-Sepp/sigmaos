@@ -1,5 +1,10 @@
-use std::mem;
 use std::os::raw::c_char;
+use std::{mem, process};
+
+pub const EXIT_STATUS_OK: u64 = 0;
+pub const EXIT_STATUS_ERR: u64 = 1;
+pub const EXIT_STATUS_ABORT_LAUNCH: u64 = 2;
+pub const EXIT_MSG_OK: &str = "EXIT_OK";
 
 mod sigmaos_host {
     #[link(wasm_import_module = "sigmaos_host")]
@@ -7,6 +12,7 @@ mod sigmaos_host {
         pub fn send_rpc(rpc_idx: u64, pn_len: u64, method_len: u64, rpc_len: u64, n_outiov: u64);
         pub fn recv_rpc(rpc_idx: u64, get_data: u64) -> u64;
         pub fn forward_rpc(rpc_idx: u64, new_rpc_idx: u64, pn_len: u64, n_outiov: u64);
+        pub fn exit(status: u64, msg_len: u64);
     }
 }
 
@@ -52,6 +58,17 @@ pub fn forward_rpc(buf: &mut [u8], rpc_idx: u64, new_rpc_idx: u64, pn: &str, n_o
         idx += 1;
     }
     unsafe { sigmaos_host::forward_rpc(rpc_idx, new_rpc_idx, pn_len, n_outiov) }
+}
+
+pub fn exit(buf: &mut [u8], status: u64, msg: &str) -> ! {
+    let mut idx = 0;
+    let msg_len = msg.len() as u64;
+    for c in msg.bytes() {
+        buf[idx] = c;
+        idx += 1;
+    }
+    unsafe { sigmaos_host::exit(status, msg_len) }
+    process::exit(0);
 }
 
 #[unsafe(export_name = "allocate")]

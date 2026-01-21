@@ -11,6 +11,7 @@ import (
 	dialproxyclnt "sigmaos/dialproxy/clnt"
 	"sigmaos/malloc"
 	"sigmaos/proc"
+	wasmrpc "sigmaos/proxy/wasm/rpc"
 	wasmrt "sigmaos/proxy/wasm/rpc/wasmer"
 	rpcchan "sigmaos/rpc/clnt/channel"
 	sessp "sigmaos/session/proto"
@@ -85,11 +86,11 @@ func (psm *ProcStateMgr) DelProcState(p *proc.Proc) {
 	}
 }
 
-func (psm *ProcStateMgr) WaitBootScriptCompletion(pid sp.Tpid) error {
+func (psm *ProcStateMgr) WaitBootScriptCompletion(pid sp.Tpid) (wasmrpc.Tstatus, string, error) {
 	ps, ok := psm.getProcState(pid)
 	if !ok {
 		db.DPrintf(db.SPPROXYSRV_ERR, "Try to wait for bootscript completion for unknown proc: %v", pid)
-		return fmt.Errorf("Try to wait for bootscript completion for unknown proc: %v", pid)
+		return 0, sp.NOT_SET, fmt.Errorf("Try to wait for bootscript completion for unknown proc: %v", pid)
 	}
 	return ps.WaitBootScriptCompletion()
 }
@@ -228,8 +229,10 @@ type procState struct {
 	wasmScriptBooted         bool
 	delRPCStartSet           bool
 	shmAlloc                 malloc.Allocator
-	err                      error // Creation result
-	bsErr                    error // BootScript result
+	err                      error           // Creation result
+	bsStatus                 wasmrpc.Tstatus // BootScript exit status
+	bsMsg                    string          // BootScript exit message
+	bsErr                    error           // BootScript result
 }
 
 func newProcState(spps *SPProxySrv, pe *proc.ProcEnv, p *proc.Proc) *procState {
@@ -313,21 +316,23 @@ func (ps *procState) setSigmaClnt(sc *sigmaclnt.SigmaClnt, epcc *epcacheclnt.End
 	ps.cond.Broadcast()
 }
 
-func (ps *procState) WaitBootScriptCompletion() error {
+func (ps *procState) WaitBootScriptCompletion() (wasmrpc.Tstatus, string, error) {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 
 	for !ps.bootScriptCompleted {
 		ps.bsCond.Wait()
 	}
-	return ps.bsErr
+	return ps.bsStatus, ps.bsMsg, ps.bsErr
 }
 
-func (ps *procState) bootScriptDone(err error) {
+func (ps *procState) bootScriptDone(status wasmrpc.Tstatus, msg string, err error) {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 
 	ps.bootScriptCompleted = true
+	ps.bsStatus = status
+	ps.bsMsg = msg
 	ps.bsErr = err
 	ps.bsCond.Broadcast()
 }
@@ -380,11 +385,9 @@ func (ps *procState) createSigmaClnt(spps *SPProxySrv) {
 		ps.wasmScriptStart = time.Now()
 		go func() {
 			// Run the module
-			err := ps.wrt.RunModule(ps.p.GetPid(), ps.p.GetSpawnTime(), ps.p.GetBootScript(), ps.p.GetBootScriptInput())
-			// Wait for any outstanding RPCs it sent asynchronously
-			rpcAPI.(*WASMRPCProxy).WaitForOutstandingRPCs()
+			status, msg, err := ps.wrt.RunModule(ps.p.GetPid(), ps.p.GetSpawnTime(), ps.p.GetBootScript(), ps.p.GetBootScriptInput())
 			// Mark the script as done
-			ps.bootScriptDone(err)
+			ps.bootScriptDone(status, msg, err)
 		}()
 	}
 	var epcc *epcacheclnt.EndpointCacheClnt

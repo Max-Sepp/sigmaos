@@ -18,22 +18,26 @@ import (
 )
 
 type WASMRPCProxy struct {
-	wg  sync.WaitGroup
-	spp *SPProxySrv
-	sc  *sigmaclnt.SigmaClnt
-	p   *proc.Proc
+	mu         sync.Mutex
+	cond       *sync.Cond
+	wg         sync.WaitGroup
+	spp        *SPProxySrv
+	sc         *sigmaclnt.SigmaClnt
+	p          *proc.Proc
+	exitStatus wasmrpc.Tstatus
+	exitMsg    string
+	exitErr    error
+	exited     bool
 }
 
-func NewWASMRPCProxy(spp *SPProxySrv, sc *sigmaclnt.SigmaClnt, p *proc.Proc) wasmrpc.RPCAPI {
-	return &WASMRPCProxy{
+func NewWASMRPCProxy(spp *SPProxySrv, sc *sigmaclnt.SigmaClnt, p *proc.Proc) wasmrpc.CoSandboxAPIImpl {
+	wp := &WASMRPCProxy{
 		spp: spp,
 		sc:  sc,
 		p:   p,
 	}
-}
-
-func (wp *WASMRPCProxy) WaitForOutstandingRPCs() {
-	wp.wg.Wait()
+	wp.cond = sync.NewCond(&wp.mu)
+	return wp
 }
 
 func (wp *WASMRPCProxy) Send(rpcIdx uint64, pn string, method string, b []byte, nOutIOV uint64) error {
@@ -100,4 +104,35 @@ func (wp *WASMRPCProxy) Forward(rpcIdx uint64, newRPCIdx uint64, pn string, nOut
 		wp.spp.runDelegatedRPC(wp.sc, wp.p, newRPCIdx, pn, iniov, nOutIOV+1)
 	}()
 	return nil
+}
+
+func (wp *WASMRPCProxy) Exit(status wasmrpc.Tstatus, msg string) error {
+	db.DPrintf(db.SPPROXYSRV, "[%v] BootScript called exited status %v msg %v", wp.p.GetPid(), status, msg)
+	wp.mu.Lock()
+	defer wp.mu.Unlock()
+
+	wp.exitStatus = status
+	wp.exitMsg = msg
+	wp.exitErr = nil
+	wp.exited = true
+	wp.cond.Broadcast()
+
+	db.DPrintf(db.SPPROXYSRV, "[%v] BootScript exited RPCs done status %v msg %v", wp.p.GetPid(), status, msg)
+	db.DPrintf(db.ALWAYS, "[%v] BootScript exited done status %v msg %v", wp.p.GetPid(), status, msg)
+	return nil
+}
+
+func (wp *WASMRPCProxy) WaitExit() (wasmrpc.Tstatus, string, error) {
+	db.DPrintf(db.SPPROXYSRV, "[%v] BootScript WaitExit", wp.p.GetPid())
+	// Wait for any outstanding RPCs
+	wp.wg.Wait()
+
+	wp.mu.Lock()
+	defer wp.mu.Unlock()
+
+	for !wp.exited {
+		wp.cond.Wait()
+	}
+	db.DPrintf(db.SPPROXYSRV, "[%v] BootScript WaitExit done", wp.p.GetPid())
+	return wp.exitStatus, wp.exitMsg, wp.exitErr
 }

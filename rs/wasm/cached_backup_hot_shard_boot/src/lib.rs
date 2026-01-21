@@ -42,4 +42,5 @@ pub fn boot(b: *mut c_char, buf_sz: usize) {
             1,
         );
     }
+    sigmaos::exit(buf, sigmaos::EXIT_STATUS_OK, sigmaos::EXIT_MSG_OK);
 }

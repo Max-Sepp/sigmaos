@@ -11,6 +11,12 @@ message SigmaWaitBootScriptReq {
         string pIDStr = 1;
 }
 
+message SigmaWaitBootScriptRep {
+        uint64 status = 1;
+        string msg = 2;
+        Rerror err = 3;
+}
+
 message SigmaInformProcReq {
         ProcProto procProto = 1;
 }

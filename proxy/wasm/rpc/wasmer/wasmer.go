@@ -16,11 +16,11 @@ const (
 )
 
 type WasmerRuntime struct {
-	rpcAPI       wasmrpc.RPCAPI
+	apiImpl      wasmrpc.CoSandboxAPIImpl
 	precompStore *wasmer.Store // Store used for WASM script precompilation
 }
 
-func NewWasmerRuntime(rpcAPI wasmrpc.RPCAPI) *WasmerRuntime {
+func NewWasmerRuntime(apiImpl wasmrpc.CoSandboxAPIImpl) *WasmerRuntime {
 	// TODO: get LLVM compiler to work, since it produces faster (and smaller)
 	// binaries
 	// TODO: try this https://github.com/wasmerio/wasmer-go/issues/222
@@ -28,7 +28,7 @@ func NewWasmerRuntime(rpcAPI wasmrpc.RPCAPI) *WasmerRuntime {
 	cfg := wasmer.NewConfig().UseCraneliftCompiler()
 	engine := wasmer.NewEngineWithConfig(cfg)
 	return &WasmerRuntime{
-		rpcAPI:       rpcAPI,
+		apiImpl:      apiImpl,
 		precompStore: wasmer.NewStore(engine),
 	}
 }
@@ -51,14 +51,14 @@ func (wrt *WasmerRuntime) PrecompileModule(wasmBytes []byte) ([]byte, error) {
 	return compiledModule, nil
 }
 
-func (wrt *WasmerRuntime) RunModule(pid sp.Tpid, spawnTime time.Time, compiledModule []byte, inputBytes []byte) error {
+func (wrt *WasmerRuntime) RunModule(pid sp.Tpid, spawnTime time.Time, compiledModule []byte, inputBytes []byte) (wasmrpc.Tstatus, string, error) {
 	engine := wasmer.NewEngine()
 	store := wasmer.NewStore(engine)
 	module, err := wasmer.DeserializeModule(store, compiledModule)
 	if err != nil {
 		db.DPrintf(db.ERROR, "[%v] Err in compiled WASM module deserialization: %v", pid, err)
 		db.DPrintf(db.WASMRT_ERR, "[%v] Err in compiled WASM module deserialization: %v", pid, err)
-		return err
+		return wasmrpc.EXIT_ERR, sp.NOT_SET, err
 	}
 	db.DPrintf(db.WASMRT, "Deserialized compiled WASM module")
 	var buf []byte
@@ -72,6 +72,7 @@ func (wrt *WasmerRuntime) RunModule(pid sp.Tpid, spawnTime time.Time, compiledMo
 			"send_rpc":    wrt.newSendRPCFn(store, &instance, &wasmBufPtr, pid),
 			"recv_rpc":    wrt.newRecvRPCFn(store, &instance, &wasmBufPtr, pid),
 			"forward_rpc": wrt.newForwardRPCFn(store, &instance, &wasmBufPtr, pid),
+			"exit":        wrt.newExitFn(store, &instance, &wasmBufPtr, pid),
 		},
 	)
 	start := time.Now()
@@ -80,7 +81,7 @@ func (wrt *WasmerRuntime) RunModule(pid sp.Tpid, spawnTime time.Time, compiledMo
 	if err != nil {
 		db.DPrintf(db.ERROR, "[%v] Err instantiate WASM module: %v", pid, err)
 		db.DPrintf(db.WASMRT_ERR, "[%v] Err instantiate WASM module: %v", pid, err)
-		return err
+		return wasmrpc.EXIT_ERR, sp.NOT_SET, err
 	}
 	perf.LogSpawnLatency("WASM module instantiation", pid, perf.TIME_NOT_SET, start)
 	// Get a function pointer to the module's allocate function, which the
@@ -89,13 +90,13 @@ func (wrt *WasmerRuntime) RunModule(pid sp.Tpid, spawnTime time.Time, compiledMo
 	if err != nil {
 		db.DPrintf(db.ERROR, "[%v] Err get WASM module allocate fn: %v", pid, err)
 		db.DPrintf(db.WASMRT_ERR, "[%v] Err get WASM module allocate fn: %v", pid, err)
-		return err
+		return wasmrpc.EXIT_ERR, sp.NOT_SET, err
 	}
 	memPtr, err := allocFn(SHARED_BUF_SZ)
 	if err != nil {
 		db.DPrintf(db.ERROR, "[%v] Err allocate shared buffer with WASM module: %v", pid, err)
 		db.DPrintf(db.WASMRT_ERR, "[%v] Err allocate shared buffer with WASM module: %v", pid, err)
-		return err
+		return wasmrpc.EXIT_ERR, sp.NOT_SET, err
 	}
 	wasmBufPtr = memPtr.(int32)
 	db.DPrintf(db.WASMRT, "[%v] WASM-allocated buffer address: %v", pid, wasmBufPtr)
@@ -103,7 +104,7 @@ func (wrt *WasmerRuntime) RunModule(pid sp.Tpid, spawnTime time.Time, compiledMo
 	if err != nil {
 		db.DPrintf(db.ERROR, "[%v] Err get WASM instance memory: %v", pid, err)
 		db.DPrintf(db.WASMRT_ERR, "[%v] Err get WASM instance memory: %v", pid, err)
-		return err
+		return wasmrpc.EXIT_ERR, sp.NOT_SET, err
 	}
 	// Create a Go buffer from the allocated WASM shared buffer
 	buf = mem.Data()[wasmBufPtr : wasmBufPtr+SHARED_BUF_SZ]
@@ -114,7 +115,7 @@ func (wrt *WasmerRuntime) RunModule(pid sp.Tpid, spawnTime time.Time, compiledMo
 	if err != nil {
 		db.DPrintf(db.ERROR, "[%v] Err get WASM boot function: %v", pid, err)
 		db.DPrintf(db.WASMRT_ERR, "[%v] Err get WASM boot function: %v", pid, err)
-		return err
+		return wasmrpc.EXIT_ERR, sp.NOT_SET, err
 	}
 	start = time.Now()
 	// Call the boot function and inform it of the size & address of the shared
@@ -122,11 +123,11 @@ func (wrt *WasmerRuntime) RunModule(pid sp.Tpid, spawnTime time.Time, compiledMo
 	if _, err := boot(wasmBufPtr, SHARED_BUF_SZ); err != nil {
 		db.DPrintf(db.ERROR, "[%v] Err get WASM instance memory: %v", pid, err)
 		db.DPrintf(db.WASMRT_ERR, "[%v] Err get WASM instance memory: %v", pid, err)
-		return err
+		return wasmrpc.EXIT_ERR, sp.NOT_SET, err
 	}
 	perf.LogSpawnLatency("WASM module ran", pid, spawnTime, start)
 	db.DPrintf(db.WASMRT, "[%v] Successfully ran WASM boot script", pid)
-	return nil
+	return wrt.apiImpl.WaitExit()
 }
 
 func (wrt *WasmerRuntime) newSendRPCFn(store *wasmer.Store, instance **wasmer.Instance, wasmBufPtr *int32, pid sp.Tpid) *wasmer.Function {
@@ -160,7 +161,7 @@ func (wrt *WasmerRuntime) newSendRPCFn(store *wasmer.Store, instance **wasmer.In
 			rpcBytes := make([]byte, rpcLen)
 			copy(rpcBytes, buf[idx:idx+rpcLen])
 			db.DPrintf(db.WASMRT, "SendRPC(%v) pn:%v method:%v nbyte:%v", rpcIdx, pn, method, len(rpcBytes))
-			err = wrt.rpcAPI.Send(rpcIdx, pn, method, rpcBytes, nOutIOV)
+			err = wrt.apiImpl.Send(rpcIdx, pn, method, rpcBytes, nOutIOV)
 			if err != nil {
 				db.DPrintf(db.WASMRT_ERR, "Err SendRPC(%v): %v", rpcIdx, err)
 				return []wasmer.Value{}, err
@@ -181,7 +182,7 @@ func (wrt *WasmerRuntime) newRecvRPCFn(store *wasmer.Store, instance **wasmer.In
 			getData := args[1].I64() > 0
 			db.DPrintf(db.WASMRT, "RecvRPC(%v)", rpcIdx)
 			// Receive the RPC reply
-			replyBytes, err := wrt.rpcAPI.Recv(rpcIdx, getData)
+			replyBytes, err := wrt.apiImpl.Recv(rpcIdx, getData)
 			if err != nil {
 				db.DPrintf(db.WASMRT_ERR, "Err RecvRPC(%v): %v", rpcIdx, err)
 				return []wasmer.Value{}, err
@@ -229,12 +230,43 @@ func (wrt *WasmerRuntime) newForwardRPCFn(store *wasmer.Store, instance **wasmer
 			// Get the RPC destination pathname from the shared buffer
 			pn := string(buf[0:pnLen])
 			db.DPrintf(db.WASMRT, "ForwardRPC(%v->%v) pn:%v nOutIOV:%v", rpcIdx, newRPCIdx, pn, nOutIOV)
-			err = wrt.rpcAPI.Forward(rpcIdx, newRPCIdx, pn, nOutIOV)
+			err = wrt.apiImpl.Forward(rpcIdx, newRPCIdx, pn, nOutIOV)
 			if err != nil {
 				db.DPrintf(db.WASMRT_ERR, "Err ForwardRPC(%v->%v): %v", rpcIdx, newRPCIdx, err)
 				return []wasmer.Value{}, err
 			}
 			db.DPrintf(db.WASMRT, "ForwardRPC(%v->%v) done", rpcIdx, newRPCIdx)
+			return []wasmer.Value{}, nil
+		},
+	)
+}
+
+func (wrt *WasmerRuntime) newExitFn(store *wasmer.Store, instance **wasmer.Instance, wasmBufPtr *int32, pid sp.Tpid) *wasmer.Function {
+	return wasmer.NewFunction(
+		store,
+		wasmer.NewFunctionType(wasmer.NewValueTypes(wasmer.I64, wasmer.I64), wasmer.NewValueTypes()),
+		func(args []wasmer.Value) ([]wasmer.Value, error) {
+			// Get the RPC index ID
+			status := wasmrpc.Tstatus(args[0].I64())
+			msgLen := uint64(args[1].I64())
+			mem, err := (*instance).Exports.GetMemory("memory")
+			if err != nil {
+				db.DPrintf(db.ERROR, "[%v] Err get WASM instance memory: %v", pid, err)
+				db.DPrintf(db.WASMRT_ERR, "[%v] Err get WASM instance memory: %v", pid, err)
+				return []wasmer.Value{}, err
+			}
+			// Create a Go buffer from the allocated WASM shared buffer
+			buf := (*mem).Data()[*wasmBufPtr : *wasmBufPtr+SHARED_BUF_SZ]
+			db.DPrintf(db.WASMRT, "exit status: %v msgLen:%v buf:%p bufStart:%p", status, msgLen, buf, &buf[0])
+			// Get the RPC destination pathname from the shared buffer
+			msg := string(buf[0:msgLen])
+			db.DPrintf(db.WASMRT, "Exit(%v->%v) status:%v msg:%v", status, msg)
+			err = wrt.apiImpl.Exit(status, msg)
+			if err != nil {
+				db.DPrintf(db.WASMRT_ERR, "Err Exit status:%v msg:%v err:%v", status, msg, err)
+				return []wasmer.Value{}, err
+			}
+			db.DPrintf(db.WASMRT, "Exit status:%v msg:%v", status, msg)
 			return []wasmer.Value{}, nil
 		},
 	)

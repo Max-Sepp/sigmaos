@@ -33,4 +33,5 @@ pub fn boot(b: *mut c_char, buf_sz: usize) {
         &rpc_bytes,
         (1 + shards.len()).try_into().unwrap(),
     );
+    sigmaos::exit(buf, sigmaos::EXIT_STATUS_OK, sigmaos::EXIT_MSG_OK);
 }

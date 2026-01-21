@@ -17,6 +17,7 @@ import (
 	dialproxysrv "sigmaos/dialproxy/srv"
 	"sigmaos/proc"
 	"sigmaos/proxy/sigmap/clnt"
+	wasmrpc "sigmaos/proxy/wasm/rpc"
 	"sigmaos/sigmaclnt"
 	"sigmaos/sigmaclnt/fidclnt"
 	sp "sigmaos/sigmap"
@@ -134,11 +135,11 @@ func (spps *SPProxySrv) IncomingProc(p *proc.Proc) {
 	spps.psm.AllocProcState(p.GetProcEnv(), p)
 }
 
-func (spps *SPProxySrv) WaitBootScriptCompletion(pid sp.Tpid) error {
+func (spps *SPProxySrv) WaitBootScriptCompletion(pid sp.Tpid) (wasmrpc.Tstatus, string, error) {
 	db.DPrintf(db.SPPROXYSRV, "[%v] Wait for completion of bootscript", pid)
-	err := spps.psm.WaitBootScriptCompletion(pid)
-	db.DPrintf(db.SPPROXYSRV, "[%v] Done waiting for completion of bootscript: %v", pid, err)
-	return err
+	status, msg, err := spps.psm.WaitBootScriptCompletion(pid)
+	db.DPrintf(db.SPPROXYSRV, "[%v] Done waiting for completion of bootscript: %v %v %v", pid, status, msg, err)
+	return status, msg, err
 }
 
 func (spps *SPProxySrv) ProcDone(p *proc.Proc) {
@@ -191,7 +192,7 @@ func (sppsc *SPProxySrvCmd) InformProcDone(p *proc.Proc) error {
 	return sppsc.cc.InformProcDone(p)
 }
 
-func (sppsc *SPProxySrvCmd) WaitBootScriptCompletion(pid sp.Tpid) error {
+func (sppsc *SPProxySrvCmd) WaitBootScriptCompletion(pid sp.Tpid) (wasmrpc.Tstatus, string, error) {
 	return sppsc.cc.WaitBootScriptCompletion(pid)
 }
 
