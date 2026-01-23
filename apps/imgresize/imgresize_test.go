@@ -172,7 +172,7 @@ func TestResizeProcInitScriptBailOut(t *testing.T) {
 	p.SetBootScript(bootScript, bootScriptInput)
 	p.SetRunBootScript(true)
 	// Run after boot script
-	p.SetRunAfterBootScript(false)
+	p.SetRunAfterBootScript(true)
 	p.SetMcpu(1000)
 	err = mrts.GetRealm(test.REALM1).Spawn(p)
 	assert.Nil(t, err, "Spawn")
@@ -180,7 +180,7 @@ func TestResizeProcInitScriptBailOut(t *testing.T) {
 	assert.Nil(t, err, "WaitStart error")
 	status, err := mrts.GetRealm(test.REALM1).WaitExit(p.GetPid())
 	assert.Nil(t, err, "WaitExit error %v", err)
-	assert.True(t, status.IsStatusOK(), "WaitExit status error: %v", status)
+	assert.True(t, status.IsStatusErr(), "WaitExit status not error (should be error due to abort): %v", status)
 }
 
 type Tstate struct {
