@@ -111,7 +111,6 @@ func (wp *WASMRPCProxy) Exit(status wasmrpc.Tstatus, msg string) error {
 	wp.cond.Broadcast()
 
 	db.DPrintf(db.SPPROXYSRV, "[%v] BootScript exited RPCs done status %v msg %v", wp.p.GetPid(), status, msg)
-	db.DPrintf(db.ALWAYS, "[%v] BootScript exited done status %v msg %v", wp.p.GetPid(), status, msg)
 	return nil
 }
 

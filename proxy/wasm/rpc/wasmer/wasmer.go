@@ -206,7 +206,6 @@ func (wrt *WasmerRuntime) newRecvRPCFn(store *wasmer.Store, instance **wasmer.In
 				for i := 1; i < replyIOV.Len(); i++ {
 					frame := replyIOV.GetFrame(i)
 					frameLen := uint64(frame.Len() + 8)
-					db.DPrintf(db.ALWAYS, "idx %v frame len %v", bufIdx, frameLen)
 					var b bytes.Buffer
 					if err := binary.Write(&b, binary.LittleEndian, frameLen); err != nil {
 						db.DFatalf("Err encode buf len: %v", err)
@@ -219,7 +218,6 @@ func (wrt *WasmerRuntime) newRecvRPCFn(store *wasmer.Store, instance **wasmer.In
 					copy(buf[bufIdx+8:], frame.GetBuf())
 					bufIdx += int(frameLen)
 				}
-				db.DPrintf(db.ALWAYS, "done bufIdx %v buf: %v", bufIdx, buf[:bufIdx])
 				// Report the RPC reply's length back to the WASM module
 				replyLen = replyIOV.Len() - 1
 			}
