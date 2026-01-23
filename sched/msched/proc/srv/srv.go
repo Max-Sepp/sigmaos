@@ -533,9 +533,7 @@ func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 	}
 	nRunning = ps.nRunning.Add(-1)
 	db.DPrintf(db.PROCD, "[%v] nRunning after: %v", uproc.GetProgram(), nRunning)
-	if false {
-		scontainer.CleanupUProc(uproc.GetPid())
-	}
+	scontainer.CleanupUProc(uproc.GetPid())
 	ps.procs.Delete(pid)
 	if uproc.GetProcEnv().UseSPProxy {
 		if err := ps.spc.InformProcDone(uproc); err != nil {
