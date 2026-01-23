@@ -20,7 +20,7 @@ type ImgSrvRPC struct {
 
 func NewRPCSrv(imgd *ImgSrv) *ImgSrvRPC {
 	rpcs := &ImgSrvRPC{imgd: imgd}
-	rpcs.mkProc = imgresize.GetMkProcFn(imgd.ftclnt.ServiceId(), imgd.nrounds, imgd.imgDim, imgd.workerMcpu, imgd.workerMem, imgd.workerBootScriptMcpu, imgd.workerBootScriptMem, imgd.bootScript, imgd.bootScriptWriteOut, imgd.useSPProxy, imgd.premountS3, imgd.s3EP, imgd.measurePSS)
+	rpcs.mkProc = imgresize.GetMkProcFn(imgd.ftclnt.ServiceId(), imgd.nrounds, imgd.imgDim, imgd.workerMcpu, imgd.workerMem, imgd.workerBootScriptMcpu, imgd.workerBootScriptMem, imgd.bootScript, imgd.bootScriptWriteOut, imgd.useSPProxy, imgd.premountS3, imgd.s3EP, imgd.measurePSS, imgd.bailOut)
 	return rpcs
 }
 

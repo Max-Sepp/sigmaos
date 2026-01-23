@@ -32,7 +32,7 @@ pub fn boot(b: *mut c_char, buf_sz: usize) {
     sigmaos::send_rpc(buf, 0, &pn, "S3RpcAPI.GetObject", &rpc_bytes, 2);
     // Block until imgprocess proc is done computing, and has handed off the
     // result
-    sigmaos::recv_rpc(1, false) as usize;
+    sigmaos::recv_rpc(buf, 1, false);
     // Forward the result to S3 to be written back
     sigmaos::forward_rpc(buf, 1, 2, &pn, 1);
     sigmaos::exit(buf, sigmaos::EXIT_STATUS_OK, sigmaos::EXIT_MSG_OK);

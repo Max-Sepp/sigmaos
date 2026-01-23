@@ -133,6 +133,7 @@ var DefaultImgBenchConfig = &ImgBenchConfig{
 		ImgDim:                160,
 		PremountS3:            false,
 		MeasurePSS:            false,
+		BailOut:               false,
 	},
 	InputPath:      filepath.Join(sp.S3, sp.LOCAL, "9ps3/img/8.jpg"),
 	NTasks:         10,

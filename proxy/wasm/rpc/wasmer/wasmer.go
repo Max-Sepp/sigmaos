@@ -1,6 +1,8 @@
 package wasmer
 
 import (
+	"bytes"
+	"encoding/binary"
 	"time"
 
 	wasmer "github.com/wasmerio/wasmer-go/wasmer"
@@ -121,8 +123,8 @@ func (wrt *WasmerRuntime) RunModule(pid sp.Tpid, spawnTime time.Time, compiledMo
 	// Call the boot function and inform it of the size & address of the shared
 	// buffer.
 	if _, err := boot(wasmBufPtr, SHARED_BUF_SZ); err != nil {
-		db.DPrintf(db.ERROR, "[%v] Err get WASM instance memory: %v", pid, err)
-		db.DPrintf(db.WASMRT_ERR, "[%v] Err get WASM instance memory: %v", pid, err)
+		db.DPrintf(db.ERROR, "[%v] Err run WASM function: %v", pid, err)
+		db.DPrintf(db.WASMRT_ERR, "[%v] Err run WASM function: %v", pid, err)
 		return wasmrpc.EXIT_ERR, sp.NOT_SET, err
 	}
 	perf.LogSpawnLatency("WASM module ran", pid, spawnTime, start)
@@ -182,7 +184,7 @@ func (wrt *WasmerRuntime) newRecvRPCFn(store *wasmer.Store, instance **wasmer.In
 			getData := args[1].I64() > 0
 			db.DPrintf(db.WASMRT, "RecvRPC(%v)", rpcIdx)
 			// Receive the RPC reply
-			replyBytes, err := wrt.apiImpl.Recv(rpcIdx, getData)
+			replyIOV, err := wrt.apiImpl.Recv(rpcIdx, getData)
 			if err != nil {
 				db.DPrintf(db.WASMRT_ERR, "Err RecvRPC(%v): %v", rpcIdx, err)
 				return []wasmer.Value{}, err
@@ -193,15 +195,34 @@ func (wrt *WasmerRuntime) newRecvRPCFn(store *wasmer.Store, instance **wasmer.In
 				db.DPrintf(db.WASMRT_ERR, "[%v] Err get WASM instance memory: %v", pid, err)
 				return []wasmer.Value{}, err
 			}
+			replyLen := 0
 			// Only copy the data back to WASM if the module asks for it
 			if getData {
 				// Create a Go buffer from the allocated WASM shared buffer
 				buf := (*mem).Data()[*wasmBufPtr : *wasmBufPtr+SHARED_BUF_SZ]
-				// Copy the reply to the shared buffer
-				copy(buf, replyBytes)
+				//			return outiov.GetFrame(1).GetBuf(), nil
+				bufIdx := 0
+				// Skip index 0, which is the RPC stack wrapper
+				for i := 1; i < replyIOV.Len(); i++ {
+					frame := replyIOV.GetFrame(i)
+					frameLen := uint64(frame.Len() + 8)
+					db.DPrintf(db.ALWAYS, "idx %v frame len %v", bufIdx, frameLen)
+					var b bytes.Buffer
+					if err := binary.Write(&b, binary.LittleEndian, frameLen); err != nil {
+						db.DFatalf("Err encode buf len: %v", err)
+					}
+					copy(buf[bufIdx:bufIdx+8], b.Bytes())
+					if uint64(bufIdx)+frameLen > SHARED_BUF_SZ {
+						db.DFatalf("Err copy too much data to WASM reply buffer: %v > %v", uint64(bufIdx)+frameLen)
+					}
+					// Copy the reply to the shared buffer
+					copy(buf[bufIdx+8:], frame.GetBuf())
+					bufIdx += int(frameLen)
+				}
+				db.DPrintf(db.ALWAYS, "done bufIdx %v buf: %v", bufIdx, buf[:bufIdx])
+				// Report the RPC reply's length back to the WASM module
+				replyLen = replyIOV.Len() - 1
 			}
-			// Report the RPC reply's length back to the WASM module
-			replyLen := len(replyBytes)
 			db.DPrintf(db.WASMRT, "RecvRPC(%v) reply len: %v", rpcIdx, replyLen)
 			return []wasmer.Value{wasmer.NewI64(replyLen)}, nil
 		},
@@ -260,13 +281,13 @@ func (wrt *WasmerRuntime) newExitFn(store *wasmer.Store, instance **wasmer.Insta
 			db.DPrintf(db.WASMRT, "exit status: %v msgLen:%v buf:%p bufStart:%p", status, msgLen, buf, &buf[0])
 			// Get the RPC destination pathname from the shared buffer
 			msg := string(buf[0:msgLen])
-			db.DPrintf(db.WASMRT, "Exit(%v->%v) status:%v msg:%v", status, msg)
+			db.DPrintf(db.WASMRT, "Exit status:%v msg:%v", status, msg)
 			err = wrt.apiImpl.Exit(status, msg)
 			if err != nil {
 				db.DPrintf(db.WASMRT_ERR, "Err Exit status:%v msg:%v err:%v", status, msg, err)
 				return []wasmer.Value{}, err
 			}
-			db.DPrintf(db.WASMRT, "Exit status:%v msg:%v", status, msg)
+			db.DPrintf(db.WASMRT, "Exit done status:%v msg:%v", status, msg)
 			return []wasmer.Value{}, nil
 		},
 	)

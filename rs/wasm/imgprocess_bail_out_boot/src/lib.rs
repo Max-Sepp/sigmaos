@@ -19,18 +19,39 @@ pub fn boot(b: *mut c_char, buf_sz: usize) {
         .try_into()
         .unwrap();
     let mut off: usize = 12;
-    let bucket = str::from_utf8(&buf[off..off + bucket_len]).unwrap();
+    let bucket = str::from_utf8(&buf[off..off + bucket_len])
+        .unwrap()
+        .to_string();
     off += bucket_len;
-    let key = str::from_utf8(&buf[off..off + key_len]).unwrap();
+    let key = str::from_utf8(&buf[off..off + key_len])
+        .unwrap()
+        .to_string();
     off += key_len;
     let kid = str::from_utf8(&buf[off..off + kid_len]).unwrap();
     let mut get_req = s3::GetReq::new();
-    get_req.bucket = bucket.to_string();
-    get_req.key = key.to_string();
+    get_req.bucket = bucket.clone();
+    get_req.key = key.clone() + ".meta";
     let rpc_bytes = get_req.write_to_bytes().unwrap();
     let pn = "name/s3/".to_owned() + &kid;
     sigmaos::send_rpc(buf, 0, &pn, "S3RpcAPI.GetObject", &rpc_bytes, 2);
-    sigmaos::exit(buf, sigmaos::EXIT_STATUS_OK, sigmaos::EXIT_MSG_OK);
+    let (buf_offs, buf_lens) = sigmaos::recv_rpc(buf, 0, true);
+    let start = buf_offs[1];
+    let end = buf_offs[1] + buf_lens[1];
+    let blob_bytes = &buf[start..end];
+    let metadata_tag = str::from_utf8(blob_bytes).unwrap();
+    if str::trim(metadata_tag) == "abort" {
+        // If metadata tag says to abort launch,bail out
+        sigmaos::exit(
+            buf,
+            sigmaos::EXIT_STATUS_ABORT_LAUNCH,
+            &(sigmaos::EXIT_MSG_ABORT_LAUNCH.to_owned() + ": metadata tag abort"),
+        );
+    } else {
+        let mut get_req = s3::GetReq::new();
+        get_req.bucket = bucket;
+        get_req.key = key;
+        let rpc_bytes = get_req.write_to_bytes().unwrap();
+        sigmaos::send_rpc(buf, 1, &pn, "S3RpcAPI.GetObject", &rpc_bytes, 2);
+        sigmaos::exit(buf, sigmaos::EXIT_STATUS_OK, sigmaos::EXIT_MSG_OK);
+    }
 }
-
-// TODO: abort

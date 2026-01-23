@@ -64,7 +64,7 @@ func TestResizeProc(t *testing.T) {
 	in := filepath.Join(sp.S3, sp.LOCAL, "9ps3/img-save/8.jpg")
 	out := filepath.Join(sp.S3, sp.LOCAL, "9ps3/img/8-thumb-xxx.jpg")
 	mrts.GetRealm(test.REALM1).Remove(out)
-	p := proc.NewProc("imgresize", []string{in, out, "1", "false", "false", "70"})
+	p := proc.NewProc("imgresize", []string{in, out, "1", "false", "false", "70", "false"})
 	err := mrts.GetRealm(test.REALM1).Spawn(p)
 	assert.Nil(t, err, "Spawn")
 	err = mrts.GetRealm(test.REALM1).WaitStart(p.GetPid())
@@ -94,7 +94,7 @@ func TestResizeProcInitScriptSimple(t *testing.T) {
 	if !assert.Nil(t, err, "Err construct bootscript input: %v", err) {
 		return
 	}
-	p := proc.NewProc("imgresize", []string{inS3, outS3, "1", "true", "false", "70"})
+	p := proc.NewProc("imgresize", []string{inS3, outS3, "1", "true", "false", "70", "false"})
 	p.GetProcEnv().UseSPProxy = true
 	p.SetShmemMB(imgresize.SHMEM_MB)
 	p.SetBootScript(bootScript, bootScriptInput)
@@ -131,7 +131,43 @@ func TestResizeProcInitScriptWriteBack(t *testing.T) {
 	if !assert.Nil(t, err, "Err construct bootscript input: %v", err) {
 		return
 	}
-	p := proc.NewProc("imgresize", []string{inS3, outS3, "1", "true", "true", "70"})
+	p := proc.NewProc("imgresize", []string{inS3, outS3, "1", "true", "true", "70", "false"})
+	p.GetProcEnv().UseSPProxy = true
+	p.SetBootScript(bootScript, bootScriptInput)
+	p.SetRunBootScript(true)
+	// Run after boot script
+	p.SetRunAfterBootScript(false)
+	p.SetMcpu(1000)
+	err = mrts.GetRealm(test.REALM1).Spawn(p)
+	assert.Nil(t, err, "Spawn")
+	err = mrts.GetRealm(test.REALM1).WaitStart(p.GetPid())
+	assert.Nil(t, err, "WaitStart error")
+	status, err := mrts.GetRealm(test.REALM1).WaitExit(p.GetPid())
+	assert.Nil(t, err, "WaitExit error %v", err)
+	assert.True(t, status.IsStatusOK(), "WaitExit status error: %v", status)
+}
+
+func TestResizeProcInitScriptBailOut(t *testing.T) {
+	mrts, err1 := test.NewMultiRealmTstate(t, []sp.Trealm{test.REALM1})
+	if !assert.Nil(t, err1, "Error New Tstate: %v", err1) {
+		return
+	}
+	defer mrts.Shutdown()
+
+	inS3 := "9ps3/img-save/8.jpg"
+	outS3 := "9ps3/img/8-thumb-xxx.jpg"
+	out := filepath.Join(sp.S3, sp.LOCAL, outS3)
+	mrts.GetRealm(test.REALM1).Remove(out)
+
+	bootScript, err := imgresize.GetBootScriptBailOut(mrts.GetRealm(test.REALM1).SigmaClnt)
+	if !assert.Nil(t, err, "Err read bootscript: %v", err) {
+		return
+	}
+	bootScriptInput, err := imgresize.GetBootScriptInput("9ps3", "img-save/8.jpg", sp.LOCAL)
+	if !assert.Nil(t, err, "Err construct bootscript input: %v", err) {
+		return
+	}
+	p := proc.NewProc("imgresize", []string{inS3, outS3, "1", "true", "true", "70", "true"})
 	p.GetProcEnv().UseSPProxy = true
 	p.SetBootScript(bootScript, bootScriptInput)
 	p.SetRunBootScript(true)
@@ -314,6 +350,48 @@ func TestImgdResizeRPCS3Clnt(t *testing.T) {
 }
 
 func TestImgdResizeRPCS3ClntBootScript(t *testing.T) {
+	mrts, err1 := test.NewMultiRealmTstate(t, []sp.Trealm{test.REALM1})
+	if !assert.Nil(t, err1, "Error New Tstate: %v", err1) {
+		return
+	}
+	defer mrts.Shutdown()
+
+	if mrts.GetRealm(test.REALM1).ProcEnv().BuildTag == sp.LOCAL_BUILD {
+		db.DPrintf(db.TEST, "Skipping imgresized initscript test - can't run with local build")
+		return
+	}
+
+	ts, err1 := newTstate(mrts, false, nil, true, true)
+	if !assert.Nil(t, err1, "Error New Tstate2: %v", err1) {
+		return
+	}
+
+	err := ts.mrts.GetRealm(test.REALM1).BootNode(1)
+	assert.Nil(t, err, "BootProcd 1")
+
+	err = ts.mrts.GetRealm(test.REALM1).BootNode(1)
+	assert.Nil(t, err, "BootProcd 2")
+
+	go ts.progress()
+
+	in := filepath.Join("9ps3/img-save/8.jpg")
+	err = ts.clnt.Resize("resize-rpc-test", in, true)
+	assert.Nil(ts.mrts.T, err)
+
+	n, err := ts.clnt.Status()
+	assert.Nil(ts.mrts.T, err)
+	assert.Equal(ts.mrts.T, int64(1), n)
+
+	sts, err := ts.imgd.StopImgd(true)
+	assert.Nil(ts.mrts.T, err)
+	for _, st := range sts {
+		assert.True(ts.mrts.T, st.IsStatusEvicted())
+	}
+
+	ts.stopProgress()
+}
+
+func TestImgdResizeRPCS3ClntBootScriptBailOut(t *testing.T) {
 	mrts, err1 := test.NewMultiRealmTstate(t, []sp.Trealm{test.REALM1})
 	if !assert.Nil(t, err1, "Error New Tstate: %v", err1) {
 		return

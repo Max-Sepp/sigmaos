@@ -83,12 +83,13 @@ type ImgProcess struct {
 	p                     *perf.Perf
 	useS3Clnt             bool
 	writeOutViaBootScript bool
+	bailOutScript         bool
 	imgDim                int
 	s3Clnt                *s3clnt.S3Clnt
 }
 
 func NewImgProcess(pe *proc.ProcEnv, args []string, p *perf.Perf) (*ImgProcess, error) {
-	if len(args) != 7 {
+	if len(args) != 8 {
 		return nil, fmt.Errorf("NewImgProcess: wrong number of arguments: %v", args)
 	}
 	ip := &ImgProcess{
@@ -120,6 +121,10 @@ func NewImgProcess(pe *proc.ProcEnv, args []string, p *perf.Perf) (*ImgProcess, 
 	ip.imgDim, err = strconv.Atoi(args[6])
 	if err != nil {
 		db.DFatalf("Err convert nrounds: %v", err)
+	}
+	ip.bailOutScript, err = strconv.ParseBool(args[7])
+	if err != nil {
+		db.DFatalf("Err parse useS3Clnt: %v", err)
 	}
 	ip.Started()
 	crash.FailersDefault(sc.FsLib, []crash.Tselector{crash.IMGRESIZE_CRASH})
@@ -163,7 +168,11 @@ func (ip *ImgProcess) Work(i int, output string) *proc.Status {
 		start = time.Now()
 		if ip.ProcEnv().GetRunBootScript() {
 			var transferTime time.Duration
-			b, transferTime, err = ip.s3Clnt.DelegatedGetObject(0)
+			rpcIdx := uint64(0)
+			if ip.bailOutScript {
+				rpcIdx = uint64(1)
+			}
+			b, transferTime, err = ip.s3Clnt.DelegatedGetObject(rpcIdx)
 			if err != nil {
 				return proc.NewStatusErr(fmt.Sprintf("Err GetObject bucket:%v key:%v", bucket, key), err)
 			}

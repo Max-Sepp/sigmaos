@@ -45,12 +45,13 @@ type ImgSrv struct {
 	writeOutViaBootScript bool
 	premountS3            bool
 	measurePSS            bool
+	bailOut               bool
 	s3EP                  *sp.Tendpoint
 	AStat
 }
 
 func NewImgSrv(args []string) (*ImgSrv, error) {
-	if len(args) != 13 {
+	if len(args) != 14 {
 		db.DFatalf("NewImgSrv: wrong number of arguments: %v", args)
 	}
 	imgd := &ImgSrv{}
@@ -127,6 +128,11 @@ func NewImgSrv(args []string) (*ImgSrv, error) {
 		db.DFatalf("Error parse useBootScript: %v", err)
 	}
 	imgd.measurePSS = measurePSS
+	bailOut, err := strconv.ParseBool(args[13])
+	if err != nil {
+		db.DFatalf("Error parse useSPProxy: %v", err)
+	}
+	imgd.bailOut = bailOut
 
 	if imgd.premountS3 {
 		// Read the endpoint of the endpoint cache server
@@ -203,7 +209,7 @@ func (imgd *ImgSrv) Work() {
 
 	go imgd.processResults(ch)
 
-	ftc.ExecuteTasks(imgresize.GetMkProcFn(imgd.ftclnt.ServiceId(), imgd.nrounds, imgd.imgDim, imgd.workerMcpu, imgd.workerMem, imgd.workerBootScriptMcpu, imgd.workerBootScriptMem, imgd.bootScript, imgd.bootScriptWriteOut, imgd.useSPProxy, imgd.premountS3, imgd.s3EP, imgd.measurePSS))
+	ftc.ExecuteTasks(imgresize.GetMkProcFn(imgd.ftclnt.ServiceId(), imgd.nrounds, imgd.imgDim, imgd.workerMcpu, imgd.workerMem, imgd.workerBootScriptMcpu, imgd.workerBootScriptMem, imgd.bootScript, imgd.bootScriptWriteOut, imgd.useSPProxy, imgd.premountS3, imgd.s3EP, imgd.measurePSS, imgd.bailOut))
 	close(ch)
 
 	st := spstats.NewTcounterSnapshot()

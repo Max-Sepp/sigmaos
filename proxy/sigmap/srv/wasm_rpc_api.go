@@ -1,7 +1,6 @@
 package srv
 
 import (
-	"fmt"
 	"sync"
 
 	"google.golang.org/protobuf/proto"
@@ -61,7 +60,7 @@ func (wp *WASMRPCProxy) Send(rpcIdx uint64, pn string, method string, b []byte, 
 	return nil
 }
 
-func (wp *WASMRPCProxy) Recv(rpcIdx uint64, getData bool) ([]byte, error) {
+func (wp *WASMRPCProxy) Recv(rpcIdx uint64, getData bool) (*sessp.IoVec, error) {
 	outiov, err := wp.spp.psm.GetReply(wp.p.GetPid(), rpcIdx)
 	if err != nil {
 		db.DPrintf(db.SPPROXYSRV_ERR, "[%v] Err GetReply(%v) in WasmRPCRecv: %v", wp.p.GetPid(), err)
@@ -81,12 +80,8 @@ func (wp *WASMRPCProxy) Recv(rpcIdx uint64, getData bool) ([]byte, error) {
 		db.DPrintf(db.SPPROXYSRV_ERR, "[%v] Err ErrCode(%v) in WasmRPCRecv: %v", wp.p.GetPid(), rep.Err.ErrCode)
 		return nil, sp.NewErr(rep.Err)
 	}
-	// We don't handle blobs right now, so we only expect 2 out IOVecs
-	if outiov.Len() != 2 {
-		db.DPrintf(db.SPPROXYSRV_ERR, "[%v] Err RPC(%v) unexpected outiov len: %v", wp.p.GetPid(), outiov.Len())
-		return nil, serr.NewErrError(fmt.Errorf("Err unexpected outiov len: %v", outiov.Len()))
-	}
-	return outiov.GetFrame(1).GetBuf(), nil
+	db.DPrintf(db.SPPROXYSRV, "[%v] RPC(%v) outiov len: %v", wp.p.GetPid(), outiov.Len()-1)
+	return outiov, nil
 }
 
 func (wp *WASMRPCProxy) Forward(rpcIdx uint64, newRPCIdx uint64, pn string, nOutIOV uint64) error {
@@ -97,12 +92,10 @@ func (wp *WASMRPCProxy) Forward(rpcIdx uint64, newRPCIdx uint64, pn string, nOut
 		return err
 	}
 	wp.wg.Add(1)
-	// Run the delegated RPC asynchronously, and add an extra output IOVec slot
+	// Forward the delegated RPC synchronously, and add an extra output IOVec slot
 	// for the RPC wrapper
-	go func() {
-		defer wp.wg.Done()
-		wp.spp.runDelegatedRPC(wp.sc, wp.p, newRPCIdx, pn, iniov, nOutIOV+1)
-	}()
+	defer wp.wg.Done()
+	wp.spp.runDelegatedRPC(wp.sc, wp.p, newRPCIdx, pn, iniov, nOutIOV+1)
 	return nil
 }
 

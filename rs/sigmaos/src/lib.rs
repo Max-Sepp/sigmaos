@@ -1,10 +1,11 @@
+use std::mem;
 use std::os::raw::c_char;
-use std::{mem, process};
 
 pub const EXIT_STATUS_OK: u64 = 0;
 pub const EXIT_STATUS_ERR: u64 = 1;
 pub const EXIT_STATUS_ABORT_LAUNCH: u64 = 2;
 pub const EXIT_MSG_OK: &str = "EXIT_OK";
+pub const EXIT_MSG_ABORT_LAUNCH: &str = "EXIT_ABORT_LAUNCH";
 
 mod sigmaos_host {
     #[link(wasm_import_module = "sigmaos_host")]
@@ -46,8 +47,21 @@ pub fn send_rpc(
     }
 }
 
-pub fn recv_rpc(rpc_idx: u64, get_data: bool) -> u64 {
-    return unsafe { sigmaos_host::recv_rpc(rpc_idx, get_data as u64) };
+// Returns a tuple of (offsets, lengths)
+pub fn recv_rpc(buf: &mut [u8], rpc_idx: u64, get_data: bool) -> (Vec<usize>, Vec<usize>) {
+    let n_buf = unsafe { sigmaos_host::recv_rpc(rpc_idx, get_data as u64) };
+    let mut buf_lens = Vec::with_capacity(n_buf.try_into().unwrap());
+    let mut buf_offs = Vec::with_capacity(n_buf.try_into().unwrap());
+    let mut idx: usize = 0;
+    for _ in 0..n_buf {
+        // Length includes the 8 bytes required to encode len itself
+        let len = u64::from_le_bytes(buf[idx..idx + 8].try_into().unwrap()) as usize;
+        buf_lens.push(len - 8);
+        // Offset it current index + 8 (skip buf length u64)
+        buf_offs.push(idx + 8);
+        idx += len;
+    }
+    return (buf_offs, buf_lens);
 }
 
 pub fn forward_rpc(buf: &mut [u8], rpc_idx: u64, new_rpc_idx: u64, pn: &str, n_outiov: u64) {
@@ -60,7 +74,7 @@ pub fn forward_rpc(buf: &mut [u8], rpc_idx: u64, new_rpc_idx: u64, pn: &str, n_o
     unsafe { sigmaos_host::forward_rpc(rpc_idx, new_rpc_idx, pn_len, n_outiov) }
 }
 
-pub fn exit(buf: &mut [u8], status: u64, msg: &str) -> ! {
+pub fn exit(buf: &mut [u8], status: u64, msg: &str) {
     let mut idx = 0;
     let msg_len = msg.len() as u64;
     for c in msg.bytes() {
@@ -68,7 +82,6 @@ pub fn exit(buf: &mut [u8], status: u64, msg: &str) -> ! {
         idx += 1;
     }
     unsafe { sigmaos_host::exit(status, msg_len) }
-    process::exit(0);
 }
 
 #[unsafe(export_name = "allocate")]
