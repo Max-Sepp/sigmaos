@@ -10,8 +10,8 @@ import (
 )
 
 func main() {
-	if len(os.Args) != 5 {
-		db.DFatalf("Usage: %v kernelId dialproxy gvisor spproxydPID\nPassed: %v", os.Args[0], os.Args)
+	if len(os.Args) != 6 {
+		db.DFatalf("Usage: %v kernelId dialproxy gvisor spproxydPID wasmdPID\nPassed: %v", os.Args[0], os.Args)
 	}
 	dialproxy, err := strconv.ParseBool(os.Args[2])
 	if err != nil {
@@ -22,8 +22,9 @@ func main() {
 		db.DFatalf("Can't parse gvisor bool: %v", err)
 	}
 	scPID := sp.Tpid(os.Args[4])
+	wasmdPID := sp.Tpid(os.Args[5])
 	// ignore mschedIp
-	if err := srv.RunProcSrv(os.Args[1], dialproxy, gvisor, scPID); err != nil {
+	if err := srv.RunProcSrv(os.Args[1], dialproxy, gvisor, scPID, wasmdPID); err != nil {
 		db.DFatalf("Fatal start: %v %v\n", os.Args[0], err)
 	}
 }

@@ -234,6 +234,8 @@ const (
 	NPPROXY                  = "NPPROXY"
 	SPPROXYSRV               = "SPPROXYSRV"
 	SPPROXYSRV_ERR           = "SPPROXYSRV" + ERR
+	WASMD                    = "WASMD"
+	WASMD_ERR                = "WASMD" + ERR
 )
 
 // Realm

@@ -35,7 +35,8 @@ for PP in \
   apps/spin \
   apps/cossim \
   spproto/srv \
-  ft/task; \
+  ft/task \
+  proxy/wasm; \
   do
     for P in $PP/proto/*.proto ; do
       echo "protoc (golang) $P"

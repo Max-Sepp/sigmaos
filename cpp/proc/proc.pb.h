@@ -672,6 +672,7 @@ class ProcEnvProto final :
     kShmemMBIntFieldNumber = 31,
     kUseShmemFieldNumber = 30,
     kUseSPProxyProcClntFieldNumber = 32,
+    kIsWASMProcFieldNumber = 34,
   };
   // map<string, .TendpointProto> etcdEndpoints = 7;
   int etcdendpoints_size() const;
@@ -1132,6 +1133,15 @@ class ProcEnvProto final :
   void _internal_set_usespproxyprocclnt(bool value);
   public:
 
+  // bool isWASMProc = 34;
+  void clear_iswasmproc();
+  bool iswasmproc() const;
+  void set_iswasmproc(bool value);
+  private:
+  bool _internal_iswasmproc() const;
+  void _internal_set_iswasmproc(bool value);
+  public:
+
   // @@protoc_insertion_point(class_scope:ProcEnvProto)
  private:
   class _Internal;
@@ -1185,6 +1195,7 @@ class ProcEnvProto final :
     uint64_t shmemmbint_;
     bool useshmem_;
     bool usespproxyprocclnt_;
+    bool iswasmproc_;
     mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   };
   union { Impl_ _impl_; };
@@ -3245,6 +3256,26 @@ inline void ProcEnvProto::set_allocated_debugprocs(std::string* debugprocs) {
   }
 #endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
   // @@protoc_insertion_point(field_set_allocated:ProcEnvProto.debugProcs)
+}
+
+// bool isWASMProc = 34;
+inline void ProcEnvProto::clear_iswasmproc() {
+  _impl_.iswasmproc_ = false;
+}
+inline bool ProcEnvProto::_internal_iswasmproc() const {
+  return _impl_.iswasmproc_;
+}
+inline bool ProcEnvProto::iswasmproc() const {
+  // @@protoc_insertion_point(field_get:ProcEnvProto.isWASMProc)
+  return _internal_iswasmproc();
+}
+inline void ProcEnvProto::_internal_set_iswasmproc(bool value) {
+  
+  _impl_.iswasmproc_ = value;
+}
+inline void ProcEnvProto::set_iswasmproc(bool value) {
+  _internal_set_iswasmproc(value);
+  // @@protoc_insertion_point(field_set:ProcEnvProto.isWASMProc)
 }
 
 // -------------------------------------------------------------------

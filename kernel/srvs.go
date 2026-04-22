@@ -194,8 +194,9 @@ func (k *Kernel) bootSPProxyd() (Subsystem, error) {
 // IP address and port number are for it.
 func (k *Kernel) bootProcd(args []string) (Subsystem, error) {
 	spproxydPID := sp.GenPid("spproxyd")
+	wasmdPID := sp.GenPid("wasmd")
 	// Append args
-	args = append(args, strconv.FormatBool(k.Param.DialProxy), strconv.FormatBool(k.Param.GVisor), spproxydPID.String())
+	args = append(args, strconv.FormatBool(k.Param.DialProxy), strconv.FormatBool(k.Param.GVisor), spproxydPID.String(), wasmdPID.String())
 	db.DPrintf(db.ALWAYS, "Procd args %v", args)
 	s, err := k.bootSubsystem("procd", args, []string{}, sp.ROOTREALM, proc.HDOCKER, 0)
 	if err != nil {

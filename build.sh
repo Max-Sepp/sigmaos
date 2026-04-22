@@ -308,6 +308,7 @@ if [ "${NO_DOCKER}" != "true" ]; then
     sudo cp $ROOT/create-net.sh $KERNELBIN/
     cp $KERNELBIN/procd $PROCD_BIN/
     cp $KERNELBIN/spproxyd $PROCD_BIN/
+    cp $KERNELBIN/wasmd $PROCD_BIN/
     cp $KERNELBIN/uproc-trampoline $PROCD_BIN/
   fi
   echo "========== Done copying kernel bins for uproc =========="

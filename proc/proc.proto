@@ -51,6 +51,7 @@ message ProcEnvProto {
   uint64 shmemMBInt = 31;
   bool useSPProxyProcClnt = 32;
   string debugProcs = 33;
+  bool isWASMProc = 34;
 }
 
 message ProcProto {

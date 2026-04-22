@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+import "proc/proc.proto";
+
+option go_package = "sigmaos/proxy/wasm/proto";
+
+message RunWASMProcReq {
+  ProcProto proc = 1;
+}
+
+message RunWASMProcRep {
+  uint64 status = 1;
+  string msg    = 2;
+  string err    = 3;
+}

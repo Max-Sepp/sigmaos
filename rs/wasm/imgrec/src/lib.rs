@@ -132,9 +132,6 @@ pub fn boot(b: *mut c_char, buf_sz: usize) {
         .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
         .unwrap();
 
-    // Write [class_idx: u32 LE, score: f32 LE] to the output buffer.
-    buf[0..4].copy_from_slice(&(class_idx as u32).to_le_bytes());
-    buf[4..8].copy_from_slice(&score.to_le_bytes());
-
-    sigmaos::exit(buf, sigmaos::EXIT_STATUS_OK, sigmaos::EXIT_MSG_OK);
+    let exit_msg = format!("{},{}", class_idx, score);
+    sigmaos::exit(buf, sigmaos::EXIT_STATUS_OK, &exit_msg);
 }

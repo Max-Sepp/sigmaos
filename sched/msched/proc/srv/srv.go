@@ -25,7 +25,9 @@ import (
 	kernelclnt "sigmaos/kernel/clnt"
 	"sigmaos/proc"
 	spproxysrv "sigmaos/proxy/sigmap/srv"
+	wasmclnt "sigmaos/proxy/wasm/clnt"
 	wasmrpc "sigmaos/proxy/wasm/rpc"
+	wasmsrv "sigmaos/proxy/wasm/srv"
 	chunkclnt "sigmaos/sched/msched/proc/chunk/clnt"
 	chunksrv "sigmaos/sched/msched/proc/chunk/srv"
 	"sigmaos/sched/msched/proc/proto"
@@ -85,12 +87,14 @@ type ProcSrv struct {
 	kc              *kernelclnt.KernelClnt
 	sc              *sigmaclnt.SigmaClnt
 	spc             *spproxysrv.SPProxySrvCmd
+	wdc             *wasmsrv.WASMSrvCmd
 	binsrv          *exec.Cmd
 	kernelId        string
 	realm           sp.Trealm
 	prefetchedStats map[string]bool
 	dialproxy       bool
 	spproxydPID     sp.Tpid
+	wasmdPID        sp.Tpid
 	schedPolicySet  bool
 	procs           *syncmap.SyncMap[int, *procEntry]
 	cachedBins      *syncmap.SyncMap[string, bool]
@@ -106,7 +110,7 @@ type ProcRPCSrv struct {
 	ps *ProcSrv
 }
 
-func RunProcSrv(kernelId string, dialproxy bool, gvisor bool, spproxydPID sp.Tpid) error {
+func RunProcSrv(kernelId string, dialproxy bool, gvisor bool, spproxydPID sp.Tpid, wasmdPID sp.Tpid) error {
 	pe := proc.GetProcEnv()
 	ps := &ProcSrv{
 		kernelId:        kernelId,
@@ -114,6 +118,7 @@ func RunProcSrv(kernelId string, dialproxy bool, gvisor bool, spproxydPID sp.Tpi
 		ch:              make(chan struct{}),
 		pe:              pe,
 		spproxydPID:     spproxydPID,
+		wasmdPID:        wasmdPID,
 		realm:           sp.NO_REALM,
 		prefetchedStats: make(map[string]bool),
 		procs:           syncmap.NewSyncMap[int, *procEntry](),
@@ -201,6 +206,15 @@ func RunProcSrv(kernelId string, dialproxy bool, gvisor bool, spproxydPID sp.Tpi
 		return err
 	}
 	ps.spc = spc
+
+	wdp := proc.NewPrivProcPid(ps.wasmdPID, "wasmd", nil, true)
+	wdp.InheritParentProcEnv(ps.pe)
+	wdp.SetHow(proc.HLINUX)
+	wdc, err := wasmsrv.ExecWASMSrv(wdp, ps.kernelId, ps.pe.GetInnerContainerIP(), ps.pe.GetOuterContainerIP(), sp.NOT_SET)
+	if err != nil {
+		return err
+	}
+	ps.wdc = wdc
 
 	if err = ssrv.RunServer(); err != nil {
 		db.DPrintf(db.PROCD_ERR, "RunServer err %v\n", err)
@@ -469,9 +483,19 @@ func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 		}
 	} else {
 		if !ps.gvisor {
-			ctr, err = scontainer.StartSigmaContainer(uproc, ps.dialproxy)
-			if err != nil {
-				return err
+
+			if uproc.GetProcEnv().GetIsWASMProc() {
+				db.DPrintf(db.PROCD, "[%v] Run WASM proc via wasmd", uproc.GetPid())
+				ctr, err = wasmclnt.StartWASMContainer(uproc, ps.pe.GetInnerContainerIP(), ps.pe.GetOuterContainerIP(), ps.pe.GetPID())
+				if err != nil {
+					db.DPrintf(db.PROCD_ERR, "[%v] Run WASM proc via wasmd err: %v", uproc.GetPid(), err)
+					return err
+				}
+			} else {
+				ctr, err = scontainer.StartSigmaContainer(uproc, ps.dialproxy)
+				if err != nil {
+					return err
+				}
 			}
 		} else {
 			start := time.Now()
