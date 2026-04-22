@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+protobuf = "3.7.2"
+proto = { path = "../../proto" }
 sigmaos = { path = "../../sigmaos" }
 tract-onnx = { version = "0.22.1", default-features = false }
 image = { version = "0.25", default-features = false, features = ["jpeg"] }
