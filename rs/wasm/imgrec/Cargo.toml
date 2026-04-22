@@ -1,0 +1,19 @@
+[package]
+name = "imgrec"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sigmaos = { path = "../../sigmaos" }
+tract-onnx = { version = "0.22.1", default-features = false }
+image = { version = "0.25", default-features = false, features = ["jpeg"] }
+getrandom = { version = "0.2", features = ["custom"] }
+
+[lib]
+crate-type = ["cdylib"]
+
+[profile.release]
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = "symbols"
