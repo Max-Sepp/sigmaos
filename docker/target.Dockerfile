@@ -13,7 +13,8 @@ RUN apt update && \
   libc6-dbg \
   libabsl-dev \
   curl \
-  golang
+  golang \
+  python3
 
 # Install wasmer go pkg
 RUN mkdir t && \
