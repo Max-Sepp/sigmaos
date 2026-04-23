@@ -50,6 +50,15 @@ RUN curl -fsSL https://gvisor.dev/archive.key | gpg --dearmor -o /usr/share/keyr
 RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/gvisor-archive-keyring.gpg] https://storage.googleapis.com/gvisor/releases release main" | tee /etc/apt/sources.list.d/gvisor.list > /dev/null
 RUN apt-get update && apt-get install -y runsc
 
+# Install some python libs in user contianer
+RUN apt update && apt install -y python3-pip
+RUN pip3 install --break-system-packages \
+    pillow \
+    torch \
+    numpy \
+    torchvision \
+    onnxruntime
+
 # ========== remote user image ==========
 FROM sigmauser-local AS sigmauser-remote
 # Copy procd, the entrypoint for this container, to the user image.
