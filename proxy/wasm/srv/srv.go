@@ -12,7 +12,6 @@ import (
 	"sigmaos/api/fs"
 	"sigmaos/ctx"
 	db "sigmaos/debug"
-	dialproxyclnt "sigmaos/dialproxy/clnt"
 	"sigmaos/proc"
 	wasmproto "sigmaos/proxy/wasm/proto"
 	wasmrt "sigmaos/proxy/wasm/rpc/wasmer"
@@ -22,7 +21,6 @@ import (
 	chunksrv "sigmaos/sched/msched/proc/chunk/srv"
 	"sigmaos/serr"
 	"sigmaos/sigmaclnt"
-	"sigmaos/sigmaclnt/fidclnt"
 	sp "sigmaos/sigmap"
 	"sigmaos/util/io/demux"
 )
@@ -143,7 +141,7 @@ func (ws *WASMSrv) runWASMProc(p *proc.Proc) (uint64, string, error) {
 	pe := p.GetProcEnv()
 	pe.UseSPProxy = false
 	pe.UseDialProxy = false
-	sc, err := sigmaclnt.NewSigmaClntFsLibFidClnt(pe, fidclnt.NewFidClnt(pe, dialproxyclnt.NewDialProxyClnt(pe)))
+	sc, err := sigmaclnt.NewSigmaClnt(pe)
 	if err != nil {
 		db.DPrintf(db.WASMD_ERR, "[%v] NewSigmaClnt err: %v", p.GetPid(), err)
 		return 0, err.Error(), err
