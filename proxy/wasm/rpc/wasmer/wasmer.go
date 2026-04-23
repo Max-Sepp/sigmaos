@@ -14,7 +14,9 @@ import (
 )
 
 const (
-	SHARED_BUF_SZ = 655360
+	SHARED_BUF_SZ = 20 * sp.MBYTE
+
+// SHARED_BUF_SZ = 655360
 )
 
 type WasmerRuntime struct {
