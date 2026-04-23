@@ -22,6 +22,10 @@ func (ws *WASMSrv) runDelegatedRPC(sc *sigmaclnt.SigmaClnt, p *proc.Proc, rpcRep
 		db.DPrintf(db.WASMD_ERR, "Err execute delegated RPC (%v): %v", pn, err)
 		db.DFatalf("Err execute delegated RPC (%v): %v", pn, err)
 	}
-	db.DPrintf(db.WASMD, "[%v] Done running delegated RPC(%v) lat=%v", p.GetPid(), rpcIdx, time.Since(start))
+	lens := make([]int, outIOVSize)
+	for i, _ := range lens {
+		lens[i] = outiov.GetFrame(i).Len()
+	}
+	db.DPrintf(db.WASMD, "[%v] Done running delegated RPC(%v) lat=%v lens=%v", p.GetPid(), rpcIdx, time.Since(start), lens)
 	rpcReps.InsertReply(rpcIdx, outiov, err)
 }
