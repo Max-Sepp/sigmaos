@@ -87,6 +87,7 @@ func TestImgrec(t *testing.T) {
 		MODEL_BUCKET, MODEL_KEY,
 		KID,
 	})
+	p.GetProcEnv().UseSPProxy = true
 	p.SetIsWASMProc(true)
 	// XXX hack, remove eventually
 	p.PrependSigmaPath(filepath.Dir(precompiledBinPath))

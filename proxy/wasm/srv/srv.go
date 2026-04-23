@@ -139,7 +139,6 @@ func (api *WASMSrvAPI) RunWASMProc(ctx fs.CtxI, req wasmproto.RunWASMProcReq, re
 
 func (ws *WASMSrv) runWASMProc(p *proc.Proc) (uint64, string, error) {
 	pe := p.GetProcEnv()
-	pe.UseSPProxy = false
 	pe.UseDialProxy = false
 	sc, err := sigmaclnt.NewSigmaClnt(pe)
 	if err != nil {
