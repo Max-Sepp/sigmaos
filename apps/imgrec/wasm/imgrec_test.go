@@ -89,7 +89,7 @@ func TestImgrec(t *testing.T) {
 	})
 	p.SetIsWASMProc(true)
 	// XXX hack, remove eventually
-	p.PrependSigmaPath(precompiledBinPath)
+	p.PrependSigmaPath(filepath.Dir(precompiledBinPath))
 
 	err = rts.Spawn(p)
 	assert.Nil(t, err, "Spawn")

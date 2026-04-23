@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sync"
 
 	"sigmaos/api/fs"
@@ -18,6 +19,7 @@ import (
 	rpcsrv "sigmaos/rpc/srv"
 	"sigmaos/rpc/transport"
 	chunkclnt "sigmaos/sched/msched/proc/chunk/clnt"
+	chunksrv "sigmaos/sched/msched/proc/chunk/srv"
 	"sigmaos/serr"
 	"sigmaos/sigmaclnt"
 	"sigmaos/sigmaclnt/fidclnt"
@@ -131,8 +133,8 @@ func (api *WASMSrvAPI) RunWASMProc(ctx fs.CtxI, req wasmproto.RunWASMProcReq, re
 	status, msg, err := api.ws.runWASMProc(p)
 	rep.Status = status
 	rep.Msg = msg
-	if err != nil {
-		rep.Err = err.Error()
+	if err != nil && rep.Msg == "" {
+		rep.Msg = err.Error()
 	}
 	return nil
 }
@@ -151,13 +153,14 @@ func (ws *WASMSrv) runWASMProc(p *proc.Proc) (uint64, string, error) {
 	st, _, err := ws.ckc.GetFileStat(ws.kernelId, p.GetVersionedProgram(), p.GetPid(), p.GetRealm(), p.GetSecrets()["s3"], p.GetSigmaPath(), p.GetNamedEndpoint())
 	if err != nil {
 		db.DPrintf(db.WASMD_ERR, "[%v] GetFileStat err: %v", p.GetPid(), err)
-		return 0, err.Error(), err
+		return 0, "", err
 	}
-	localPath, err := ws.ckc.FetchBinary(ws.kernelId, p.GetVersionedProgram(), p.GetPid(), p.GetRealm(), p.GetSecrets()["s3"], st.Tsize(), p.GetSigmaPath(), p.GetNamedEndpoint())
+	_, err = ws.ckc.FetchBinary(ws.kernelId, p.GetVersionedProgram(), p.GetPid(), p.GetRealm(), p.GetSecrets()["s3"], st.Tsize(), p.GetSigmaPath(), p.GetNamedEndpoint())
 	if err != nil {
 		db.DPrintf(db.WASMD_ERR, "[%v] FetchBinary err: %v", p.GetPid(), err)
 		return 0, err.Error(), err
 	}
+	localPath := filepath.Join(chunksrv.PathBinProc(), p.GetVersionedProgram())
 	compiledModule, err := os.ReadFile(localPath)
 	if err != nil {
 		db.DPrintf(db.WASMD_ERR, "[%v] ReadFile err: %v", p.GetPid(), err)
@@ -175,15 +178,15 @@ func (ws *WASMSrv) runWASMProc(p *proc.Proc) (uint64, string, error) {
 		db.DPrintf(db.WASMD_ERR, "[%v] Started err: %v", p.GetPid(), err)
 		return 0, err.Error(), err
 	}
-	defer sc.ClntExit(proc.NewStatus(proc.StatusFatal))
 
 	status, msg, runErr := wrt.RunModule(p.GetPid(), p.GetSpawnTime(), compiledModule, inputBytes)
+	db.DPrintf(db.WASMD, "[%v] Ran WASM proc, exit status:%v msg:%v err:%v", p.GetPid(), status, msg, runErr)
 
 	exitStatus := proc.NewStatus(proc.StatusOK)
 	if runErr != nil || status != 0 {
-		exitStatus = proc.NewStatus(proc.StatusFatal)
+		exitStatus = proc.NewStatus(proc.StatusErr)
 	}
-	sc.Exited(exitStatus)
+	sc.ClntExit(exitStatus)
 
 	db.DPrintf(db.WASMD, "[%v] RunModule done status=%v msg=%v err=%v", p.GetPid(), status, msg, runErr)
 	return uint64(status), msg, runErr

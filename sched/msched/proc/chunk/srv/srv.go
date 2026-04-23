@@ -73,7 +73,7 @@ func PathHostKernelRealm(user, kernelId string, realm sp.Trealm) string {
 }
 
 // The path where chunksrv caches binaries in the local file system.
-func pathBinCache(realm sp.Trealm, prog string) string {
+func PathBinCache(realm sp.Trealm, prog string) string {
 	return filepath.Join(ROOTBINCACHE, realm.String(), prog)
 }
 
@@ -176,7 +176,7 @@ func (cksrv *ChunkSrv) getBin(realm sp.Trealm, prog string) (*bin, error) {
 //
 
 func (cksrv *ChunkSrv) fetchCache(fetchCnt uint64, be *bin, r sp.Trealm, pid sp.Tpid, s3secret *sp.SecretProto, ck int, size sp.Tsize, data bool) (bool, sp.Tsize, string, *rpcproto.Blob, error) {
-	pn := pathBinCache(r, be.prog)
+	pn := PathBinCache(r, be.prog)
 	if sz, ok := IsPresent(pn, ck, size); ok {
 		b := make([]byte, sz)
 		db.DPrintf(db.CHUNKSRV, "%v: FetchCache(%v) %q pid %v ckid %d hit %d data %v", cksrv.kernelId, fetchCnt, pn, pid, ck, sz, data)
@@ -275,7 +275,7 @@ func (cksrv *ChunkSrv) fetchChunk(fetchCnt uint64, be *bin, r sp.Trealm, pid sp.
 			return 0, "", err
 		}
 	}
-	pn := pathBinCache(r, be.prog)
+	pn := PathBinCache(r, be.prog)
 	start := time.Now()
 	if err := writeChunk(fetchCnt, pid, cksrv.kernelId, pn, ck, b[0:sz]); err != nil {
 		db.DPrintf(db.CHUNKSRV, "%v: fetchChunk(%v) err: Writechunk %q ckid %d err %v", cksrv.kernelId, fetchCnt, pn, ck, err)
