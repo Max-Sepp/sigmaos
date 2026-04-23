@@ -54,7 +54,7 @@ func (impl *WASMProcAPIImpl) Send(rpcIdx uint64, pn string, method string, b []b
 	impl.wg.Add(1)
 	go func() {
 		defer impl.wg.Done()
-		impl.ws.runDelegatedRPC(impl.sc, impl.p, impl.rpcReps, rpcIdx, pn, iniov, nOutIOV+1)
+		impl.ws.runWASMProcRPC(impl.sc, impl.p, impl.rpcReps, rpcIdx, pn, iniov, nOutIOV+1)
 	}()
 	return nil
 }
@@ -88,7 +88,7 @@ func (impl *WASMProcAPIImpl) Forward(rpcIdx uint64, newRPCIdx uint64, pn string,
 	}
 	impl.wg.Add(1)
 	defer impl.wg.Done()
-	impl.ws.runDelegatedRPC(impl.sc, impl.p, impl.rpcReps, newRPCIdx, pn, iniov, nOutIOV+1)
+	impl.ws.runWASMProcRPC(impl.sc, impl.p, impl.rpcReps, newRPCIdx, pn, iniov, nOutIOV+1)
 	return nil
 }
 
