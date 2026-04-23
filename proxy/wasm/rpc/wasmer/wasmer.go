@@ -212,7 +212,7 @@ func (wrt *WasmerRuntime) newRecvRPCFn(store *wasmer.Store, instance **wasmer.In
 					}
 					copy(buf[bufIdx:bufIdx+8], b.Bytes())
 					if uint64(bufIdx)+frameLen > SHARED_BUF_SZ {
-						db.DFatalf("Err copy too much data to WASM reply buffer: %v > %v", uint64(bufIdx)+frameLen)
+						db.DFatalf("Err copy too much data to WASM reply buffer: %v > %v", uint64(bufIdx)+frameLen, SHARED_BUF_SZ)
 					}
 					// Copy the reply to the shared buffer
 					copy(buf[bufIdx+8:], frame.GetBuf())
