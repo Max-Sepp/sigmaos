@@ -99,6 +99,11 @@ func (wp *WASMRPCProxy) Forward(rpcIdx uint64, newRPCIdx uint64, pn string, nOut
 	return nil
 }
 
+func (wp *WASMRPCProxy) Log(msg string) error {
+	db.DPrintf(db.SPPROXYSRV, "[%v] WASM log: %v", wp.p.GetPid(), msg)
+	return nil
+}
+
 func (wp *WASMRPCProxy) Exit(status wasmrpc.Tstatus, msg string) error {
 	db.DPrintf(db.SPPROXYSRV, "[%v] BootScript called exited status %v msg %v", wp.p.GetPid(), status, msg)
 	wp.mu.Lock()

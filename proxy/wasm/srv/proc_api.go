@@ -92,6 +92,11 @@ func (impl *WASMProcAPIImpl) Forward(rpcIdx uint64, newRPCIdx uint64, pn string,
 	return nil
 }
 
+func (impl *WASMProcAPIImpl) Log(msg string) error {
+	db.DPrintf(db.WASMD, "[%v] WASM log: %v", impl.p.GetPid(), msg)
+	return nil
+}
+
 func (impl *WASMProcAPIImpl) Exit(status wasmrpc.Tstatus, msg string) error {
 	db.DPrintf(db.WASMD, "[%v] WASMProc exited status %v msg %v", impl.p.GetPid(), status, msg)
 	impl.mu.Lock()

@@ -77,6 +77,7 @@ func (wrt *WasmerRuntime) RunModule(pid sp.Tpid, spawnTime time.Time, compiledMo
 			"recv_rpc":    wrt.newRecvRPCFn(store, &instance, &wasmBufPtr, pid),
 			"forward_rpc": wrt.newForwardRPCFn(store, &instance, &wasmBufPtr, pid),
 			"exit":        wrt.newExitFn(store, &instance, &wasmBufPtr, pid),
+			"log":         wrt.newLogFn(store, &instance, &wasmBufPtr, pid),
 		},
 	)
 	start := time.Now()
@@ -288,6 +289,29 @@ func (wrt *WasmerRuntime) newExitFn(store *wasmer.Store, instance **wasmer.Insta
 				return []wasmer.Value{}, err
 			}
 			db.DPrintf(db.WASMRT, "Exit done status:%v msg:%v", status, msg)
+			return []wasmer.Value{}, nil
+		},
+	)
+}
+
+func (wrt *WasmerRuntime) newLogFn(store *wasmer.Store, instance **wasmer.Instance, wasmBufPtr *int32, pid sp.Tpid) *wasmer.Function {
+	return wasmer.NewFunction(
+		store,
+		wasmer.NewFunctionType(wasmer.NewValueTypes(wasmer.I64), wasmer.NewValueTypes()),
+		func(args []wasmer.Value) ([]wasmer.Value, error) {
+			msgLen := uint64(args[0].I64())
+			mem, err := (*instance).Exports.GetMemory("memory")
+			if err != nil {
+				db.DPrintf(db.ERROR, "[%v] Err get WASM instance memory: %v", pid, err)
+				db.DPrintf(db.WASMRT_ERR, "[%v] Err get WASM instance memory: %v", pid, err)
+				return []wasmer.Value{}, err
+			}
+			buf := (*mem).Data()[*wasmBufPtr : *wasmBufPtr+SHARED_BUF_SZ]
+			msg := string(buf[0:msgLen])
+			if err := wrt.apiImpl.Log(msg); err != nil {
+				db.DPrintf(db.WASMRT_ERR, "[%v] Err Log: %v", pid, err)
+				return []wasmer.Value{}, err
+			}
 			return []wasmer.Value{}, nil
 		},
 	)

@@ -63,3 +63,8 @@ func (ts *TestRPCAPI) Recv(rpcIdx uint64) ([]byte, error) {
 	db.DFatalf("Unimplemented")
 	return nil, nil
 }
+
+func (ts *TestRPCAPI) Log(msg string) error {
+	db.DPrintf(db.TEST, "WASM log: %v", msg)
+	return nil
+}
