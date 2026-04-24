@@ -34,7 +34,9 @@ func (dc *Clnt) init() error {
 	var initErr error
 	dc.once.Do(func() {
 		opts := []*rpcclntopts.RPCClntOption{
+			sprpcclnt.WithSPChannel(dc.fsl, true),
 			sprpcclnt.WithDelegatedSPProxyChannel(dc.fsl),
+			rpcclntopts.WithShmem(dc.fsl.GetShmemSegment()),
 		}
 		// TODO(shmem): when adding shmem support, also pass:
 		//   rpcclntopts.WithShmem(dc.shmemSeg)
