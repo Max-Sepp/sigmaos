@@ -1,6 +1,7 @@
 package wasmer
 
 import (
+	"encoding/binary"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -9,6 +10,25 @@ import (
 	"sigmaos/sigmaclnt"
 	sp "sigmaos/sigmap"
 )
+
+// EncodeArgs encodes a slice of strings as N u32 LE lengths followed by N
+// string bodies — the format expected by WASM boot/proc input buffers.
+func EncodeArgs(args []string) []byte {
+	total := 4 * len(args)
+	for _, a := range args {
+		total += len(a)
+	}
+	buf := make([]byte, 0, total)
+	for _, a := range args {
+		var lb [4]byte
+		binary.LittleEndian.PutUint32(lb[:], uint32(len(a)))
+		buf = append(buf, lb[:]...)
+	}
+	for _, a := range args {
+		buf = append(buf, a...)
+	}
+	return buf
+}
 
 func projectRootPath() string {
 	_, b, _, _ := runtime.Caller(0)

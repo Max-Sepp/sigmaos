@@ -20,8 +20,9 @@ const (
 )
 
 type WasmerRuntime struct {
-	apiImpl      wasmrpc.CoSandboxAPIImpl
-	precompStore *wasmer.Store // Store used for WASM script precompilation
+	apiImpl         wasmrpc.CoSandboxAPIImpl
+	recvDelegatedFn func(uint64) ([]byte, error) // nil in spproxy path
+	precompStore    *wasmer.Store                 // Store used for WASM script precompilation
 }
 
 func NewWasmerRuntime(apiImpl wasmrpc.CoSandboxAPIImpl) *WasmerRuntime {
@@ -35,6 +36,10 @@ func NewWasmerRuntime(apiImpl wasmrpc.CoSandboxAPIImpl) *WasmerRuntime {
 		apiImpl:      apiImpl,
 		precompStore: wasmer.NewStore(engine),
 	}
+}
+
+func (wrt *WasmerRuntime) SetRecvDelegated(fn func(uint64) ([]byte, error)) {
+	wrt.recvDelegatedFn = fn
 }
 
 func (wrt *WasmerRuntime) PrecompileModule(wasmBytes []byte) ([]byte, error) {
@@ -73,11 +78,12 @@ func (wrt *WasmerRuntime) RunModule(pid sp.Tpid, spawnTime time.Time, compiledMo
 	importObject.Register(
 		"sigmaos_host",
 		map[string]wasmer.IntoExtern{
-			"send_rpc":    wrt.newSendRPCFn(store, &instance, &wasmBufPtr, pid),
-			"recv_rpc":    wrt.newRecvRPCFn(store, &instance, &wasmBufPtr, pid),
-			"forward_rpc": wrt.newForwardRPCFn(store, &instance, &wasmBufPtr, pid),
-			"exit":        wrt.newExitFn(store, &instance, &wasmBufPtr, pid),
-			"log":         wrt.newLogFn(store, &instance, &wasmBufPtr, pid),
+			"send_rpc":           wrt.newSendRPCFn(store, &instance, &wasmBufPtr, pid),
+			"recv_rpc":           wrt.newRecvRPCFn(store, &instance, &wasmBufPtr, pid),
+			"recv_delegated_rpc": wrt.newRecvDelegatedRPCFn(store, &instance, &wasmBufPtr, pid),
+			"forward_rpc":        wrt.newForwardRPCFn(store, &instance, &wasmBufPtr, pid),
+			"exit":               wrt.newExitFn(store, &instance, &wasmBufPtr, pid),
+			"log":                wrt.newLogFn(store, &instance, &wasmBufPtr, pid),
 		},
 	)
 	start := time.Now()
@@ -133,6 +139,35 @@ func (wrt *WasmerRuntime) RunModule(pid sp.Tpid, spawnTime time.Time, compiledMo
 	perf.LogSpawnLatency("WASM module ran", pid, spawnTime, start)
 	db.DPrintf(db.WASMRT, "[%v] Successfully ran WASM boot script", pid)
 	return wrt.apiImpl.WaitExit()
+}
+
+func (wrt *WasmerRuntime) newRecvDelegatedRPCFn(store *wasmer.Store, instance **wasmer.Instance, wasmBufPtr *int32, pid sp.Tpid) *wasmer.Function {
+	return wasmer.NewFunction(
+		store,
+		wasmer.NewFunctionType(wasmer.NewValueTypes(wasmer.I64), wasmer.NewValueTypes(wasmer.I64)),
+		func(args []wasmer.Value) ([]wasmer.Value, error) {
+			rpcIdx := uint64(args[0].I64())
+			if wrt.recvDelegatedFn == nil {
+				db.DFatalf("[%v] recv_delegated_rpc called with nil recvDelegatedFn", pid)
+			}
+			data, err := wrt.recvDelegatedFn(rpcIdx)
+			if err != nil {
+				db.DPrintf(db.WASMRT_ERR, "[%v] Err RecvDelegatedRPC(%v): %v", pid, rpcIdx, err)
+				return []wasmer.Value{}, err
+			}
+			mem, err := (*instance).Exports.GetMemory("memory")
+			if err != nil {
+				db.DPrintf(db.ERROR, "[%v] Err get WASM instance memory: %v", pid, err)
+				return []wasmer.Value{}, err
+			}
+			buf := (*mem).Data()[*wasmBufPtr : *wasmBufPtr+SHARED_BUF_SZ]
+			frameLen := uint64(len(data) + 8)
+			binary.LittleEndian.PutUint64(buf[0:8], frameLen)
+			copy(buf[8:], data)
+			db.DPrintf(db.WASMRT, "[%v] RecvDelegatedRPC(%v) data len:%v", pid, rpcIdx, len(data))
+			return []wasmer.Value{wasmer.NewI64(1)}, nil
+		},
+	)
 }
 
 func (wrt *WasmerRuntime) newSendRPCFn(store *wasmer.Store, instance **wasmer.Instance, wasmBufPtr *int32, pid sp.Tpid) *wasmer.Function {

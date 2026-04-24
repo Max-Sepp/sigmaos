@@ -1,7 +1,6 @@
 package srv
 
 import (
-	"encoding/binary"
 	"io"
 	"net"
 	"os"
@@ -167,9 +166,9 @@ func (ws *WASMSrv) runWASMProc(p *proc.Proc) (uint64, string, error) {
 	rpcReps := NewRPCState()
 	procAPI := NewWASMProcAPIImpl(ws, sc, p, rpcReps)
 	wrt := wasmrt.NewWasmerRuntime(procAPI)
+	wrt.SetRecvDelegated(procAPI.RecvDelegated)
 
-	// Encode proc Args as input buffer: N u32 LE lengths, then N strings.
-	inputBytes := encodeArgs(p.GetArgs())
+	inputBytes := wasmrt.EncodeArgs(p.GetArgs())
 
 	if err := sc.Started(); err != nil {
 		db.DPrintf(db.WASMD_ERR, "[%v] Started err: %v", p.GetPid(), err)
@@ -187,26 +186,6 @@ func (ws *WASMSrv) runWASMProc(p *proc.Proc) (uint64, string, error) {
 
 	db.DPrintf(db.WASMD, "[%v] RunModule done status=%v msg=%v err=%v", p.GetPid(), status, msg, runErr)
 	return uint64(status), msg, runErr
-}
-
-// encodeArgs encodes a slice of strings as: for each arg, a u32 LE length,
-// then all arg bytes concatenated. This matches the input format expected by
-// WASM modules (e.g., imgrec reads N length fields then N strings).
-func encodeArgs(args []string) []byte {
-	total := 4 * len(args)
-	for _, a := range args {
-		total += len(a)
-	}
-	buf := make([]byte, 0, total)
-	for _, a := range args {
-		var lenBuf [4]byte
-		binary.LittleEndian.PutUint32(lenBuf[:], uint32(len(a)))
-		buf = append(buf, lenBuf[:]...)
-	}
-	for _, a := range args {
-		buf = append(buf, []byte(a)...)
-	}
-	return buf
 }
 
 // RunWASMSrv is the entry point for the wasmd process.

@@ -5,14 +5,15 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
+	imgrectestutil "sigmaos/apps/imgrec/testutil"
 	db "sigmaos/debug"
 	"sigmaos/proc"
 	wasmrt "sigmaos/proxy/wasm/rpc/wasmer"
+	"sigmaos/sigmaclnt"
 	"sigmaos/sigmaclnt/fslib"
 	sp "sigmaos/sigmap"
 	"sigmaos/test"
@@ -40,6 +41,34 @@ func uploadBytes(fsl *fslib.FsLib, data []byte, spn sp.Tsigmapath) error {
 	return err
 }
 
+func uploadImgrecBin(t *testing.T, rts *test.RealmTstate) string {
+	precompiledBinPath := filepath.Join(sp.S3, sp.ANY, "9ps3", PRECOMPILED_PROG+"-v"+sp.Version)
+	db.DPrintf(db.TEST, "Upload compiled wasm bin to %v", precompiledBinPath)
+	rawBytes, err := os.ReadFile(LOCAL_WASM_BIN)
+	if !assert.Nil(t, err, "ReadFile %v: %v", LOCAL_WASM_BIN, err) {
+		t.FailNow()
+	}
+	wrt := wasmrt.NewWasmerRuntime(nil)
+	compiledBytes, err := wrt.PrecompileModule(rawBytes)
+	if !assert.Nil(t, err, "PrecompileModule: %v", err) {
+		t.FailNow()
+	}
+	rts.Remove(precompiledBinPath)
+	err = uploadBytes(rts.FsLib, compiledBytes, precompiledBinPath)
+	if !assert.Nil(t, err, "uploadBytes precompiled %v: %v", precompiledBinPath, err) {
+		t.FailNow()
+	}
+	return precompiledBinPath
+}
+
+func getImgrecBootScript(t *testing.T, sc *sigmaclnt.SigmaClnt) []byte {
+	b, err := wasmrt.ReadBootScript(sc, "imgrec_boot")
+	if !assert.Nil(t, err, "ReadBootScript imgrec_boot: %v", err) {
+		t.FailNow()
+	}
+	return b
+}
+
 func TestCompile(t *testing.T) {
 }
 
@@ -51,44 +80,60 @@ func TestImgrec(t *testing.T) {
 	defer mrts.Shutdown()
 
 	rts := mrts.GetRealm(test.REALM1)
-
-	// Compute the upload path using the realm's origin SigmaPath entry
-	//	sigmaPath := rts.ProcEnv().GetSigmaPath()
-	//	originDir := sigmaPath[len(sigmaPath)-1]
-	//	precompiledBinPath := filepath.Join(originDir, PRECOMPILED_PROG+"-v"+sp.Version)
-	precompiledBinPath := filepath.Join(sp.S3, sp.ANY, "9ps3", PRECOMPILED_PROG+"-v"+sp.Version)
-
-	db.DPrintf(db.TEST, "Upload compiled wasm bin to %v", precompiledBinPath)
-
-	// Read the raw WASM binary from the local bin directory for precompilation
-	rawBytes, err := os.ReadFile(LOCAL_WASM_BIN)
-	if !assert.Nil(t, err, "ReadFile %v: %v", LOCAL_WASM_BIN, err) {
-		return
-	}
-
-	// Precompile the WASM module using the Cranelift compiler
-	wrt := wasmrt.NewWasmerRuntime(nil)
-	compiledBytes, err := wrt.PrecompileModule(rawBytes)
-	if !assert.Nil(t, err, "PrecompileModule: %v", err) {
-		return
-	}
-
-	// Remove any previously uploaded precompiled binary before uploading
-	rts.Remove(precompiledBinPath)
-
-	// Upload the precompiled binary to the const path in SigmaOS
-	err = uploadBytes(rts.FsLib, compiledBytes, precompiledBinPath)
-	if !assert.Nil(t, err, "uploadBytes precompiled %v: %v", precompiledBinPath, err) {
-		return
-	}
+	ref := imgrectestutil.GetReferenceOutput(t, rts.FsLib, IMG_BUCKET, IMG_KEY, MODEL_BUCKET, MODEL_KEY, KID)
+	precompiledBinPath := uploadImgrecBin(t, rts)
 
 	p := proc.NewProc(PRECOMPILED_PROG, []string{
 		IMG_BUCKET, IMG_KEY,
 		MODEL_BUCKET, MODEL_KEY,
-		KID,
+		KID, "false", // use_delegated=false: direct S3 fetch
 	})
 	p.GetProcEnv().UseSPProxy = true
 	p.SetProcContainerType(proc.ProcContainerType_PROC_CTR_WASM)
+	// XXX hack, remove eventually
+	p.PrependSigmaPath(filepath.Dir(precompiledBinPath))
+
+	err := rts.Spawn(p)
+	assert.Nil(t, err, "Spawn")
+
+	err = rts.WaitStart(p.GetPid())
+	assert.Nil(t, err, "WaitStart error")
+
+	status, err := rts.WaitExit(p.GetPid())
+	assert.Nil(t, err, "WaitExit error %v", err)
+	assert.True(t, status.IsStatusOK(), "WaitExit status error: %v", status)
+
+	msg := status.Msg()
+	db.DPrintf(db.TEST, "imgrec pred: %v", msg)
+	imgrectestutil.AssertMatchesReference(t, msg, ref)
+}
+
+func TestImgrecWASMCoSandbox(t *testing.T) {
+	mrts, err := test.NewMultiRealmTstate(t, []sp.Trealm{test.REALM1})
+	if !assert.Nil(t, err, "Error New Tstate: %v", err) {
+		return
+	}
+	defer mrts.Shutdown()
+
+	rts := mrts.GetRealm(test.REALM1)
+	ref := imgrectestutil.GetReferenceOutput(t, rts.FsLib, IMG_BUCKET, IMG_KEY, MODEL_BUCKET, MODEL_KEY, KID)
+
+	// Read and precompile the boot script.
+	bootScript := getImgrecBootScript(t, rts.SigmaClnt)
+	// Boot script input: model=rpcIdx 0, image=rpcIdx 1.
+	bootInput := wasmrt.EncodeArgs([]string{IMG_BUCKET, IMG_KEY, MODEL_BUCKET, MODEL_KEY, KID})
+
+	precompiledBinPath := uploadImgrecBin(t, rts)
+
+	p := proc.NewProc(PRECOMPILED_PROG, []string{
+		IMG_BUCKET, IMG_KEY,
+		MODEL_BUCKET, MODEL_KEY,
+		KID, "true", // use_delegated=true: retrieve from SPProxy store
+	})
+	p.GetProcEnv().UseSPProxy = true
+	p.SetProcContainerType(proc.ProcContainerType_PROC_CTR_WASM)
+	p.SetBootScript(bootScript, bootInput)
+	p.SetRunBootScript(true)
 	// XXX hack, remove eventually
 	p.PrependSigmaPath(filepath.Dir(precompiledBinPath))
 
@@ -102,7 +147,7 @@ func TestImgrec(t *testing.T) {
 	assert.Nil(t, err, "WaitExit error %v", err)
 	assert.True(t, status.IsStatusOK(), "WaitExit status error: %v", status)
 
-	// The exit message should be "class_idx,score"
 	msg := status.Msg()
-	assert.True(t, strings.Contains(msg, ","), "exit msg should be class_idx,score: %v", msg)
+	db.DPrintf(db.TEST, "imgrec pred: %v", msg)
+	imgrectestutil.AssertMatchesReference(t, msg, ref)
 }

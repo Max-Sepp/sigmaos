@@ -12,6 +12,7 @@ mod sigmaos_host {
     unsafe extern "C" {
         pub fn send_rpc(rpc_idx: u64, pn_len: u64, method_len: u64, rpc_len: u64, n_outiov: u64);
         pub fn recv_rpc(rpc_idx: u64, get_data: u64) -> u64;
+        pub fn recv_delegated_rpc(rpc_idx: u64) -> u64;
         pub fn forward_rpc(rpc_idx: u64, new_rpc_idx: u64, pn_len: u64, n_outiov: u64);
         pub fn exit(status: u64, msg_len: u64);
         pub fn log(msg_len: u64);
@@ -48,7 +49,10 @@ pub fn send_rpc(
     }
 }
 
-// Returns a tuple of (offsets, lengths)
+// Returns a tuple of (offsets, lengths). Reads frames 1..N from the iov
+// (frame 0 is the RPC proto wrapper, silently skipped by the host). Use
+// buf_offs[1] for S3 object data (frame 0 is the proto Rep, frame 1 is the
+// blob).
 pub fn recv_rpc(buf: &mut [u8], rpc_idx: u64, get_data: bool) -> (Vec<usize>, Vec<usize>) {
     let n_buf = unsafe { sigmaos_host::recv_rpc(rpc_idx, get_data as u64) };
     let mut buf_lens = Vec::with_capacity(n_buf.try_into().unwrap());
@@ -63,6 +67,23 @@ pub fn recv_rpc(buf: &mut [u8], rpc_idx: u64, get_data: bool) -> (Vec<usize>, Ve
         idx += len;
     }
     return (buf_offs, buf_lens);
+}
+
+// Returns a tuple of (offsets, lengths) with exactly 1 entry. The host writes
+// a single raw frame (8-byte LE length + data) — no proto wrapper. Use
+// buf_offs[0] to read the delegated data.
+pub fn recv_delegated_rpc(buf: &mut [u8], rpc_idx: u64) -> (Vec<usize>, Vec<usize>) {
+    let n_buf = unsafe { sigmaos_host::recv_delegated_rpc(rpc_idx) };
+    let mut buf_lens = Vec::with_capacity(n_buf as usize);
+    let mut buf_offs = Vec::with_capacity(n_buf as usize);
+    let mut idx: usize = 0;
+    for _ in 0..n_buf {
+        let len = u64::from_le_bytes(buf[idx..idx + 8].try_into().unwrap()) as usize;
+        buf_lens.push(len - 8);
+        buf_offs.push(idx + 8);
+        idx += len;
+    }
+    (buf_offs, buf_lens)
 }
 
 pub fn forward_rpc(buf: &mut [u8], rpc_idx: u64, new_rpc_idx: u64, pn: &str, n_outiov: u64) {

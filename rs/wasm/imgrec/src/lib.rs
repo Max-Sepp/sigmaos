@@ -19,15 +19,16 @@ const MEAN: [f32; 3] = [0.485, 0.456, 0.406];
 const STD: [f32; 3] = [0.229, 0.224, 0.225];
 const INPUT_DIM: usize = 224;
 
-// Input buffer layout:
-//   [0..4]   img_bucket_len   (u32 LE)
-//   [4..8]   img_key_len      (u32 LE)
-//   [8..12]  model_bucket_len (u32 LE)
-//   [12..16] model_key_len    (u32 LE)
-//   [16..20] kid_len          (u32 LE)
-//   followed by: img_bucket, img_key, model_bucket, model_key, kid
+// Input buffer layout (6 u32 LE lengths, then 6 strings):
+//   [0..4]   img_bucket_len    (u32 LE)
+//   [4..8]   img_key_len       (u32 LE)
+//   [8..12]  model_bucket_len  (u32 LE)
+//   [12..16] model_key_len     (u32 LE)
+//   [16..20] kid_len           (u32 LE)
+//   [20..24] use_delegated_len (u32 LE)
+//   followed by: img_bucket, img_key, model_bucket, model_key, kid, use_delegated
 //
-// Output: [0..4] class_idx (u32 LE), [4..8] score (f32 LE)
+// Output: exit msg "class_idx,score"
 #[export_name = "boot"]
 pub fn boot(b: *mut c_char, buf_sz: usize) {
     let buf: &mut [u8] = unsafe { slice::from_raw_parts_mut(b as *mut u8, buf_sz) };
@@ -38,9 +39,10 @@ pub fn boot(b: *mut c_char, buf_sz: usize) {
     let model_bucket_len = u32::from_le_bytes(buf[8..12].try_into().unwrap()) as usize;
     let model_key_len = u32::from_le_bytes(buf[12..16].try_into().unwrap()) as usize;
     let kid_len = u32::from_le_bytes(buf[16..20].try_into().unwrap()) as usize;
+    let use_delegated_len = u32::from_le_bytes(buf[20..24].try_into().unwrap()) as usize;
 
     // Parse strings — copy to owned before any send_rpc overwrites the buffer.
-    let mut off = 20;
+    let mut off = 24;
     let img_bucket = str::from_utf8(&buf[off..off + img_bucket_len])
         .unwrap()
         .to_string();
@@ -60,38 +62,56 @@ pub fn boot(b: *mut c_char, buf_sz: usize) {
     let kid = str::from_utf8(&buf[off..off + kid_len])
         .unwrap()
         .to_string();
+    off += kid_len;
+    let use_delegated = str::from_utf8(&buf[off..off + use_delegated_len])
+        .unwrap()
+        .to_string();
+
     let pn = "name/s3/".to_owned() + &kid;
 
-    // Fetch model (rpc 0).
-    let mut req = s3::GetReq::new();
-    req.bucket = model_bucket;
-    req.key = model_key;
-    sigmaos::send_rpc(
-        buf,
-        0,
-        &pn,
-        "S3RpcAPI.GetObject",
-        &req.write_to_bytes().unwrap(),
-        2,
-    );
-    let (buf_offs, buf_lens) = sigmaos::recv_rpc(buf, 0, true);
-    let model_bytes: Vec<u8> = buf[buf_offs[1]..buf_offs[1] + buf_lens[1]].to_vec();
+    let (model_bytes, img_bytes) = if use_delegated == "true" {
+        // Delegated path: boot script has already fetched model (rpcIdx=0) and
+        // image (rpcIdx=1) into SPProxy's delegated RPC store. Use
+        // recv_delegated_rpc which returns a single raw frame at buf_offs[0].
+        let (buf_offs, buf_lens) = sigmaos::recv_delegated_rpc(buf, 0);
+        let model_bytes: Vec<u8> = buf[buf_offs[0]..buf_offs[0] + buf_lens[0]].to_vec();
+        let (buf_offs, buf_lens) = sigmaos::recv_delegated_rpc(buf, 1);
+        let img_bytes: Vec<u8> = buf[buf_offs[0]..buf_offs[0] + buf_lens[0]].to_vec();
+        (model_bytes, img_bytes)
+    } else {
+        // Direct path: fetch model then image via S3 RPC.
+        // model at rpcIdx=0, image at rpcIdx=1.
+        let mut req = s3::GetReq::new();
+        req.bucket = model_bucket;
+        req.key = model_key;
+        sigmaos::send_rpc(
+            buf,
+            0,
+            &pn,
+            "S3RpcAPI.GetObject",
+            &req.write_to_bytes().unwrap(),
+            2,
+        );
+        let (buf_offs, buf_lens) = sigmaos::recv_rpc(buf, 0, true);
+        let model_bytes: Vec<u8> = buf[buf_offs[1]..buf_offs[1] + buf_lens[1]].to_vec();
 
-    // Fetch image (rpc 1) — send_rpc overwrites buf from the front, which is fine
-    // because we already copied the model bytes above.
-    let mut req = s3::GetReq::new();
-    req.bucket = img_bucket;
-    req.key = img_key;
-    sigmaos::send_rpc(
-        buf,
-        1,
-        &pn,
-        "S3RpcAPI.GetObject",
-        &req.write_to_bytes().unwrap(),
-        2,
-    );
-    let (buf_offs, buf_lens) = sigmaos::recv_rpc(buf, 1, true);
-    let img_bytes: Vec<u8> = buf[buf_offs[1]..buf_offs[1] + buf_lens[1]].to_vec();
+        // send_rpc overwrites buf from the front, which is fine because we
+        // already copied model bytes above.
+        let mut req = s3::GetReq::new();
+        req.bucket = img_bucket;
+        req.key = img_key;
+        sigmaos::send_rpc(
+            buf,
+            1,
+            &pn,
+            "S3RpcAPI.GetObject",
+            &req.write_to_bytes().unwrap(),
+            2,
+        );
+        let (buf_offs, buf_lens) = sigmaos::recv_rpc(buf, 1, true);
+        let img_bytes: Vec<u8> = buf[buf_offs[1]..buf_offs[1] + buf_lens[1]].to_vec();
+        (model_bytes, img_bytes)
+    };
 
     // Decode JPEG and resize to 224x224.
     let img = image::load_from_memory(&img_bytes)
