@@ -36,14 +36,16 @@ Clnt::GetObject(std::string bucket, std::string key, bool cache) {
   return s;
 }
 
-std::expected<std::pair<std::shared_ptr<std::string>, google::protobuf::Timestamp>,
-             sigmaos::serr::Error>
+std::expected<
+    std::pair<std::shared_ptr<std::string>, google::protobuf::Timestamp>,
+    sigmaos::serr::Error>
 Clnt::DelegatedGetObject(uint64_t rpc_idx) {
   log(S3CLNT, "DelegatedGetObject rpc_idx:{}", rpc_idx);
   S3Rep rep;
   Blob blob;
   std::shared_ptr<std::string> s;
-  std::shared_ptr<std::vector<std::shared_ptr<std::string_view>>> views = nullptr;
+  std::shared_ptr<std::vector<std::shared_ptr<std::string_view>>> views =
+      nullptr;
   if (_sp_clnt->ProcEnv()->GetUseShmem()) {
     views = std::make_shared<std::vector<std::shared_ptr<std::string_view>>>();
     views->push_back(std::make_shared<std::string_view>());

@@ -34,14 +34,16 @@ std::expected<std::shared_ptr<std::string>, sigmaos::serr::Error> Clnt::GetFile(
   return s;
 }
 
-std::expected<std::pair<std::shared_ptr<std::string>, google::protobuf::Timestamp>,
-             sigmaos::serr::Error>
+std::expected<
+    std::pair<std::shared_ptr<std::string>, google::protobuf::Timestamp>,
+    sigmaos::serr::Error>
 Clnt::DelegatedGetFile(uint64_t rpc_idx) {
   log(UXCLNT, "DelegatedGetFile rpc_idx:{}", rpc_idx);
   UXRep rep;
   Blob blob;
   std::shared_ptr<std::string> s;
-  std::shared_ptr<std::vector<std::shared_ptr<std::string_view>>> views = nullptr;
+  std::shared_ptr<std::vector<std::shared_ptr<std::string_view>>> views =
+      nullptr;
   if (_sp_clnt->ProcEnv()->GetUseShmem()) {
     views = std::make_shared<std::vector<std::shared_ptr<std::string_view>>>();
     views->push_back(std::make_shared<std::string_view>());

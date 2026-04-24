@@ -29,8 +29,9 @@ class Clnt {
       std::string bucket, std::string key, bool cache);
 
   // Returns (data, transfer_start_timestamp) on success.
-  std::expected<std::pair<std::shared_ptr<std::string>, google::protobuf::Timestamp>,
-                sigmaos::serr::Error>
+  std::expected<
+      std::pair<std::shared_ptr<std::string>, google::protobuf::Timestamp>,
+      sigmaos::serr::Error>
   DelegatedGetObject(uint64_t rpc_idx);
 
   std::expected<int, sigmaos::serr::Error> PutObject(std::string bucket,
