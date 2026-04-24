@@ -41,9 +41,15 @@ func (pc *pyCmd) Wait() error {
 func StartPythonContainer(uproc *proc.Proc) (*pyCmd, error) {
 	scriptPath := filepath.Join(binsrv.BINFSMNT, uproc.GetVersionedProgram())
 
+	valgrindProcs := proc.GetLabels(uproc.GetProcEnv().GetValgrind())
+
 	args := append([]string{scriptPath}, uproc.GetArgs()...)
-	cmd := exec.Command("python3", args...)
-	//	cmd := exec.Command("valgrind", append([]string{"--trace-children=yes", "python3"}, args...)...)
+	var cmd *exec.Cmd
+	if valgrindProcs[uproc.GetProgram()] {
+		cmd = exec.Command("valgrind", append([]string{"--trace-children=yes", "python3"}, args...)...)
+	} else {
+		cmd = exec.Command("python3", args...)
+	}
 
 	uproc.AppendEnv("PATH", "/bin:/usr/bin:/home/sigmaos/bin/kernel")
 	uproc.AppendEnv("PYTHONPATH", "/home/sigmaos/python")
