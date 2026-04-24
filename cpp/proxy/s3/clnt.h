@@ -1,5 +1,6 @@
 #pragma once
 
+#include <google/protobuf/timestamp.pb.h>
 #include <proxy/s3/proto/s3.pb.h>
 #include <proxy/sigmap/sigmap.h>
 #include <rpc/clnt.h>
@@ -10,6 +11,7 @@
 #include <expected>
 #include <memory>
 #include <string>
+#include <utility>
 
 namespace sigmaos {
 namespace proxy::s3 {
@@ -25,6 +27,11 @@ class Clnt {
 
   std::expected<std::shared_ptr<std::string>, sigmaos::serr::Error> GetObject(
       std::string bucket, std::string key, bool cache);
+
+  // Returns (data, transfer_start_timestamp) on success.
+  std::expected<std::pair<std::shared_ptr<std::string>, google::protobuf::Timestamp>,
+                sigmaos::serr::Error>
+  DelegatedGetObject(uint64_t rpc_idx);
 
   std::expected<int, sigmaos::serr::Error> PutObject(std::string bucket,
                                                      std::string key,

@@ -14,6 +14,10 @@ _lib.sigmaos_free_clnt.argtypes = [ctypes.c_void_p]
 _lib.sigmaos_started.restype = ctypes.c_int
 _lib.sigmaos_started.argtypes = [ctypes.c_void_p]
 
+# sigmaos_get_run_boot_script
+_lib.sigmaos_get_run_boot_script.restype = ctypes.c_int
+_lib.sigmaos_get_run_boot_script.argtypes = [ctypes.c_void_p]
+
 # sigmaos_exited
 _lib.sigmaos_exited.restype = ctypes.c_int
 _lib.sigmaos_exited.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_char_p]
@@ -45,6 +49,11 @@ _lib.sigmaos_s3_put_object.argtypes = [ctypes.c_void_p, ctypes.c_char_p,
                                         ctypes.c_char_p, ctypes.c_char_p,
                                         ctypes.c_size_t]
 
+# sigmaos_s3_delegated_get_object
+_lib.sigmaos_s3_delegated_get_object.restype = ctypes.c_void_p
+_lib.sigmaos_s3_delegated_get_object.argtypes = [ctypes.c_void_p, ctypes.c_uint64,
+                                                  ctypes.POINTER(ctypes.c_size_t)]
+
 # sigmaos_ux_get_file
 _lib.sigmaos_ux_get_file.restype = ctypes.c_void_p
 _lib.sigmaos_ux_get_file.argtypes = [ctypes.c_void_p, ctypes.c_char_p,
@@ -54,6 +63,11 @@ _lib.sigmaos_ux_get_file.argtypes = [ctypes.c_void_p, ctypes.c_char_p,
 _lib.sigmaos_ux_put_file.restype = ctypes.c_int
 _lib.sigmaos_ux_put_file.argtypes = [ctypes.c_void_p, ctypes.c_char_p,
                                       ctypes.c_char_p, ctypes.c_size_t]
+
+# sigmaos_ux_delegated_get_file
+_lib.sigmaos_ux_delegated_get_file.restype = ctypes.c_void_p
+_lib.sigmaos_ux_delegated_get_file.argtypes = [ctypes.c_void_p, ctypes.c_uint64,
+                                                ctypes.POINTER(ctypes.c_size_t)]
 
 # sigmaos_last_error
 _lib.sigmaos_last_error.restype = ctypes.c_char_p
@@ -79,6 +93,9 @@ class SigmaosClnt:
         if self._clnt:
             _lib.sigmaos_free_clnt(self._clnt)
             self._clnt = None
+
+    def get_run_boot_script(self) -> bool:
+        return bool(_lib.sigmaos_get_run_boot_script(self._clnt))
 
     def started(self):
         rc = _lib.sigmaos_started(self._clnt)
@@ -113,6 +130,17 @@ class SigmaosClnt:
         finally:
             _lib.sigmaos_free_buf(ptr)
 
+    def s3_delegated_get_object(self, rpc_idx: int) -> bytes:
+        out_len = ctypes.c_size_t(0)
+        ptr = _lib.sigmaos_s3_delegated_get_object(self._clnt, rpc_idx,
+                                                    ctypes.byref(out_len))
+        if not ptr:
+            raise RuntimeError(f"sigmaos_s3_delegated_get_object({rpc_idx}) failed: {_last_error()}")
+        try:
+            return bytes(ctypes.cast(ptr, ctypes.POINTER(ctypes.c_char * out_len.value)).contents)
+        finally:
+            _lib.sigmaos_free_buf(ptr)
+
     def s3_put_object(self, bucket: str, key: str, data: bytes) -> None:
         rc = _lib.sigmaos_s3_put_object(self._clnt, bucket.encode("utf-8"),
                                          key.encode("utf-8"), data, len(data))
@@ -125,6 +153,17 @@ class SigmaosClnt:
                                         ctypes.byref(out_len))
         if not ptr:
             raise RuntimeError(f"sigmaos_ux_get_file({path!r}) failed: {_last_error()}")
+        try:
+            return bytes(ctypes.cast(ptr, ctypes.POINTER(ctypes.c_char * out_len.value)).contents)
+        finally:
+            _lib.sigmaos_free_buf(ptr)
+
+    def ux_delegated_get_file(self, rpc_idx: int) -> bytes:
+        out_len = ctypes.c_size_t(0)
+        ptr = _lib.sigmaos_ux_delegated_get_file(self._clnt, rpc_idx,
+                                                  ctypes.byref(out_len))
+        if not ptr:
+            raise RuntimeError(f"sigmaos_ux_delegated_get_file({rpc_idx}) failed: {_last_error()}")
         try:
             return bytes(ctypes.cast(ptr, ctypes.POINTER(ctypes.c_char * out_len.value)).contents)
         finally:

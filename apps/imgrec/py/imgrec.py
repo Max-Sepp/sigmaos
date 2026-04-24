@@ -4,8 +4,8 @@ SigmaOS image-recognition proc (Python).
 
 Args: img_bucket img_key model_bucket model_key kid
 
-Fetches the image and MobileNetV2 ONNX model from S3 via the SigmaOS API,
-runs inference, and exits with "class_idx,score" as the exit message.
+If GetRunBootScript is true, fetches via delegated S3 RPCs (rpc_idx 0 for
+both image and model); otherwise fetches directly by bucket/key.
 """
 
 import sys
@@ -28,18 +28,21 @@ def preprocess(img_bytes: bytes) -> np.ndarray:
 
 
 def main():
+    clnt = sigmaos.SigmaosClnt()
+    clnt.started()
+
     if len(sys.argv) != 6:
         print(f"usage: {sys.argv[0]} img_bucket img_key model_bucket model_key kid",
               file=sys.stderr)
         sys.exit(1)
-
     img_bucket, img_key, model_bucket, model_key, _kid = sys.argv[1:]
 
-    clnt = sigmaos.SigmaosClnt()
-    clnt.started()
-
-    img_bytes   = clnt.s3_get_object(img_bucket, img_key)
-    model_bytes = clnt.s3_get_object(model_bucket, model_key)
+    if clnt.get_run_boot_script():
+        img_bytes   = clnt.s3_delegated_get_object(1)
+        model_bytes = clnt.s3_delegated_get_object(0)
+    else:
+        img_bytes   = clnt.s3_get_object(img_bucket, img_key)
+        model_bytes = clnt.s3_get_object(model_bucket, model_key)
 
     tensor = preprocess(img_bytes)
 

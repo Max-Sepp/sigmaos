@@ -36,6 +36,24 @@ Clnt::GetObject(std::string bucket, std::string key, bool cache) {
   return s;
 }
 
+std::expected<std::pair<std::shared_ptr<std::string>, google::protobuf::Timestamp>,
+             sigmaos::serr::Error>
+Clnt::DelegatedGetObject(uint64_t rpc_idx) {
+  log(S3CLNT, "DelegatedGetObject rpc_idx:{}", rpc_idx);
+  S3Rep rep;
+  Blob blob;
+  auto s = std::make_shared<std::string>();
+  blob.mutable_iov()->AddAllocated(s.get());
+  rep.set_allocated_blob(&blob);
+  auto res = _rpcc->DelegatedRPC(rpc_idx, rep);
+  if (!res.has_value()) {
+    log(S3CLNT_ERR, "Err DelegatedGetObject: {}", res.error().String());
+    return std::unexpected(res.error());
+  }
+  log(S3CLNT, "DelegatedGetObject ok rpc_idx:{} len:{}", rpc_idx, s->size());
+  return std::make_pair(s, res.value());
+}
+
 std::expected<int, sigmaos::serr::Error> Clnt::PutObject(std::string bucket,
                                                          std::string key,
                                                          std::string* data) {

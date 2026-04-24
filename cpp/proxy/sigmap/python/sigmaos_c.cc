@@ -72,6 +72,10 @@ int sigmaos_started(SigmaosClnt clnt) {
   return 0;
 }
 
+int sigmaos_get_run_boot_script(SigmaosClnt clnt) {
+  return state(clnt)->sp->ProcEnv()->GetRunBootScript() ? 1 : 0;
+}
+
 int sigmaos_exited(SigmaosClnt clnt, int status, const char* msg) {
   clear_error();
   std::string msg_str(msg ? msg : "");
@@ -149,6 +153,24 @@ int sigmaos_s3_put_object(SigmaosClnt clnt, const char* bucket, const char* key,
   return 0;
 }
 
+char* sigmaos_s3_delegated_get_object(SigmaosClnt clnt, uint64_t rpc_idx,
+                                      size_t* out_len) {
+  clear_error();
+  auto res = s3_clnt(state(clnt))->DelegatedGetObject(rpc_idx);
+  if (!res.has_value()) {
+    set_error(res.error().String());
+    *out_len = 0;
+    return nullptr;
+  }
+  auto& s = res.value().first;
+  *out_len = s->size();
+  char* buf = static_cast<char*>(malloc(s->size()));
+  if (buf) {
+    memcpy(buf, s->data(), s->size());
+  }
+  return buf;
+}
+
 char* sigmaos_ux_get_file(SigmaosClnt clnt, const char* path, size_t* out_len) {
   clear_error();
   auto res = ux_clnt(state(clnt))->GetFile(std::string(path));
@@ -176,6 +198,24 @@ int sigmaos_ux_put_file(SigmaosClnt clnt, const char* path, const char* data,
     return -1;
   }
   return 0;
+}
+
+char* sigmaos_ux_delegated_get_file(SigmaosClnt clnt, uint64_t rpc_idx,
+                                    size_t* out_len) {
+  clear_error();
+  auto res = ux_clnt(state(clnt))->DelegatedGetFile(rpc_idx);
+  if (!res.has_value()) {
+    set_error(res.error().String());
+    *out_len = 0;
+    return nullptr;
+  }
+  auto& s = res.value().first;
+  *out_len = s->size();
+  char* buf = static_cast<char*>(malloc(s->size()));
+  if (buf) {
+    memcpy(buf, s->data(), s->size());
+  }
+  return buf;
 }
 
 const char* sigmaos_last_error() { return tl_last_error.c_str(); }

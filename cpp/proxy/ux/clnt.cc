@@ -34,6 +34,24 @@ std::expected<std::shared_ptr<std::string>, sigmaos::serr::Error> Clnt::GetFile(
   return s;
 }
 
+std::expected<std::pair<std::shared_ptr<std::string>, google::protobuf::Timestamp>,
+             sigmaos::serr::Error>
+Clnt::DelegatedGetFile(uint64_t rpc_idx) {
+  log(UXCLNT, "DelegatedGetFile rpc_idx:{}", rpc_idx);
+  UXRep rep;
+  Blob blob;
+  auto s = std::make_shared<std::string>();
+  blob.mutable_iov()->AddAllocated(s.get());
+  rep.set_allocated_blob(&blob);
+  auto res = _rpcc->DelegatedRPC(rpc_idx, rep);
+  if (!res.has_value()) {
+    log(UXCLNT_ERR, "Err DelegatedGetFile: {}", res.error().String());
+    return std::unexpected(res.error());
+  }
+  log(UXCLNT, "DelegatedGetFile ok rpc_idx:{} len:{}", rpc_idx, s->size());
+  return std::make_pair(s, res.value());
+}
+
 std::expected<int, sigmaos::serr::Error> Clnt::PutFile(std::string path,
                                                        std::string* data) {
   log(UXCLNT, "PutFile path:{} len:{}", path, data->size());
