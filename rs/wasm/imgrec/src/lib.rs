@@ -62,10 +62,10 @@ pub fn boot(b: *mut c_char, buf_sz: usize) {
         .to_string();
     let pn = "name/s3/".to_owned() + &kid;
 
-    // Fetch image (rpc 0).
+    // Fetch model (rpc 0).
     let mut req = s3::GetReq::new();
-    req.bucket = img_bucket;
-    req.key = img_key;
+    req.bucket = model_bucket;
+    req.key = model_key;
     sigmaos::send_rpc(
         buf,
         0,
@@ -75,13 +75,13 @@ pub fn boot(b: *mut c_char, buf_sz: usize) {
         2,
     );
     let (buf_offs, buf_lens) = sigmaos::recv_rpc(buf, 0, true);
-    let img_bytes: Vec<u8> = buf[buf_offs[1]..buf_offs[1] + buf_lens[1]].to_vec();
+    let model_bytes: Vec<u8> = buf[buf_offs[1]..buf_offs[1] + buf_lens[1]].to_vec();
 
-    // Fetch model (rpc 1) — send_rpc overwrites buf from the front, which is fine
-    // because we already copied the image bytes above.
+    // Fetch image (rpc 1) — send_rpc overwrites buf from the front, which is fine
+    // because we already copied the model bytes above.
     let mut req = s3::GetReq::new();
-    req.bucket = model_bucket;
-    req.key = model_key;
+    req.bucket = img_bucket;
+    req.key = img_key;
     sigmaos::send_rpc(
         buf,
         1,
@@ -91,7 +91,7 @@ pub fn boot(b: *mut c_char, buf_sz: usize) {
         2,
     );
     let (buf_offs, buf_lens) = sigmaos::recv_rpc(buf, 1, true);
-    let model_bytes: Vec<u8> = buf[buf_offs[1]..buf_offs[1] + buf_lens[1]].to_vec();
+    let img_bytes: Vec<u8> = buf[buf_offs[1]..buf_offs[1] + buf_lens[1]].to_vec();
 
     // Decode JPEG and resize to 224x224.
     let img = image::load_from_memory(&img_bytes)
