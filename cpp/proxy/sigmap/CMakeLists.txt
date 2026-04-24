@@ -1,6 +1,7 @@
 message(STATUS "Building sigmap proxy library")
 
 add_subdirectory(proto)
+add_subdirectory(python)
 
 add_library(sigmap_proxy STATIC
   sigmap.cc

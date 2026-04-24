@@ -28,7 +28,8 @@ RUN mkdir bin && \
     mkdir all-realm-bin && \
     mkdir bin/user && \
     mkdir bin/kernel && \
-    mkdir bin/linux
+    mkdir bin/linux && \
+    mkdir bin/python
 
 # ========== local user image ==========
 FROM base AS sigmauser-local
@@ -50,7 +51,7 @@ RUN curl -fsSL https://gvisor.dev/archive.key | gpg --dearmor -o /usr/share/keyr
 RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/gvisor-archive-keyring.gpg] https://storage.googleapis.com/gvisor/releases release main" | tee /etc/apt/sources.list.d/gvisor.list > /dev/null
 RUN apt-get update && apt-get install -y runsc
 
-# Install some python libs in user contianer
+# Install some python libs in user container
 RUN apt update && apt install -y python3-pip
 RUN pip3 install --break-system-packages \
     pillow \
@@ -58,6 +59,12 @@ RUN pip3 install --break-system-packages \
     numpy \
     torchvision \
     onnxruntime
+
+# Install the SigmaOS Python C shim and package
+COPY bin/lib/libsigmaos_py.so /usr/local/lib/
+RUN ldconfig
+COPY python/ /home/sigmaos/python/
+ENV PYTHONPATH=/home/sigmaos/python
 
 # ========== remote user image ==========
 FROM sigmauser-local AS sigmauser-remote
@@ -69,6 +76,8 @@ COPY bin/kernel/spproxyd bin/kernel/
 COPY bin/kernel/wasmd bin/kernel/
 ## Copy rust trampoline to the user image.
 COPY bin/kernel/uproc-trampoline /home/sigmaos/bin/kernel/
+# Copy Python procs.
+COPY bin/python bin/python/
 
 # ========== local kernel image ==========
 FROM base AS sigmaos-local

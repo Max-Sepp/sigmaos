@@ -94,3 +94,8 @@ for p in $USERBUILD/* ; do
   # Copy to userbin
   cp $p/$name $USERBIN/$name-v$VERSION
 done
+
+# Copy shared libraries to bin/lib
+LIBBIN=$ROOT/bin/lib
+mkdir -p $LIBBIN
+cp $ROOT/cpp/build/proxy/sigmap/python/libsigmaos_py.so $LIBBIN/

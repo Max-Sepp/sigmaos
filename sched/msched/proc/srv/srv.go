@@ -32,6 +32,7 @@ import (
 	chunksrv "sigmaos/sched/msched/proc/chunk/srv"
 	"sigmaos/sched/msched/proc/proto"
 	"sigmaos/sched/msched/proc/srv/binsrv"
+	"sigmaos/pycontainer"
 	"sigmaos/scontainer"
 	"sigmaos/sigmaclnt"
 	sp "sigmaos/sigmap"
@@ -491,6 +492,13 @@ func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 					db.DPrintf(db.PROCD_ERR, "[%v] Run WASM proc via wasmd err: %v", uproc.GetPid(), err)
 					return err
 				}
+			} else if uproc.GetProcEnv().GetIsPythonProc() {
+				db.DPrintf(db.PROCD, "[%v] Run Python proc", uproc.GetPid())
+				ctr, err = pycontainer.StartPythonContainer(uproc)
+				if err != nil {
+					db.DPrintf(db.PROCD_ERR, "[%v] Run Python proc err: %v", uproc.GetPid(), err)
+					return err
+				}
 			} else {
 				ctr, err = scontainer.StartSigmaContainer(uproc, ps.dialproxy)
 				if err != nil {
@@ -557,7 +565,11 @@ func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 	}
 	nRunning = ps.nRunning.Add(-1)
 	db.DPrintf(db.PROCD, "[%v] nRunning after: %v", uproc.GetProgram(), nRunning)
-	scontainer.CleanupUProc(uproc.GetPid())
+	if uproc.GetProcEnv().GetIsPythonProc() {
+		pycontainer.CleanupPythonProc(uproc.GetPid())
+	} else {
+		scontainer.CleanupUProc(uproc.GetPid())
+	}
 	ps.procs.Delete(pid)
 	if uproc.GetProcEnv().UseSPProxy {
 		if err := ps.spc.InformProcDone(uproc); err != nil {

@@ -314,6 +314,8 @@ if [ "${NO_DOCKER}" != "true" ]; then
   echo "========== Done copying kernel bins for uproc =========="
 fi
 
+cp $ROOT/apps/imgrec/py/imgrec.py  $USRBIN/imgrec.py-v1.0
+
 # Now, prepare to build final containers which will actually run.
 targets="sigmauser-remote sigmaos-remote"
 if [ "${TARGET}" == "local" ]; then

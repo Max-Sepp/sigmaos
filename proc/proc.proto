@@ -52,6 +52,7 @@ message ProcEnvProto {
   bool useSPProxyProcClnt = 32;
   string debugProcs = 33;
   bool isWASMProc = 34;
+  bool isPythonProc = 35;
 }
 
 message ProcProto {

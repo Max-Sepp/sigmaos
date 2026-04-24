@@ -673,6 +673,7 @@ class ProcEnvProto final :
     kUseShmemFieldNumber = 30,
     kUseSPProxyProcClntFieldNumber = 32,
     kIsWASMProcFieldNumber = 34,
+    kIsPythonProcFieldNumber = 35,
   };
   // map<string, .TendpointProto> etcdEndpoints = 7;
   int etcdendpoints_size() const;
@@ -1142,6 +1143,15 @@ class ProcEnvProto final :
   void _internal_set_iswasmproc(bool value);
   public:
 
+  // bool isPythonProc = 35;
+  void clear_ispythonproc();
+  bool ispythonproc() const;
+  void set_ispythonproc(bool value);
+  private:
+  bool _internal_ispythonproc() const;
+  void _internal_set_ispythonproc(bool value);
+  public:
+
   // @@protoc_insertion_point(class_scope:ProcEnvProto)
  private:
   class _Internal;
@@ -1196,6 +1206,7 @@ class ProcEnvProto final :
     bool useshmem_;
     bool usespproxyprocclnt_;
     bool iswasmproc_;
+    bool ispythonproc_;
     mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   };
   union { Impl_ _impl_; };
@@ -3276,6 +3287,26 @@ inline void ProcEnvProto::_internal_set_iswasmproc(bool value) {
 inline void ProcEnvProto::set_iswasmproc(bool value) {
   _internal_set_iswasmproc(value);
   // @@protoc_insertion_point(field_set:ProcEnvProto.isWASMProc)
+}
+
+// bool isPythonProc = 35;
+inline void ProcEnvProto::clear_ispythonproc() {
+  _impl_.ispythonproc_ = false;
+}
+inline bool ProcEnvProto::_internal_ispythonproc() const {
+  return _impl_.ispythonproc_;
+}
+inline bool ProcEnvProto::ispythonproc() const {
+  // @@protoc_insertion_point(field_get:ProcEnvProto.isPythonProc)
+  return _internal_ispythonproc();
+}
+inline void ProcEnvProto::_internal_set_ispythonproc(bool value) {
+  
+  _impl_.ispythonproc_ = value;
+}
+inline void ProcEnvProto::set_ispythonproc(bool value) {
+  _internal_set_ispythonproc(value);
+  // @@protoc_insertion_point(field_set:ProcEnvProto.isPythonProc)
 }
 
 // -------------------------------------------------------------------
