@@ -8,7 +8,7 @@ import (
 	db "sigmaos/debug"
 	"sigmaos/proc"
 	wasmrpc "sigmaos/proxy/wasm/rpc"
-	s3clnt "sigmaos/proxy/s3/clnt"
+	delegatedrpcclnt "sigmaos/rpc/clnt/delegated"
 	rpcclnt "sigmaos/rpc/clnt"
 	rpcproto "sigmaos/rpc/proto"
 	"sigmaos/serr"
@@ -27,8 +27,7 @@ type WASMProcAPIImpl struct {
 	sc      *sigmaclnt.SigmaClnt
 	p       *proc.Proc
 	rpcReps *RPCState
-	s3c     *s3clnt.S3Clnt
-	s3cMu   sync.Mutex
+	dc      *delegatedrpcclnt.Clnt
 	exited  bool
 	status  wasmrpc.Tstatus
 	msg     string
@@ -41,28 +40,18 @@ func NewWASMProcAPIImpl(ws *WASMSrv, sc *sigmaclnt.SigmaClnt, p *proc.Proc, rpcR
 		sc:      sc,
 		p:       p,
 		rpcReps: rpcReps,
+		// TODO(shmem): pass shmem segment once wasmd shmem support is wired up.
+		dc: delegatedrpcclnt.NewClnt(sc.FsLib, nil),
 	}
 	impl.cond = sync.NewCond(&impl.mu)
 	return impl
 }
 
-// RecvDelegated retrieves a delegated RPC reply from SPProxy's store via the
-// per-proc sigmaclnt's spproxy channel. The pn arg to NewS3Clnt is irrelevant
-// for delegated gets — DelegatedGetObject uses the delegatedRPCCh, not S3.
+// RecvDelegated retrieves a delegated RPC reply from SPProxy's store.
+// Works for any service (S3, UX, etc.) whose reply follows the convention:
+// bool oK = 1; Blob blob = 2.
 func (impl *WASMProcAPIImpl) RecvDelegated(rpcIdx uint64) ([]byte, error) {
-	impl.s3cMu.Lock()
-	if impl.s3c == nil {
-		pn := "name/s3/" + impl.ws.kernelId
-		c, err := s3clnt.NewS3Clnt(impl.sc.FsLib, pn)
-		if err != nil {
-			impl.s3cMu.Unlock()
-			return nil, err
-		}
-		impl.s3c = c
-	}
-	impl.s3cMu.Unlock()
-	data, _, err := impl.s3c.DelegatedGetObject(rpcIdx)
-	return data, err
+	return impl.dc.GetBytes(rpcIdx)
 }
 
 func (impl *WASMProcAPIImpl) Send(rpcIdx uint64, pn string, method string, b []byte, nOutIOV uint64) error {
