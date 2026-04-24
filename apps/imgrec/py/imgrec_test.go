@@ -36,7 +36,7 @@ func TestImgrecPy(t *testing.T) {
 	})
 	p.GetProcEnv().UseSPProxy = true
 	p.GetProcEnv().UseSPProxyProcClnt = true
-	p.GetProcEnv().IsPythonProc = true
+	p.SetProcContainerType(proc.ProcContainerType_PROC_CTR_PYTHON)
 
 	err = rts.Spawn(p)
 	if !assert.Nil(t, err, "Spawn: %v", err) {

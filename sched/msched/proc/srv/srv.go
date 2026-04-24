@@ -485,14 +485,14 @@ func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 	} else {
 		if !ps.gvisor {
 
-			if uproc.GetProcEnv().GetIsWASMProc() {
+			if uproc.GetProcContainerType() == proc.ProcContainerType_PROC_CTR_WASM {
 				db.DPrintf(db.PROCD, "[%v] Run WASM proc via wasmd", uproc.GetPid())
 				ctr, err = wasmclnt.StartWASMContainer(uproc, ps.pe.GetInnerContainerIP(), ps.pe.GetOuterContainerIP(), ps.pe.GetPID())
 				if err != nil {
 					db.DPrintf(db.PROCD_ERR, "[%v] Run WASM proc via wasmd err: %v", uproc.GetPid(), err)
 					return err
 				}
-			} else if uproc.GetProcEnv().GetIsPythonProc() {
+			} else if uproc.GetProcContainerType() == proc.ProcContainerType_PROC_CTR_PYTHON {
 				db.DPrintf(db.PROCD, "[%v] Run Python proc", uproc.GetPid())
 				ctr, err = pycontainer.StartPythonContainer(uproc)
 				if err != nil {
@@ -565,7 +565,7 @@ func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 	}
 	nRunning = ps.nRunning.Add(-1)
 	db.DPrintf(db.PROCD, "[%v] nRunning after: %v", uproc.GetProgram(), nRunning)
-	if uproc.GetProcEnv().GetIsPythonProc() {
+	if uproc.GetProcContainerType() == proc.ProcContainerType_PROC_CTR_PYTHON {
 		pycontainer.CleanupPythonProc(uproc.GetPid())
 	} else {
 		scontainer.CleanupUProc(uproc.GetPid())

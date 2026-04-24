@@ -118,8 +118,7 @@ PROTOBUF_CONSTEXPR ProcEnvProto::ProcEnvProto(
   , /*decltype(_impl_.shmemmbint_)*/uint64_t{0u}
   , /*decltype(_impl_.useshmem_)*/false
   , /*decltype(_impl_.usespproxyprocclnt_)*/false
-  , /*decltype(_impl_.iswasmproc_)*/false
-  , /*decltype(_impl_.ispythonproc_)*/false
+  , /*decltype(_impl_.containertype_)*/0
   , /*decltype(_impl_._cached_size_)*/{}} {}
 struct ProcEnvProtoDefaultTypeInternal {
   PROTOBUF_CONSTEXPR ProcEnvProtoDefaultTypeInternal()
@@ -167,7 +166,7 @@ struct ProcProtoDefaultTypeInternal {
 };
 PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 ProcProtoDefaultTypeInternal _ProcProto_default_instance_;
 static ::_pb::Metadata file_level_metadata_proc_2fproc_2eproto[8];
-static constexpr ::_pb::EnumDescriptor const** file_level_enum_descriptors_proc_2fproc_2eproto = nullptr;
+static const ::_pb::EnumDescriptor* file_level_enum_descriptors_proc_2fproc_2eproto[1];
 static constexpr ::_pb::ServiceDescriptor const** file_level_service_descriptors_proc_2fproc_2eproto = nullptr;
 
 const uint32_t TableStruct_proc_2fproc_2eproto::offsets[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
@@ -258,8 +257,7 @@ const uint32_t TableStruct_proc_2fproc_2eproto::offsets[] PROTOBUF_SECTION_VARIA
   PROTOBUF_FIELD_OFFSET(::ProcEnvProto, _impl_.shmemmbint_),
   PROTOBUF_FIELD_OFFSET(::ProcEnvProto, _impl_.usespproxyprocclnt_),
   PROTOBUF_FIELD_OFFSET(::ProcEnvProto, _impl_.debugprocs_),
-  PROTOBUF_FIELD_OFFSET(::ProcEnvProto, _impl_.iswasmproc_),
-  PROTOBUF_FIELD_OFFSET(::ProcEnvProto, _impl_.ispythonproc_),
+  PROTOBUF_FIELD_OFFSET(::ProcEnvProto, _impl_.containertype_),
   PROTOBUF_FIELD_OFFSET(::ProcProto_EnvEntry_DoNotUse, _has_bits_),
   PROTOBUF_FIELD_OFFSET(::ProcProto_EnvEntry_DoNotUse, _internal_metadata_),
   ~0u,  // no _extensions_
@@ -297,8 +295,8 @@ static const ::_pbi::MigrationSchema schemas[] PROTOBUF_SECTION_VARIABLE(protode
   { 28, 36, -1, sizeof(::ProcEnvProto_SecretsMapEntry_DoNotUse)},
   { 38, 46, -1, sizeof(::ProcEnvProto_CachedEndpointsEntry_DoNotUse)},
   { 48, -1, -1, sizeof(::ProcEnvProto)},
-  { 89, 97, -1, sizeof(::ProcProto_EnvEntry_DoNotUse)},
-  { 99, -1, -1, sizeof(::ProcProto)},
+  { 88, 96, -1, sizeof(::ProcProto_EnvEntry_DoNotUse)},
+  { 98, -1, -1, sizeof(::ProcProto)},
 };
 
 static const ::_pb::Message* const file_default_instances[] = {
@@ -318,7 +316,7 @@ const char descriptor_table_protodef_proc_2fproc_2eproto[] PROTOBUF_SECTION_VARI
   "to/rpc.proto\"L\n\tProcSeqno\022\r\n\005epoch\030\001 \001(\004"
   "\022\r\n\005seqno\030\002 \001(\004\022\017\n\007procqID\030\003 \001(\t\022\020\n\010mSch"
   "edID\030\004 \001(\t\";\n\030ResourceReservationProto\022\017"
-  "\n\007mcpuInt\030\001 \001(\r\022\016\n\006memInt\030\002 \001(\r\"\246\010\n\014Proc"
+  "\n\007mcpuInt\030\001 \001(\r\022\016\n\006memInt\030\002 \001(\r\"\247\010\n\014Proc"
   "EnvProto\022\016\n\006pidStr\030\001 \001(\t\022\017\n\007program\030\002 \001("
   "\t\022\020\n\010realmStr\030\003 \001(\t\022\036\n\tprincipal\030\004 \001(\0132\013"
   ".Tprincipal\022\017\n\007procDir\030\005 \001(\t\022\021\n\tparentDi"
@@ -339,24 +337,27 @@ const char descriptor_table_protodef_proc_2fproc_2eproto[] PROTOBUF_SECTION_VARI
   "lgrind\030\034 \001(\t\022\031\n\021runBootScriptFlag\030\035 \001(\010\022"
   "\020\n\010useShmem\030\036 \001(\010\022\022\n\nshmemMBInt\030\037 \001(\004\022\032\n"
   "\022useSPProxyProcClnt\030  \001(\010\022\022\n\ndebugProcs\030"
-  "! \001(\t\022\022\n\nisWASMProc\030\" \001(\010\022\024\n\014isPythonPro"
-  "c\030# \001(\010\032E\n\022EtcdEndpointsEntry\022\013\n\003key\030\001 \001"
-  "(\t\022\036\n\005value\030\002 \001(\0132\017.TendpointProto:\0028\001\032\?"
-  "\n\017SecretsMapEntry\022\013\n\003key\030\001 \001(\t\022\033\n\005value\030"
-  "\002 \001(\0132\014.SecretProto:\0028\001\032G\n\024CachedEndpoin"
-  "tsEntry\022\013\n\003key\030\001 \001(\t\022\036\n\005value\030\002 \001(\0132\017.Te"
-  "ndpointProto:\0028\001\"\264\003\n\tProcProto\022#\n\014procEn"
-  "vProto\030\001 \001(\0132\r.ProcEnvProto\022\014\n\004args\030\002 \003("
-  "\t\022\021\n\taddedBins\030\003 \003(\t\022 \n\003env\030\004 \003(\0132\023.Proc"
-  "Proto.EnvEntry\022\023\n\004blob\030\005 \001(\0132\005.Blob\022\027\n\017b"
-  "ootScriptInput\030\006 \001(\014\022\017\n\007typeInt\030\007 \001(\r\022\032\n"
-  "\022runAfterBootScript\030\010 \001(\010\022\037\n\027queueableRe"
-  "sourcePoolID\030\t \001(\004\022.\n\013resourceRes\030\n \001(\0132"
-  "\031.ResourceReservationProto\0228\n\025bootScript"
-  "ResourceRes\030\013 \001(\0132\031.ResourceReservationP"
-  "roto\022\022\n\nmeasurePSS\030\014 \001(\010\022\031\n\021measurePSSDe"
-  "layMS\030\r \001(\004\032*\n\010EnvEntry\022\013\n\003key\030\001 \001(\t\022\r\n\005"
-  "value\030\002 \001(\t:\0028\001B\016Z\014sigmaos/procb\006proto3"
+  "! \001(\t\022)\n\rcontainerType\030\" \001(\0162\022.ProcConta"
+  "inerType\032E\n\022EtcdEndpointsEntry\022\013\n\003key\030\001 "
+  "\001(\t\022\036\n\005value\030\002 \001(\0132\017.TendpointProto:\0028\001\032"
+  "\?\n\017SecretsMapEntry\022\013\n\003key\030\001 \001(\t\022\033\n\005value"
+  "\030\002 \001(\0132\014.SecretProto:\0028\001\032G\n\024CachedEndpoi"
+  "ntsEntry\022\013\n\003key\030\001 \001(\t\022\036\n\005value\030\002 \001(\0132\017.T"
+  "endpointProto:\0028\001\"\264\003\n\tProcProto\022#\n\014procE"
+  "nvProto\030\001 \001(\0132\r.ProcEnvProto\022\014\n\004args\030\002 \003"
+  "(\t\022\021\n\taddedBins\030\003 \003(\t\022 \n\003env\030\004 \003(\0132\023.Pro"
+  "cProto.EnvEntry\022\023\n\004blob\030\005 \001(\0132\005.Blob\022\027\n\017"
+  "bootScriptInput\030\006 \001(\014\022\017\n\007typeInt\030\007 \001(\r\022\032"
+  "\n\022runAfterBootScript\030\010 \001(\010\022\037\n\027queueableR"
+  "esourcePoolID\030\t \001(\004\022.\n\013resourceRes\030\n \001(\013"
+  "2\031.ResourceReservationProto\0228\n\025bootScrip"
+  "tResourceRes\030\013 \001(\0132\031.ResourceReservation"
+  "Proto\022\022\n\nmeasurePSS\030\014 \001(\010\022\031\n\021measurePSSD"
+  "elayMS\030\r \001(\004\032*\n\010EnvEntry\022\013\n\003key\030\001 \001(\t\022\r\n"
+  "\005value\030\002 \001(\t:\0028\001*P\n\021ProcContainerType\022\023\n"
+  "\017PROC_CTR_NATIVE\020\000\022\021\n\rPROC_CTR_WASM\020\001\022\023\n"
+  "\017PROC_CTR_PYTHON\020\002B\016Z\014sigmaos/procb\006prot"
+  "o3"
   ;
 static const ::_pbi::DescriptorTable* const descriptor_table_proc_2fproc_2eproto_deps[3] = {
   &::descriptor_table_google_2fprotobuf_2ftimestamp_2eproto,
@@ -365,7 +366,7 @@ static const ::_pbi::DescriptorTable* const descriptor_table_proc_2fproc_2eproto
 };
 static ::_pbi::once_flag descriptor_table_proc_2fproc_2eproto_once;
 const ::_pbi::DescriptorTable descriptor_table_proc_2fproc_2eproto = {
-    false, false, 1759, descriptor_table_protodef_proc_2fproc_2eproto,
+    false, false, 1842, descriptor_table_protodef_proc_2fproc_2eproto,
     "proc/proc.proto",
     &descriptor_table_proc_2fproc_2eproto_once, descriptor_table_proc_2fproc_2eproto_deps, 3, 8,
     schemas, file_default_instances, TableStruct_proc_2fproc_2eproto::offsets,
@@ -378,6 +379,21 @@ PROTOBUF_ATTRIBUTE_WEAK const ::_pbi::DescriptorTable* descriptor_table_proc_2fp
 
 // Force running AddDescriptors() at dynamic initialization time.
 PROTOBUF_ATTRIBUTE_INIT_PRIORITY2 static ::_pbi::AddDescriptorsRunner dynamic_init_dummy_proc_2fproc_2eproto(&descriptor_table_proc_2fproc_2eproto);
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* ProcContainerType_descriptor() {
+  ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(&descriptor_table_proc_2fproc_2eproto);
+  return file_level_enum_descriptors_proc_2fproc_2eproto[0];
+}
+bool ProcContainerType_IsValid(int value) {
+  switch (value) {
+    case 0:
+    case 1:
+    case 2:
+      return true;
+    default:
+      return false;
+  }
+}
+
 
 // ===================================================================
 
@@ -1028,8 +1044,7 @@ ProcEnvProto::ProcEnvProto(const ProcEnvProto& from)
     , decltype(_impl_.shmemmbint_){}
     , decltype(_impl_.useshmem_){}
     , decltype(_impl_.usespproxyprocclnt_){}
-    , decltype(_impl_.iswasmproc_){}
-    , decltype(_impl_.ispythonproc_){}
+    , decltype(_impl_.containertype_){}
     , /*decltype(_impl_._cached_size_)*/{}};
 
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
@@ -1187,8 +1202,8 @@ ProcEnvProto::ProcEnvProto(const ProcEnvProto& from)
     _this->_impl_.spawntimepb_ = new ::PROTOBUF_NAMESPACE_ID::Timestamp(*from._impl_.spawntimepb_);
   }
   ::memcpy(&_impl_.howint_, &from._impl_.howint_,
-    static_cast<size_t>(reinterpret_cast<char*>(&_impl_.ispythonproc_) -
-    reinterpret_cast<char*>(&_impl_.howint_)) + sizeof(_impl_.ispythonproc_));
+    static_cast<size_t>(reinterpret_cast<char*>(&_impl_.containertype_) -
+    reinterpret_cast<char*>(&_impl_.howint_)) + sizeof(_impl_.containertype_));
   // @@protoc_insertion_point(copy_constructor:ProcEnvProto)
 }
 
@@ -1230,8 +1245,7 @@ inline void ProcEnvProto::SharedCtor(
     , decltype(_impl_.shmemmbint_){uint64_t{0u}}
     , decltype(_impl_.useshmem_){false}
     , decltype(_impl_.usespproxyprocclnt_){false}
-    , decltype(_impl_.iswasmproc_){false}
-    , decltype(_impl_.ispythonproc_){false}
+    , decltype(_impl_.containertype_){0}
     , /*decltype(_impl_._cached_size_)*/{}
   };
   _impl_.pidstr_.InitDefault();
@@ -1398,8 +1412,8 @@ void ProcEnvProto::Clear() {
   }
   _impl_.spawntimepb_ = nullptr;
   ::memset(&_impl_.howint_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&_impl_.ispythonproc_) -
-      reinterpret_cast<char*>(&_impl_.howint_)) + sizeof(_impl_.ispythonproc_));
+      reinterpret_cast<char*>(&_impl_.containertype_) -
+      reinterpret_cast<char*>(&_impl_.howint_)) + sizeof(_impl_.containertype_));
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
@@ -1738,19 +1752,12 @@ const char* ProcEnvProto::_InternalParse(const char* ptr, ::_pbi::ParseContext* 
         } else
           goto handle_unusual;
         continue;
-      // bool isWASMProc = 34;
+      // .ProcContainerType containerType = 34;
       case 34:
         if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 16)) {
-          _impl_.iswasmproc_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          uint64_t val = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
           CHK_(ptr);
-        } else
-          goto handle_unusual;
-        continue;
-      // bool isPythonProc = 35;
-      case 35:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 24)) {
-          _impl_.ispythonproc_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
-          CHK_(ptr);
+          _internal_set_containertype(static_cast<::ProcContainerType>(val));
         } else
           goto handle_unusual;
         continue;
@@ -2123,16 +2130,11 @@ uint8_t* ProcEnvProto::_InternalSerialize(
         33, this->_internal_debugprocs(), target);
   }
 
-  // bool isWASMProc = 34;
-  if (this->_internal_iswasmproc() != 0) {
+  // .ProcContainerType containerType = 34;
+  if (this->_internal_containertype() != 0) {
     target = stream->EnsureSpace(target);
-    target = ::_pbi::WireFormatLite::WriteBoolToArray(34, this->_internal_iswasmproc(), target);
-  }
-
-  // bool isPythonProc = 35;
-  if (this->_internal_ispythonproc() != 0) {
-    target = stream->EnsureSpace(target);
-    target = ::_pbi::WireFormatLite::WriteBoolToArray(35, this->_internal_ispythonproc(), target);
+    target = ::_pbi::WireFormatLite::WriteEnumToArray(
+      34, this->_internal_containertype(), target);
   }
 
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
@@ -2378,14 +2380,10 @@ size_t ProcEnvProto::ByteSizeLong() const {
     total_size += 2 + 1;
   }
 
-  // bool isWASMProc = 34;
-  if (this->_internal_iswasmproc() != 0) {
-    total_size += 2 + 1;
-  }
-
-  // bool isPythonProc = 35;
-  if (this->_internal_ispythonproc() != 0) {
-    total_size += 2 + 1;
+  // .ProcContainerType containerType = 34;
+  if (this->_internal_containertype() != 0) {
+    total_size += 2 +
+      ::_pbi::WireFormatLite::EnumSize(this->_internal_containertype());
   }
 
   return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
@@ -2497,11 +2495,8 @@ void ProcEnvProto::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::P
   if (from._internal_usespproxyprocclnt() != 0) {
     _this->_internal_set_usespproxyprocclnt(from._internal_usespproxyprocclnt());
   }
-  if (from._internal_iswasmproc() != 0) {
-    _this->_internal_set_iswasmproc(from._internal_iswasmproc());
-  }
-  if (from._internal_ispythonproc() != 0) {
-    _this->_internal_set_ispythonproc(from._internal_ispythonproc());
+  if (from._internal_containertype() != 0) {
+    _this->_internal_set_containertype(from._internal_containertype());
   }
   _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
@@ -2600,8 +2595,8 @@ void ProcEnvProto::InternalSwap(ProcEnvProto* other) {
       &other->_impl_.debugprocs_, rhs_arena
   );
   ::PROTOBUF_NAMESPACE_ID::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(ProcEnvProto, _impl_.ispythonproc_)
-      + sizeof(ProcEnvProto::_impl_.ispythonproc_)
+      PROTOBUF_FIELD_OFFSET(ProcEnvProto, _impl_.containertype_)
+      + sizeof(ProcEnvProto::_impl_.containertype_)
       - PROTOBUF_FIELD_OFFSET(ProcEnvProto, _impl_.principal_)>(
           reinterpret_cast<char*>(&_impl_.principal_),
           reinterpret_cast<char*>(&other->_impl_.principal_));

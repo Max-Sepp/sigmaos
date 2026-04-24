@@ -51,8 +51,13 @@ message ProcEnvProto {
   uint64 shmemMBInt = 31;
   bool useSPProxyProcClnt = 32;
   string debugProcs = 33;
-  bool isWASMProc = 34;
-  bool isPythonProc = 35;
+  ProcContainerType containerType = 34;
+}
+
+enum ProcContainerType {
+  PROC_CTR_NATIVE = 0;
+  PROC_CTR_WASM = 1;
+  PROC_CTR_PYTHON = 2;
 }
 
 message ProcProto {

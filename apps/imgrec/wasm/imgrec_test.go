@@ -88,7 +88,7 @@ func TestImgrec(t *testing.T) {
 		KID,
 	})
 	p.GetProcEnv().UseSPProxy = true
-	p.SetIsWASMProc(true)
+	p.SetProcContainerType(proc.ProcContainerType_PROC_CTR_WASM)
 	// XXX hack, remove eventually
 	p.PrependSigmaPath(filepath.Dir(precompiledBinPath))
 

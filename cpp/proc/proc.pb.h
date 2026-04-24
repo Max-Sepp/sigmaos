@@ -32,6 +32,7 @@
 #include <google/protobuf/map.h>  // IWYU pragma: export
 #include <google/protobuf/map_entry.h>
 #include <google/protobuf/map_field_inl.h>
+#include <google/protobuf/generated_enum_reflection.h>
 #include <google/protobuf/unknown_field_set.h>
 #include <google/protobuf/timestamp.pb.h>
 #include "sigmap/sigmap.pb.h"
@@ -85,6 +86,32 @@ template<> ::ProcSeqno* Arena::CreateMaybeMessage<::ProcSeqno>(Arena*);
 template<> ::ResourceReservationProto* Arena::CreateMaybeMessage<::ResourceReservationProto>(Arena*);
 PROTOBUF_NAMESPACE_CLOSE
 
+enum ProcContainerType : int {
+  PROC_CTR_NATIVE = 0,
+  PROC_CTR_WASM = 1,
+  PROC_CTR_PYTHON = 2,
+  ProcContainerType_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::min(),
+  ProcContainerType_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::max()
+};
+bool ProcContainerType_IsValid(int value);
+constexpr ProcContainerType ProcContainerType_MIN = PROC_CTR_NATIVE;
+constexpr ProcContainerType ProcContainerType_MAX = PROC_CTR_PYTHON;
+constexpr int ProcContainerType_ARRAYSIZE = ProcContainerType_MAX + 1;
+
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* ProcContainerType_descriptor();
+template<typename T>
+inline const std::string& ProcContainerType_Name(T enum_t_value) {
+  static_assert(::std::is_same<T, ProcContainerType>::value ||
+    ::std::is_integral<T>::value,
+    "Incorrect type passed to function ProcContainerType_Name.");
+  return ::PROTOBUF_NAMESPACE_ID::internal::NameOfEnum(
+    ProcContainerType_descriptor(), enum_t_value);
+}
+inline bool ProcContainerType_Parse(
+    ::PROTOBUF_NAMESPACE_ID::ConstStringParam name, ProcContainerType* value) {
+  return ::PROTOBUF_NAMESPACE_ID::internal::ParseNamedEnum<ProcContainerType>(
+    ProcContainerType_descriptor(), name, value);
+}
 // ===================================================================
 
 class ProcSeqno final :
@@ -672,8 +699,7 @@ class ProcEnvProto final :
     kShmemMBIntFieldNumber = 31,
     kUseShmemFieldNumber = 30,
     kUseSPProxyProcClntFieldNumber = 32,
-    kIsWASMProcFieldNumber = 34,
-    kIsPythonProcFieldNumber = 35,
+    kContainerTypeFieldNumber = 34,
   };
   // map<string, .TendpointProto> etcdEndpoints = 7;
   int etcdendpoints_size() const;
@@ -1134,22 +1160,13 @@ class ProcEnvProto final :
   void _internal_set_usespproxyprocclnt(bool value);
   public:
 
-  // bool isWASMProc = 34;
-  void clear_iswasmproc();
-  bool iswasmproc() const;
-  void set_iswasmproc(bool value);
+  // .ProcContainerType containerType = 34;
+  void clear_containertype();
+  ::ProcContainerType containertype() const;
+  void set_containertype(::ProcContainerType value);
   private:
-  bool _internal_iswasmproc() const;
-  void _internal_set_iswasmproc(bool value);
-  public:
-
-  // bool isPythonProc = 35;
-  void clear_ispythonproc();
-  bool ispythonproc() const;
-  void set_ispythonproc(bool value);
-  private:
-  bool _internal_ispythonproc() const;
-  void _internal_set_ispythonproc(bool value);
+  ::ProcContainerType _internal_containertype() const;
+  void _internal_set_containertype(::ProcContainerType value);
   public:
 
   // @@protoc_insertion_point(class_scope:ProcEnvProto)
@@ -1205,8 +1222,7 @@ class ProcEnvProto final :
     uint64_t shmemmbint_;
     bool useshmem_;
     bool usespproxyprocclnt_;
-    bool iswasmproc_;
-    bool ispythonproc_;
+    int containertype_;
     mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   };
   union { Impl_ _impl_; };
@@ -3269,44 +3285,24 @@ inline void ProcEnvProto::set_allocated_debugprocs(std::string* debugprocs) {
   // @@protoc_insertion_point(field_set_allocated:ProcEnvProto.debugProcs)
 }
 
-// bool isWASMProc = 34;
-inline void ProcEnvProto::clear_iswasmproc() {
-  _impl_.iswasmproc_ = false;
+// .ProcContainerType containerType = 34;
+inline void ProcEnvProto::clear_containertype() {
+  _impl_.containertype_ = 0;
 }
-inline bool ProcEnvProto::_internal_iswasmproc() const {
-  return _impl_.iswasmproc_;
+inline ::ProcContainerType ProcEnvProto::_internal_containertype() const {
+  return static_cast< ::ProcContainerType >(_impl_.containertype_);
 }
-inline bool ProcEnvProto::iswasmproc() const {
-  // @@protoc_insertion_point(field_get:ProcEnvProto.isWASMProc)
-  return _internal_iswasmproc();
+inline ::ProcContainerType ProcEnvProto::containertype() const {
+  // @@protoc_insertion_point(field_get:ProcEnvProto.containerType)
+  return _internal_containertype();
 }
-inline void ProcEnvProto::_internal_set_iswasmproc(bool value) {
+inline void ProcEnvProto::_internal_set_containertype(::ProcContainerType value) {
   
-  _impl_.iswasmproc_ = value;
+  _impl_.containertype_ = value;
 }
-inline void ProcEnvProto::set_iswasmproc(bool value) {
-  _internal_set_iswasmproc(value);
-  // @@protoc_insertion_point(field_set:ProcEnvProto.isWASMProc)
-}
-
-// bool isPythonProc = 35;
-inline void ProcEnvProto::clear_ispythonproc() {
-  _impl_.ispythonproc_ = false;
-}
-inline bool ProcEnvProto::_internal_ispythonproc() const {
-  return _impl_.ispythonproc_;
-}
-inline bool ProcEnvProto::ispythonproc() const {
-  // @@protoc_insertion_point(field_get:ProcEnvProto.isPythonProc)
-  return _internal_ispythonproc();
-}
-inline void ProcEnvProto::_internal_set_ispythonproc(bool value) {
-  
-  _impl_.ispythonproc_ = value;
-}
-inline void ProcEnvProto::set_ispythonproc(bool value) {
-  _internal_set_ispythonproc(value);
-  // @@protoc_insertion_point(field_set:ProcEnvProto.isPythonProc)
+inline void ProcEnvProto::set_containertype(::ProcContainerType value) {
+  _internal_set_containertype(value);
+  // @@protoc_insertion_point(field_set:ProcEnvProto.containerType)
 }
 
 // -------------------------------------------------------------------
@@ -4019,6 +4015,16 @@ inline void ProcProto::set_measurepssdelayms(uint64_t value) {
 
 // @@protoc_insertion_point(namespace_scope)
 
+
+PROTOBUF_NAMESPACE_OPEN
+
+template <> struct is_proto_enum< ::ProcContainerType> : ::std::true_type {};
+template <>
+inline const EnumDescriptor* GetEnumDescriptor< ::ProcContainerType>() {
+  return ::ProcContainerType_descriptor();
+}
+
+PROTOBUF_NAMESPACE_CLOSE
 
 // @@protoc_insertion_point(global_scope)
 

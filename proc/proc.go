@@ -469,8 +469,12 @@ func (p *Proc) GetRunBootScript() bool {
 	return p.ProcEnvProto.GetRunBootScript()
 }
 
-func (p *Proc) SetIsWASMProc(wasm bool) {
-	p.ProcEnvProto.IsWASMProc = wasm
+func (p *Proc) SetProcContainerType(t ProcContainerType) {
+	p.ProcEnvProto.ContainerType = t
+}
+
+func (p *Proc) GetProcContainerType() ProcContainerType {
+	return p.ProcEnvProto.GetContainerType()
 }
 
 func (p *Proc) GetUseShmem() bool {
