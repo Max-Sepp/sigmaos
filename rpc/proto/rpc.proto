@@ -29,3 +29,12 @@ message Blob {
         repeated bytes iov = 1;
         repeated SplitIoVec splitIov = 2;
 }
+
+// GenericBlobRep is a service-agnostic response container for delegated RPC
+// replies from any blob-returning service. Wire-compatible with S3Rep, UXRep,
+// and any future service reply that follows the convention:
+//   bool oK = 1; Blob blob = 2.
+message GenericBlobRep {
+        bool oK = 1;
+        Blob blob = 2;
+}

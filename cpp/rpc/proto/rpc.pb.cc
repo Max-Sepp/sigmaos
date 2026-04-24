@@ -97,7 +97,21 @@ struct BlobDefaultTypeInternal {
   };
 };
 PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 BlobDefaultTypeInternal _Blob_default_instance_;
-static ::_pb::Metadata file_level_metadata_rpc_2fproto_2frpc_2eproto[6];
+PROTOBUF_CONSTEXPR GenericBlobRep::GenericBlobRep(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.blob_)*/nullptr
+  , /*decltype(_impl_.ok_)*/false
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct GenericBlobRepDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR GenericBlobRepDefaultTypeInternal()
+      : _instance(::_pbi::ConstantInitialized{}) {}
+  ~GenericBlobRepDefaultTypeInternal() {}
+  union {
+    GenericBlobRep _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 GenericBlobRepDefaultTypeInternal _GenericBlobRep_default_instance_;
+static ::_pb::Metadata file_level_metadata_rpc_2fproto_2frpc_2eproto[7];
 static constexpr ::_pb::EnumDescriptor const** file_level_enum_descriptors_rpc_2fproto_2frpc_2eproto = nullptr;
 static constexpr ::_pb::ServiceDescriptor const** file_level_service_descriptors_rpc_2fproto_2frpc_2eproto = nullptr;
 
@@ -144,6 +158,14 @@ const uint32_t TableStruct_rpc_2fproto_2frpc_2eproto::offsets[] PROTOBUF_SECTION
   ~0u,  // no _inlined_string_donated_
   PROTOBUF_FIELD_OFFSET(::Blob, _impl_.iov_),
   PROTOBUF_FIELD_OFFSET(::Blob, _impl_.splitiov_),
+  ~0u,  // no _has_bits_
+  PROTOBUF_FIELD_OFFSET(::GenericBlobRep, _internal_metadata_),
+  ~0u,  // no _extensions_
+  ~0u,  // no _oneof_case_
+  ~0u,  // no _weak_field_map_
+  ~0u,  // no _inlined_string_donated_
+  PROTOBUF_FIELD_OFFSET(::GenericBlobRep, _impl_.ok_),
+  PROTOBUF_FIELD_OFFSET(::GenericBlobRep, _impl_.blob_),
 };
 static const ::_pbi::MigrationSchema schemas[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
   { 0, -1, -1, sizeof(::MetricsReq)},
@@ -152,6 +174,7 @@ static const ::_pbi::MigrationSchema schemas[] PROTOBUF_SECTION_VARIABLE(protode
   { 20, -1, -1, sizeof(::Rep)},
   { 27, -1, -1, sizeof(::SplitIoVec)},
   { 34, -1, -1, sizeof(::Blob)},
+  { 42, -1, -1, sizeof(::GenericBlobRep)},
 };
 
 static const ::_pb::Message* const file_default_instances[] = {
@@ -161,6 +184,7 @@ static const ::_pb::Message* const file_default_instances[] = {
   &::_Rep_default_instance_._instance,
   &::_SplitIoVec_default_instance_._instance,
   &::_Blob_default_instance_._instance,
+  &::_GenericBlobRep_default_instance_._instance,
 };
 
 const char descriptor_table_protodef_rpc_2fproto_2frpc_2eproto[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) =
@@ -169,17 +193,18 @@ const char descriptor_table_protodef_rpc_2fproto_2frpc_2eproto[] PROTOBUF_SECTIO
   "\001(\004\"\025\n\003Req\022\016\n\006method\030\001 \001(\t\"\033\n\003Rep\022\024\n\003err"
   "\030\001 \001(\0132\007.Rerror\"\031\n\nSplitIoVec\022\013\n\003iov\030\001 \003"
   "(\014\"2\n\004Blob\022\013\n\003iov\030\001 \003(\014\022\035\n\010splitIov\030\002 \003("
-  "\0132\013.SplitIoVecB\023Z\021sigmaos/rpc/protob\006pro"
-  "to3"
+  "\0132\013.SplitIoVec\"1\n\016GenericBlobRep\022\n\n\002oK\030\001"
+  " \001(\010\022\023\n\004blob\030\002 \001(\0132\005.BlobB\023Z\021sigmaos/rpc"
+  "/protob\006proto3"
   ;
 static const ::_pbi::DescriptorTable* const descriptor_table_rpc_2fproto_2frpc_2eproto_deps[1] = {
   &::descriptor_table_sigmap_2fsigmap_2eproto,
 };
 static ::_pbi::once_flag descriptor_table_rpc_2fproto_2frpc_2eproto_once;
 const ::_pbi::DescriptorTable descriptor_table_rpc_2fproto_2frpc_2eproto = {
-    false, false, 243, descriptor_table_protodef_rpc_2fproto_2frpc_2eproto,
+    false, false, 294, descriptor_table_protodef_rpc_2fproto_2frpc_2eproto,
     "rpc/proto/rpc.proto",
-    &descriptor_table_rpc_2fproto_2frpc_2eproto_once, descriptor_table_rpc_2fproto_2frpc_2eproto_deps, 1, 6,
+    &descriptor_table_rpc_2fproto_2frpc_2eproto_once, descriptor_table_rpc_2fproto_2frpc_2eproto_deps, 1, 7,
     schemas, file_default_instances, TableStruct_rpc_2fproto_2frpc_2eproto::offsets,
     file_level_metadata_rpc_2fproto_2frpc_2eproto, file_level_enum_descriptors_rpc_2fproto_2frpc_2eproto,
     file_level_service_descriptors_rpc_2fproto_2frpc_2eproto,
@@ -1215,6 +1240,230 @@ void Blob::InternalSwap(Blob* other) {
       file_level_metadata_rpc_2fproto_2frpc_2eproto[5]);
 }
 
+// ===================================================================
+
+class GenericBlobRep::_Internal {
+ public:
+  static const ::Blob& blob(const GenericBlobRep* msg);
+};
+
+const ::Blob&
+GenericBlobRep::_Internal::blob(const GenericBlobRep* msg) {
+  return *msg->_impl_.blob_;
+}
+GenericBlobRep::GenericBlobRep(::PROTOBUF_NAMESPACE_ID::Arena* arena,
+                         bool is_message_owned)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena, is_message_owned) {
+  SharedCtor(arena, is_message_owned);
+  // @@protoc_insertion_point(arena_constructor:GenericBlobRep)
+}
+GenericBlobRep::GenericBlobRep(const GenericBlobRep& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  GenericBlobRep* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.blob_){nullptr}
+    , decltype(_impl_.ok_){}
+    , /*decltype(_impl_._cached_size_)*/{}};
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  if (from._internal_has_blob()) {
+    _this->_impl_.blob_ = new ::Blob(*from._impl_.blob_);
+  }
+  _this->_impl_.ok_ = from._impl_.ok_;
+  // @@protoc_insertion_point(copy_constructor:GenericBlobRep)
+}
+
+inline void GenericBlobRep::SharedCtor(
+    ::_pb::Arena* arena, bool is_message_owned) {
+  (void)arena;
+  (void)is_message_owned;
+  new (&_impl_) Impl_{
+      decltype(_impl_.blob_){nullptr}
+    , decltype(_impl_.ok_){false}
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+}
+
+GenericBlobRep::~GenericBlobRep() {
+  // @@protoc_insertion_point(destructor:GenericBlobRep)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void GenericBlobRep::SharedDtor() {
+  GOOGLE_DCHECK(GetArenaForAllocation() == nullptr);
+  if (this != internal_default_instance()) delete _impl_.blob_;
+}
+
+void GenericBlobRep::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void GenericBlobRep::Clear() {
+// @@protoc_insertion_point(message_clear_start:GenericBlobRep)
+  uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  if (GetArenaForAllocation() == nullptr && _impl_.blob_ != nullptr) {
+    delete _impl_.blob_;
+  }
+  _impl_.blob_ = nullptr;
+  _impl_.ok_ = false;
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* GenericBlobRep::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // bool oK = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 8)) {
+          _impl_.ok_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else
+          goto handle_unusual;
+        continue;
+      // .Blob blob = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 18)) {
+          ptr = ctx->ParseMessage(_internal_mutable_blob(), ptr);
+          CHK_(ptr);
+        } else
+          goto handle_unusual;
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+uint8_t* GenericBlobRep::_InternalSerialize(
+    uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:GenericBlobRep)
+  uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // bool oK = 1;
+  if (this->_internal_ok() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteBoolToArray(1, this->_internal_ok(), target);
+  }
+
+  // .Blob blob = 2;
+  if (this->_internal_has_blob()) {
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+      InternalWriteMessage(2, _Internal::blob(this),
+        _Internal::blob(this).GetCachedSize(), target, stream);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:GenericBlobRep)
+  return target;
+}
+
+size_t GenericBlobRep::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:GenericBlobRep)
+  size_t total_size = 0;
+
+  uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // .Blob blob = 2;
+  if (this->_internal_has_blob()) {
+    total_size += 1 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+        *_impl_.blob_);
+  }
+
+  // bool oK = 1;
+  if (this->_internal_ok() != 0) {
+    total_size += 1 + 1;
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData GenericBlobRep::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    GenericBlobRep::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GenericBlobRep::GetClassData() const { return &_class_data_; }
+
+
+void GenericBlobRep::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<GenericBlobRep*>(&to_msg);
+  auto& from = static_cast<const GenericBlobRep&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:GenericBlobRep)
+  GOOGLE_DCHECK_NE(&from, _this);
+  uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (from._internal_has_blob()) {
+    _this->_internal_mutable_blob()->::Blob::MergeFrom(
+        from._internal_blob());
+  }
+  if (from._internal_ok() != 0) {
+    _this->_internal_set_ok(from._internal_ok());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void GenericBlobRep::CopyFrom(const GenericBlobRep& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:GenericBlobRep)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool GenericBlobRep::IsInitialized() const {
+  return true;
+}
+
+void GenericBlobRep::InternalSwap(GenericBlobRep* other) {
+  using std::swap;
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(GenericBlobRep, _impl_.ok_)
+      + sizeof(GenericBlobRep::_impl_.ok_)
+      - PROTOBUF_FIELD_OFFSET(GenericBlobRep, _impl_.blob_)>(
+          reinterpret_cast<char*>(&_impl_.blob_),
+          reinterpret_cast<char*>(&other->_impl_.blob_));
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata GenericBlobRep::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_rpc_2fproto_2frpc_2eproto_getter, &descriptor_table_rpc_2fproto_2frpc_2eproto_once,
+      file_level_metadata_rpc_2fproto_2frpc_2eproto[6]);
+}
+
 // @@protoc_insertion_point(namespace_scope)
 PROTOBUF_NAMESPACE_OPEN
 template<> PROTOBUF_NOINLINE ::MetricsReq*
@@ -1240,6 +1489,10 @@ Arena::CreateMaybeMessage< ::SplitIoVec >(Arena* arena) {
 template<> PROTOBUF_NOINLINE ::Blob*
 Arena::CreateMaybeMessage< ::Blob >(Arena* arena) {
   return Arena::CreateMessageInternal< ::Blob >(arena);
+}
+template<> PROTOBUF_NOINLINE ::GenericBlobRep*
+Arena::CreateMaybeMessage< ::GenericBlobRep >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::GenericBlobRep >(arena);
 }
 PROTOBUF_NAMESPACE_CLOSE
 

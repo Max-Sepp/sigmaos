@@ -304,6 +304,66 @@ func (x *Blob) GetSplitIov() []*SplitIoVec {
 	return nil
 }
 
+// GenericBlobRep is a service-agnostic response container for delegated RPC
+// replies from any blob-returning service. Wire-compatible with S3Rep, UXRep,
+// and any future service reply that follows the convention:
+//
+//	bool oK = 1; Blob blob = 2.
+type GenericBlobRep struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	OK   bool  `protobuf:"varint,1,opt,name=oK,proto3" json:"oK,omitempty"`
+	Blob *Blob `protobuf:"bytes,2,opt,name=blob,proto3" json:"blob,omitempty"`
+}
+
+func (x *GenericBlobRep) Reset() {
+	*x = GenericBlobRep{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_rpc_proto_rpc_proto_msgTypes[6]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *GenericBlobRep) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GenericBlobRep) ProtoMessage() {}
+
+func (x *GenericBlobRep) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_proto_rpc_proto_msgTypes[6]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GenericBlobRep.ProtoReflect.Descriptor instead.
+func (*GenericBlobRep) Descriptor() ([]byte, []int) {
+	return file_rpc_proto_rpc_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *GenericBlobRep) GetOK() bool {
+	if x != nil {
+		return x.OK
+	}
+	return false
+}
+
+func (x *GenericBlobRep) GetBlob() *Blob {
+	if x != nil {
+		return x.Blob
+	}
+	return nil
+}
+
 var File_rpc_proto_rpc_proto protoreflect.FileDescriptor
 
 var file_rpc_proto_rpc_proto_rawDesc = []byte{
@@ -322,9 +382,13 @@ var file_rpc_proto_rpc_proto_rawDesc = []byte{
 	0x62, 0x12, 0x10, 0x0a, 0x03, 0x69, 0x6f, 0x76, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0c, 0x52, 0x03,
 	0x69, 0x6f, 0x76, 0x12, 0x27, 0x0a, 0x08, 0x73, 0x70, 0x6c, 0x69, 0x74, 0x49, 0x6f, 0x76, 0x18,
 	0x02, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x0b, 0x2e, 0x53, 0x70, 0x6c, 0x69, 0x74, 0x49, 0x6f, 0x56,
-	0x65, 0x63, 0x52, 0x08, 0x73, 0x70, 0x6c, 0x69, 0x74, 0x49, 0x6f, 0x76, 0x42, 0x13, 0x5a, 0x11,
-	0x73, 0x69, 0x67, 0x6d, 0x61, 0x6f, 0x73, 0x2f, 0x72, 0x70, 0x63, 0x2f, 0x70, 0x72, 0x6f, 0x74,
-	0x6f, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x65, 0x63, 0x52, 0x08, 0x73, 0x70, 0x6c, 0x69, 0x74, 0x49, 0x6f, 0x76, 0x22, 0x3b, 0x0a, 0x0e,
+	0x47, 0x65, 0x6e, 0x65, 0x72, 0x69, 0x63, 0x42, 0x6c, 0x6f, 0x62, 0x52, 0x65, 0x70, 0x12, 0x0e,
+	0x0a, 0x02, 0x6f, 0x4b, 0x18, 0x01, 0x20, 0x01, 0x28, 0x08, 0x52, 0x02, 0x6f, 0x4b, 0x12, 0x19,
+	0x0a, 0x04, 0x62, 0x6c, 0x6f, 0x62, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x05, 0x2e, 0x42,
+	0x6c, 0x6f, 0x62, 0x52, 0x04, 0x62, 0x6c, 0x6f, 0x62, 0x42, 0x13, 0x5a, 0x11, 0x73, 0x69, 0x67,
+	0x6d, 0x61, 0x6f, 0x73, 0x2f, 0x72, 0x70, 0x63, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x06,
+	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -339,24 +403,26 @@ func file_rpc_proto_rpc_proto_rawDescGZIP() []byte {
 	return file_rpc_proto_rpc_proto_rawDescData
 }
 
-var file_rpc_proto_rpc_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_rpc_proto_rpc_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_rpc_proto_rpc_proto_goTypes = []interface{}{
-	(*MetricsReq)(nil),    // 0: MetricsReq
-	(*MetricsRep)(nil),    // 1: MetricsRep
-	(*Req)(nil),           // 2: Req
-	(*Rep)(nil),           // 3: Rep
-	(*SplitIoVec)(nil),    // 4: SplitIoVec
-	(*Blob)(nil),          // 5: Blob
-	(*sigmap.Rerror)(nil), // 6: Rerror
+	(*MetricsReq)(nil),     // 0: MetricsReq
+	(*MetricsRep)(nil),     // 1: MetricsRep
+	(*Req)(nil),            // 2: Req
+	(*Rep)(nil),            // 3: Rep
+	(*SplitIoVec)(nil),     // 4: SplitIoVec
+	(*Blob)(nil),           // 5: Blob
+	(*GenericBlobRep)(nil), // 6: GenericBlobRep
+	(*sigmap.Rerror)(nil),  // 7: Rerror
 }
 var file_rpc_proto_rpc_proto_depIdxs = []int32{
-	6, // 0: Rep.err:type_name -> Rerror
+	7, // 0: Rep.err:type_name -> Rerror
 	4, // 1: Blob.splitIov:type_name -> SplitIoVec
-	2, // [2:2] is the sub-list for method output_type
-	2, // [2:2] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	5, // 2: GenericBlobRep.blob:type_name -> Blob
+	3, // [3:3] is the sub-list for method output_type
+	3, // [3:3] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_rpc_proto_rpc_proto_init() }
@@ -437,6 +503,18 @@ func file_rpc_proto_rpc_proto_init() {
 				return nil
 			}
 		}
+		file_rpc_proto_rpc_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*GenericBlobRep); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -444,7 +522,7 @@ func file_rpc_proto_rpc_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_rpc_proto_rpc_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
