@@ -15,8 +15,8 @@ Clnt::Clnt(std::shared_ptr<sigmaos::proxy::sigmap::Clnt> sp_clnt,
       std::make_shared<sigmaos::rpc::Clnt>(chan, sp_clnt->GetSPProxyChannel());
 }
 
-std::expected<std::shared_ptr<std::string>, sigmaos::serr::Error>
-Clnt::GetFile(std::string path) {
+std::expected<std::shared_ptr<std::string>, sigmaos::serr::Error> Clnt::GetFile(
+    std::string path) {
   log(UXCLNT, "GetFile path:{}", path);
   UXReq req;
   UXRep rep;
@@ -35,7 +35,7 @@ Clnt::GetFile(std::string path) {
 }
 
 std::expected<int, sigmaos::serr::Error> Clnt::PutFile(std::string path,
-                                                        std::string* data) {
+                                                       std::string* data) {
   log(UXCLNT, "PutFile path:{} len:{}", path, data->size());
   UXReq req;
   UXRep rep;

@@ -27,8 +27,8 @@ class Clnt {
       std::string bucket, std::string key, bool cache);
 
   std::expected<int, sigmaos::serr::Error> PutObject(std::string bucket,
-                                                      std::string key,
-                                                      std::string* data);
+                                                     std::string key,
+                                                     std::string* data);
 
  private:
   std::shared_ptr<sigmaos::proxy::sigmap::Clnt> _sp_clnt;

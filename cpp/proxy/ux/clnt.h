@@ -1,7 +1,7 @@
 #pragma once
 
-#include <proxy/ux/proto/ux.pb.h>
 #include <proxy/sigmap/sigmap.h>
+#include <proxy/ux/proto/ux.pb.h>
 #include <rpc/clnt.h>
 #include <rpc/spchannel/spchannel.h>
 #include <serr/serr.h>
@@ -27,7 +27,7 @@ class Clnt {
       std::string path);
 
   std::expected<int, sigmaos::serr::Error> PutFile(std::string path,
-                                                    std::string* data);
+                                                   std::string* data);
 
  private:
   std::shared_ptr<sigmaos::proxy::sigmap::Clnt> _sp_clnt;
