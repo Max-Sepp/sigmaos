@@ -40,13 +40,24 @@ Clnt::DelegatedGetFile(uint64_t rpc_idx) {
   log(UXCLNT, "DelegatedGetFile rpc_idx:{}", rpc_idx);
   UXRep rep;
   Blob blob;
-  auto s = std::make_shared<std::string>();
-  blob.mutable_iov()->AddAllocated(s.get());
+  std::shared_ptr<std::string> s;
+  std::shared_ptr<std::vector<std::shared_ptr<std::string_view>>> views = nullptr;
+  if (_sp_clnt->ProcEnv()->GetUseShmem()) {
+    views = std::make_shared<std::vector<std::shared_ptr<std::string_view>>>();
+    views->push_back(std::make_shared<std::string_view>());
+  } else {
+    s = std::make_shared<std::string>();
+    blob.mutable_iov()->AddAllocated(s.get());
+  }
   rep.set_allocated_blob(&blob);
-  auto res = _rpcc->DelegatedRPC(rpc_idx, rep);
+  auto res = _rpcc->DelegatedRPC(rpc_idx, rep, views);
   if (!res.has_value()) {
     log(UXCLNT_ERR, "Err DelegatedGetFile: {}", res.error().String());
     return std::unexpected(res.error());
+  }
+  if (_sp_clnt->ProcEnv()->GetUseShmem()) {
+    auto& view = *views->at(0);
+    s = std::make_shared<std::string>(view.data(), view.size());
   }
   log(UXCLNT, "DelegatedGetFile ok rpc_idx:{} len:{}", rpc_idx, s->size());
   return std::make_pair(s, res.value());
