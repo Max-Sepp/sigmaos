@@ -35,6 +35,23 @@ int sigmaos_put_file(SigmaosClnt clnt, const char* pn,
                      unsigned int perm, unsigned int mode,
                      const char* data, size_t len);
 
+// Returns malloc'd buffer of *out_len bytes, or NULL on error.
+// Caller must free with sigmaos_free_buf().
+char* sigmaos_s3_get_object(SigmaosClnt clnt, const char* bucket,
+                            const char* key, int cache, size_t* out_len);
+
+// Returns 0 on success, -1 on error.
+int sigmaos_s3_put_object(SigmaosClnt clnt, const char* bucket,
+                          const char* key, const char* data, size_t len);
+
+// Returns malloc'd buffer of *out_len bytes, or NULL on error.
+// Caller must free with sigmaos_free_buf().
+char* sigmaos_ux_get_file(SigmaosClnt clnt, const char* path, size_t* out_len);
+
+// Returns 0 on success, -1 on error.
+int sigmaos_ux_put_file(SigmaosClnt clnt, const char* path,
+                        const char* data, size_t len);
+
 // Returns a thread-local string describing the last error, or "" if none.
 const char* sigmaos_last_error();
 

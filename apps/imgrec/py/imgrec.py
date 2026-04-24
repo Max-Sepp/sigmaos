@@ -33,14 +33,13 @@ def main():
               file=sys.stderr)
         sys.exit(1)
 
-    img_bucket, img_key, model_bucket, model_key, kid = sys.argv[1:]
-    pn_prefix = f"name/s3/{kid}"
+    img_bucket, img_key, model_bucket, model_key, _kid = sys.argv[1:]
 
     clnt = sigmaos.SigmaosClnt()
     clnt.started()
 
-    img_bytes   = clnt.get_file(f"{pn_prefix}/{img_bucket}/{img_key}")
-    model_bytes = clnt.get_file(f"{pn_prefix}/{model_bucket}/{model_key}")
+    img_bytes   = clnt.s3_get_object(img_bucket, img_key)
+    model_bytes = clnt.s3_get_object(model_bucket, model_key)
 
     tensor = preprocess(img_bytes)
 

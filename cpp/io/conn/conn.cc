@@ -107,7 +107,7 @@ std::expected<int, sigmaos::serr::Error> Conn::read_bytes(char *b,
         std::format("read wrong num bytes: {} != {}", (int)total, (int)size)));
   }
   if (looped) {
-    log(PROXY_RPC_LAT, "read_bytes looped lat:{}ms", LatencyMS(start));
+    log(PROXY_RPC_LAT, "read_bytes looped lat:{}ms", (int)LatencyMS(start));
   }
   return total;
 }

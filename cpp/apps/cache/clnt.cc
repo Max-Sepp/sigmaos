@@ -139,7 +139,8 @@ std::expected<int, sigmaos::serr::Error> Clnt::Get(
     }
     auto start = GetCurrentTime();
     *val = rep.value();
-    log(PROXY_RPC_LAT, "Set val to reply value lat:{}ms", LatencyMS(start));
+    log(PROXY_RPC_LAT, "Set val to reply value lat:{}ms",
+        (int)LatencyMS(start));
     if (!res.has_value()) {
       log(CACHECLNT_ERR, "Error Get: {}", res.error().String());
       return std::unexpected(res.error());
@@ -497,7 +498,8 @@ Clnt::DelegatedMultiDumpShard(uint64_t rpc_idx, std::vector<uint32_t> &shards) {
         }
       }
     }
-    log(PROXY_RPC_LAT, "CacheClnt.Construct map lat:{}ms", LatencyMS(start));
+    log(PROXY_RPC_LAT, "CacheClnt.Construct map lat:{}ms",
+        (int)LatencyMS(start));
   }
   log(CACHECLNT, "DelegatedMultiDumpShard({}) ok", (int)rpc_idx);
   return std::make_pair(shard_map, transfer_start);

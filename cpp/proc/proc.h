@@ -32,6 +32,7 @@ class ProcEnv {
   std::string String() { return _proto.ShortDebugString(); }
 
   sigmaos::sigmap::types::Trealm GetRealm() { return _proto.realmstr(); }
+  sigmaos::sigmap::types::Trealm GetKernelID() { return _proto.kernelid(); }
   sigmaos::sigmap::types::Tpid GetPID() { return _proto.pidstr(); }
   sigmaos::sigmap::types::Tip GetOuterContainerIP() {
     return _proto.outercontaineripstr();

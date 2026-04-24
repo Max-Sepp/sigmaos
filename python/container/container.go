@@ -1,4 +1,4 @@
-package pycontainer
+package container
 
 import (
 	"os"
@@ -43,6 +43,7 @@ func StartPythonContainer(uproc *proc.Proc) (*pyCmd, error) {
 
 	args := append([]string{scriptPath}, uproc.GetArgs()...)
 	cmd := exec.Command("python3", args...)
+	//	cmd := exec.Command("valgrind", append([]string{"--trace-children=yes", "python3"}, args...)...)
 
 	uproc.AppendEnv("PATH", "/bin:/usr/bin:/home/sigmaos/bin/kernel")
 	uproc.AppendEnv("PYTHONPATH", "/home/sigmaos/python")

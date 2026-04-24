@@ -58,6 +58,7 @@ protoc -I=. --cpp_out="./cpp/apps/epcache/proto" --proto_path apps/epcache/proto
 protoc -I=. --cpp_out="./cpp/apps/cache/proto" --proto_path apps/cache/proto cache.proto
 protoc -I=. --cpp_out="./cpp/apps/cache/proto" --proto_path apps/cache/proto get.proto
 protoc -I=. --cpp_out="./cpp/apps/cache/proto" --proto_path apps/cache/proto dump.proto
+protoc -I=. --cpp_out="./cpp/apps/s3/proto" --proto_path proxy/s3/proto s3.proto
 protoc -I=. --cpp_out=./cpp util/tracing/proto/tracing.proto
 
 cd cpp
