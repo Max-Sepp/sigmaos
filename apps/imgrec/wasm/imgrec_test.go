@@ -42,7 +42,12 @@ func uploadBytes(fsl *fslib.FsLib, data []byte, spn sp.Tsigmapath) error {
 }
 
 func uploadImgrecBin(t *testing.T, rts *test.RealmTstate) string {
-	precompiledBinPath := filepath.Join(sp.S3, sp.ANY, "9ps3", PRECOMPILED_PROG+"-v"+sp.Version)
+	var precompiledBinPath string
+	if rts.ProcEnv().BuildTag == sp.LOCAL_BUILD {
+		precompiledBinPath = filepath.Join(sp.S3, sp.ANY, "9ps3", PRECOMPILED_PROG+"-v"+sp.Version)
+	} else {
+		precompiledBinPath = filepath.Join(sp.S3, sp.ANY, rts.ProcEnv().BuildTag, PRECOMPILED_PROG)
+	}
 	db.DPrintf(db.TEST, "Upload compiled wasm bin to %v", precompiledBinPath)
 	rawBytes, err := os.ReadFile(LOCAL_WASM_BIN)
 	if !assert.Nil(t, err, "ReadFile %v: %v", LOCAL_WASM_BIN, err) {
@@ -90,8 +95,9 @@ func TestImgrec(t *testing.T) {
 	})
 	p.GetProcEnv().UseSPProxy = true
 	p.SetProcContainerType(proc.ProcContainerType_PROC_CTR_WASM)
-	// XXX hack, remove eventually
-	p.PrependSigmaPath(filepath.Dir(precompiledBinPath))
+	if rts.ProcEnv().BuildTag == sp.LOCAL_BUILD {
+		p.PrependSigmaPath(filepath.Dir(precompiledBinPath))
+	}
 
 	err := rts.Spawn(p)
 	assert.Nil(t, err, "Spawn")
@@ -132,8 +138,9 @@ func TestImgrecWASMCoSandboxShmem(t *testing.T) {
 	p.SetCoSandbox(coSandbox, bootInput)
 	p.SetRunCoSandbox(true)
 	p.SetShmemMB(proc.Tmem(32))
-	// XXX hack, remove eventually
-	p.PrependSigmaPath(filepath.Dir(precompiledBinPath))
+	if rts.ProcEnv().BuildTag == sp.LOCAL_BUILD {
+		p.PrependSigmaPath(filepath.Dir(precompiledBinPath))
+	}
 
 	err = rts.Spawn(p)
 	assert.Nil(t, err, "Spawn")
@@ -176,8 +183,9 @@ func TestImgrecWASMCoSandbox(t *testing.T) {
 	p.SetProcContainerType(proc.ProcContainerType_PROC_CTR_WASM)
 	p.SetCoSandbox(coSandbox, bootInput)
 	p.SetRunCoSandbox(true)
-	// XXX hack, remove eventually
-	p.PrependSigmaPath(filepath.Dir(precompiledBinPath))
+	if rts.ProcEnv().BuildTag == sp.LOCAL_BUILD {
+		p.PrependSigmaPath(filepath.Dir(precompiledBinPath))
+	}
 
 	err = rts.Spawn(p)
 	assert.Nil(t, err, "Spawn")
