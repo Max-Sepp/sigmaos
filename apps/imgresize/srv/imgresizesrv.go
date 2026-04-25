@@ -32,17 +32,17 @@ type ImgSrv struct {
 	imgDim                int
 	workerMcpu            proc.Tmcpu
 	workerMem             proc.Tmem
-	workerBootScriptMcpu  proc.Tmcpu
-	workerBootScriptMem   proc.Tmem
+	workerCoSandboxMcpu  proc.Tmcpu
+	workerCoSandboxMem   proc.Tmem
 	leaderclnt            *leaderclnt.LeaderClnt
 	imgSvcId              string
 	taskSvcId             task.FtTaskSvcId
 	ch                    chan error
-	bootScript            []byte
-	bootScriptWriteOut    []byte
+	coSandbox            []byte
+	coSandboxWriteOut    []byte
 	useSPProxy            bool
-	useBootScript         bool
-	writeOutViaBootScript bool
+	useCoSandbox         bool
+	writeOutViaCoSandbox bool
 	premountS3            bool
 	measurePSS            bool
 	bailOut               bool
@@ -84,48 +84,48 @@ func NewImgSrv(args []string) (*ImgSrv, error) {
 		db.DFatalf("Error parse useSPProxy: %v", err)
 	}
 	imgd.useSPProxy = useSPProxy
-	useBootScript, err := strconv.ParseBool(args[6])
+	useCoSandbox, err := strconv.ParseBool(args[6])
 	if err != nil {
-		db.DFatalf("Error parse useBootScript: %v", err)
+		db.DFatalf("Error parse useCoSandbox: %v", err)
 	}
-	imgd.useBootScript = useBootScript
-	bootScript, err := imgresize.GetBootScript(imgd.sc)
+	imgd.useCoSandbox = useCoSandbox
+	coSandbox, err := imgresize.GetCoSandbox(imgd.sc)
 	if err != nil {
-		db.DFatalf("Error GetBootScript: %v", err)
+		db.DFatalf("Error GetCoSandbox: %v", err)
 	}
-	imgd.bootScript = bootScript
-	bootScriptWriteOut, err := imgresize.GetBootScriptWriteOut(imgd.sc)
+	imgd.coSandbox = coSandbox
+	coSandboxWriteOut, err := imgresize.GetCoSandboxWriteOut(imgd.sc)
 	if err != nil {
-		db.DFatalf("Error GetBootScriptWriteOut: %v", err)
+		db.DFatalf("Error GetCoSandboxWriteOut: %v", err)
 	}
-	imgd.bootScriptWriteOut = bootScriptWriteOut
+	imgd.coSandboxWriteOut = coSandboxWriteOut
 	bsMcpu, err := strconv.Atoi(args[7])
 	if err != nil {
 		return nil, fmt.Errorf("NewImgSrv: Error parse MCPU %v", err)
 	}
-	imgd.workerBootScriptMcpu = proc.Tmcpu(bsMcpu)
+	imgd.workerCoSandboxMcpu = proc.Tmcpu(bsMcpu)
 	bsMem, err := strconv.Atoi(args[8])
 	if err != nil {
 		return nil, fmt.Errorf("NewImgSrv: Error parse Mem %v", err)
 	}
-	imgd.workerBootScriptMem = proc.Tmem(bsMem)
-	writeOutViaBootScript, err := strconv.ParseBool(args[9])
+	imgd.workerCoSandboxMem = proc.Tmem(bsMem)
+	writeOutViaCoSandbox, err := strconv.ParseBool(args[9])
 	if err != nil {
-		db.DFatalf("Error parse writeOutViaBootScript: %v", err)
+		db.DFatalf("Error parse writeOutViaCoSandbox: %v", err)
 	}
-	imgd.writeOutViaBootScript = writeOutViaBootScript
+	imgd.writeOutViaCoSandbox = writeOutViaCoSandbox
 	imgd.imgDim, err = strconv.Atoi(args[10])
 	if err != nil {
 		db.DFatalf("Error parse imgDim: %v", err)
 	}
 	premountS3, err := strconv.ParseBool(args[11])
 	if err != nil {
-		db.DFatalf("Error parse useBootScript: %v", err)
+		db.DFatalf("Error parse useCoSandbox: %v", err)
 	}
 	imgd.premountS3 = premountS3
 	measurePSS, err := strconv.ParseBool(args[12])
 	if err != nil {
-		db.DFatalf("Error parse useBootScript: %v", err)
+		db.DFatalf("Error parse useCoSandbox: %v", err)
 	}
 	imgd.measurePSS = measurePSS
 	bailOut, err := strconv.ParseBool(args[13])
@@ -209,7 +209,7 @@ func (imgd *ImgSrv) Work() {
 
 	go imgd.processResults(ch)
 
-	ftc.ExecuteTasks(imgresize.GetMkProcFn(imgd.ftclnt.ServiceId(), imgd.nrounds, imgd.imgDim, imgd.workerMcpu, imgd.workerMem, imgd.workerBootScriptMcpu, imgd.workerBootScriptMem, imgd.bootScript, imgd.bootScriptWriteOut, imgd.useSPProxy, imgd.premountS3, imgd.s3EP, imgd.measurePSS, imgd.bailOut))
+	ftc.ExecuteTasks(imgresize.GetMkProcFn(imgd.ftclnt.ServiceId(), imgd.nrounds, imgd.imgDim, imgd.workerMcpu, imgd.workerMem, imgd.workerCoSandboxMcpu, imgd.workerCoSandboxMem, imgd.coSandbox, imgd.coSandboxWriteOut, imgd.useSPProxy, imgd.premountS3, imgd.s3EP, imgd.measurePSS, imgd.bailOut))
 	close(ch)
 
 	st := spstats.NewTcounterSnapshot()

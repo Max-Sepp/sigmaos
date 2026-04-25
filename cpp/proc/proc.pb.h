@@ -695,7 +695,7 @@ class ProcEnvProto final :
     kPrivilegedFieldNumber = 15,
     kUseSPProxyFieldNumber = 19,
     kUseDialProxyFieldNumber = 20,
-    kRunBootScriptFlagFieldNumber = 29,
+    kRunCoSandboxFlagFieldNumber = 29,
     kShmemMBIntFieldNumber = 31,
     kUseShmemFieldNumber = 30,
     kUseSPProxyProcClntFieldNumber = 32,
@@ -1124,13 +1124,13 @@ class ProcEnvProto final :
   void _internal_set_usedialproxy(bool value);
   public:
 
-  // bool runBootScriptFlag = 29;
-  void clear_runbootscriptflag();
-  bool runbootscriptflag() const;
-  void set_runbootscriptflag(bool value);
+  // bool runCoSandboxFlag = 29;
+  void clear_runcosandboxflag();
+  bool runcosandboxflag() const;
+  void set_runcosandboxflag(bool value);
   private:
-  bool _internal_runbootscriptflag() const;
-  void _internal_set_runbootscriptflag(bool value);
+  bool _internal_runcosandboxflag() const;
+  void _internal_set_runcosandboxflag(bool value);
   public:
 
   // uint64 shmemMBInt = 31;
@@ -1218,7 +1218,7 @@ class ProcEnvProto final :
     bool privileged_;
     bool usespproxy_;
     bool usedialproxy_;
-    bool runbootscriptflag_;
+    bool runcosandboxflag_;
     uint64_t shmemmbint_;
     bool useshmem_;
     bool usespproxyprocclnt_;
@@ -1385,14 +1385,14 @@ class ProcProto final :
     kArgsFieldNumber = 2,
     kAddedBinsFieldNumber = 3,
     kEnvFieldNumber = 4,
-    kBootScriptInputFieldNumber = 6,
+    kCoSandboxInputFieldNumber = 6,
     kProcEnvProtoFieldNumber = 1,
     kBlobFieldNumber = 5,
     kResourceResFieldNumber = 10,
-    kBootScriptResourceResFieldNumber = 11,
+    kCoSandboxResourceResFieldNumber = 11,
     kQueueableResourcePoolIDFieldNumber = 9,
     kTypeIntFieldNumber = 7,
-    kRunAfterBootScriptFieldNumber = 8,
+    kRunAfterCoSandboxFieldNumber = 8,
     kMeasurePSSFieldNumber = 12,
     kMeasurePSSDelayMSFieldNumber = 13,
   };
@@ -1461,18 +1461,18 @@ class ProcProto final :
   ::PROTOBUF_NAMESPACE_ID::Map< std::string, std::string >*
       mutable_env();
 
-  // bytes bootScriptInput = 6;
-  void clear_bootscriptinput();
-  const std::string& bootscriptinput() const;
+  // bytes coSandboxInput = 6;
+  void clear_cosandboxinput();
+  const std::string& cosandboxinput() const;
   template <typename ArgT0 = const std::string&, typename... ArgT>
-  void set_bootscriptinput(ArgT0&& arg0, ArgT... args);
-  std::string* mutable_bootscriptinput();
-  PROTOBUF_NODISCARD std::string* release_bootscriptinput();
-  void set_allocated_bootscriptinput(std::string* bootscriptinput);
+  void set_cosandboxinput(ArgT0&& arg0, ArgT... args);
+  std::string* mutable_cosandboxinput();
+  PROTOBUF_NODISCARD std::string* release_cosandboxinput();
+  void set_allocated_cosandboxinput(std::string* cosandboxinput);
   private:
-  const std::string& _internal_bootscriptinput() const;
-  inline PROTOBUF_ALWAYS_INLINE void _internal_set_bootscriptinput(const std::string& value);
-  std::string* _internal_mutable_bootscriptinput();
+  const std::string& _internal_cosandboxinput() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_cosandboxinput(const std::string& value);
+  std::string* _internal_mutable_cosandboxinput();
   public:
 
   // .ProcEnvProto procEnvProto = 1;
@@ -1529,23 +1529,23 @@ class ProcProto final :
       ::ResourceReservationProto* resourceres);
   ::ResourceReservationProto* unsafe_arena_release_resourceres();
 
-  // .ResourceReservationProto bootScriptResourceRes = 11;
-  bool has_bootscriptresourceres() const;
+  // .ResourceReservationProto coSandboxResourceRes = 11;
+  bool has_cosandboxresourceres() const;
   private:
-  bool _internal_has_bootscriptresourceres() const;
+  bool _internal_has_cosandboxresourceres() const;
   public:
-  void clear_bootscriptresourceres();
-  const ::ResourceReservationProto& bootscriptresourceres() const;
-  PROTOBUF_NODISCARD ::ResourceReservationProto* release_bootscriptresourceres();
-  ::ResourceReservationProto* mutable_bootscriptresourceres();
-  void set_allocated_bootscriptresourceres(::ResourceReservationProto* bootscriptresourceres);
+  void clear_cosandboxresourceres();
+  const ::ResourceReservationProto& cosandboxresourceres() const;
+  PROTOBUF_NODISCARD ::ResourceReservationProto* release_cosandboxresourceres();
+  ::ResourceReservationProto* mutable_cosandboxresourceres();
+  void set_allocated_cosandboxresourceres(::ResourceReservationProto* cosandboxresourceres);
   private:
-  const ::ResourceReservationProto& _internal_bootscriptresourceres() const;
-  ::ResourceReservationProto* _internal_mutable_bootscriptresourceres();
+  const ::ResourceReservationProto& _internal_cosandboxresourceres() const;
+  ::ResourceReservationProto* _internal_mutable_cosandboxresourceres();
   public:
-  void unsafe_arena_set_allocated_bootscriptresourceres(
-      ::ResourceReservationProto* bootscriptresourceres);
-  ::ResourceReservationProto* unsafe_arena_release_bootscriptresourceres();
+  void unsafe_arena_set_allocated_cosandboxresourceres(
+      ::ResourceReservationProto* cosandboxresourceres);
+  ::ResourceReservationProto* unsafe_arena_release_cosandboxresourceres();
 
   // uint64 queueableResourcePoolID = 9;
   void clear_queueableresourcepoolid();
@@ -1565,13 +1565,13 @@ class ProcProto final :
   void _internal_set_typeint(uint32_t value);
   public:
 
-  // bool runAfterBootScript = 8;
-  void clear_runafterbootscript();
-  bool runafterbootscript() const;
-  void set_runafterbootscript(bool value);
+  // bool runAfterCoSandbox = 8;
+  void clear_runaftercosandbox();
+  bool runaftercosandbox() const;
+  void set_runaftercosandbox(bool value);
   private:
-  bool _internal_runafterbootscript() const;
-  void _internal_set_runafterbootscript(bool value);
+  bool _internal_runaftercosandbox() const;
+  void _internal_set_runaftercosandbox(bool value);
   public:
 
   // bool measurePSS = 12;
@@ -1607,14 +1607,14 @@ class ProcProto final :
         std::string, std::string,
         ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_STRING,
         ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_STRING> env_;
-    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr bootscriptinput_;
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr cosandboxinput_;
     ::ProcEnvProto* procenvproto_;
     ::Blob* blob_;
     ::ResourceReservationProto* resourceres_;
-    ::ResourceReservationProto* bootscriptresourceres_;
+    ::ResourceReservationProto* cosandboxresourceres_;
     uint64_t queueableresourcepoolid_;
     uint32_t typeint_;
-    bool runafterbootscript_;
+    bool runaftercosandbox_;
     bool measurepss_;
     uint64_t measurepssdelayms_;
     mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
@@ -3155,24 +3155,24 @@ inline void ProcEnvProto::set_allocated_valgrind(std::string* valgrind) {
   // @@protoc_insertion_point(field_set_allocated:ProcEnvProto.valgrind)
 }
 
-// bool runBootScriptFlag = 29;
-inline void ProcEnvProto::clear_runbootscriptflag() {
-  _impl_.runbootscriptflag_ = false;
+// bool runCoSandboxFlag = 29;
+inline void ProcEnvProto::clear_runcosandboxflag() {
+  _impl_.runcosandboxflag_ = false;
 }
-inline bool ProcEnvProto::_internal_runbootscriptflag() const {
-  return _impl_.runbootscriptflag_;
+inline bool ProcEnvProto::_internal_runcosandboxflag() const {
+  return _impl_.runcosandboxflag_;
 }
-inline bool ProcEnvProto::runbootscriptflag() const {
-  // @@protoc_insertion_point(field_get:ProcEnvProto.runBootScriptFlag)
-  return _internal_runbootscriptflag();
+inline bool ProcEnvProto::runcosandboxflag() const {
+  // @@protoc_insertion_point(field_get:ProcEnvProto.runCoSandboxFlag)
+  return _internal_runcosandboxflag();
 }
-inline void ProcEnvProto::_internal_set_runbootscriptflag(bool value) {
+inline void ProcEnvProto::_internal_set_runcosandboxflag(bool value) {
   
-  _impl_.runbootscriptflag_ = value;
+  _impl_.runcosandboxflag_ = value;
 }
-inline void ProcEnvProto::set_runbootscriptflag(bool value) {
-  _internal_set_runbootscriptflag(value);
-  // @@protoc_insertion_point(field_set:ProcEnvProto.runBootScriptFlag)
+inline void ProcEnvProto::set_runcosandboxflag(bool value) {
+  _internal_set_runcosandboxflag(value);
+  // @@protoc_insertion_point(field_set:ProcEnvProto.runCoSandboxFlag)
 }
 
 // bool useShmem = 30;
@@ -3665,54 +3665,54 @@ inline void ProcProto::set_allocated_blob(::Blob* blob) {
   // @@protoc_insertion_point(field_set_allocated:ProcProto.blob)
 }
 
-// bytes bootScriptInput = 6;
-inline void ProcProto::clear_bootscriptinput() {
-  _impl_.bootscriptinput_.ClearToEmpty();
+// bytes coSandboxInput = 6;
+inline void ProcProto::clear_cosandboxinput() {
+  _impl_.cosandboxinput_.ClearToEmpty();
 }
-inline const std::string& ProcProto::bootscriptinput() const {
-  // @@protoc_insertion_point(field_get:ProcProto.bootScriptInput)
-  return _internal_bootscriptinput();
+inline const std::string& ProcProto::cosandboxinput() const {
+  // @@protoc_insertion_point(field_get:ProcProto.coSandboxInput)
+  return _internal_cosandboxinput();
 }
 template <typename ArgT0, typename... ArgT>
 inline PROTOBUF_ALWAYS_INLINE
-void ProcProto::set_bootscriptinput(ArgT0&& arg0, ArgT... args) {
+void ProcProto::set_cosandboxinput(ArgT0&& arg0, ArgT... args) {
  
- _impl_.bootscriptinput_.SetBytes(static_cast<ArgT0 &&>(arg0), args..., GetArenaForAllocation());
-  // @@protoc_insertion_point(field_set:ProcProto.bootScriptInput)
+ _impl_.cosandboxinput_.SetBytes(static_cast<ArgT0 &&>(arg0), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:ProcProto.coSandboxInput)
 }
-inline std::string* ProcProto::mutable_bootscriptinput() {
-  std::string* _s = _internal_mutable_bootscriptinput();
-  // @@protoc_insertion_point(field_mutable:ProcProto.bootScriptInput)
+inline std::string* ProcProto::mutable_cosandboxinput() {
+  std::string* _s = _internal_mutable_cosandboxinput();
+  // @@protoc_insertion_point(field_mutable:ProcProto.coSandboxInput)
   return _s;
 }
-inline const std::string& ProcProto::_internal_bootscriptinput() const {
-  return _impl_.bootscriptinput_.Get();
+inline const std::string& ProcProto::_internal_cosandboxinput() const {
+  return _impl_.cosandboxinput_.Get();
 }
-inline void ProcProto::_internal_set_bootscriptinput(const std::string& value) {
+inline void ProcProto::_internal_set_cosandboxinput(const std::string& value) {
   
-  _impl_.bootscriptinput_.Set(value, GetArenaForAllocation());
+  _impl_.cosandboxinput_.Set(value, GetArenaForAllocation());
 }
-inline std::string* ProcProto::_internal_mutable_bootscriptinput() {
+inline std::string* ProcProto::_internal_mutable_cosandboxinput() {
   
-  return _impl_.bootscriptinput_.Mutable(GetArenaForAllocation());
+  return _impl_.cosandboxinput_.Mutable(GetArenaForAllocation());
 }
-inline std::string* ProcProto::release_bootscriptinput() {
-  // @@protoc_insertion_point(field_release:ProcProto.bootScriptInput)
-  return _impl_.bootscriptinput_.Release();
+inline std::string* ProcProto::release_cosandboxinput() {
+  // @@protoc_insertion_point(field_release:ProcProto.coSandboxInput)
+  return _impl_.cosandboxinput_.Release();
 }
-inline void ProcProto::set_allocated_bootscriptinput(std::string* bootscriptinput) {
-  if (bootscriptinput != nullptr) {
+inline void ProcProto::set_allocated_cosandboxinput(std::string* cosandboxinput) {
+  if (cosandboxinput != nullptr) {
     
   } else {
     
   }
-  _impl_.bootscriptinput_.SetAllocated(bootscriptinput, GetArenaForAllocation());
+  _impl_.cosandboxinput_.SetAllocated(cosandboxinput, GetArenaForAllocation());
 #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
-  if (_impl_.bootscriptinput_.IsDefault()) {
-    _impl_.bootscriptinput_.Set("", GetArenaForAllocation());
+  if (_impl_.cosandboxinput_.IsDefault()) {
+    _impl_.cosandboxinput_.Set("", GetArenaForAllocation());
   }
 #endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
-  // @@protoc_insertion_point(field_set_allocated:ProcProto.bootScriptInput)
+  // @@protoc_insertion_point(field_set_allocated:ProcProto.coSandboxInput)
 }
 
 // uint32 typeInt = 7;
@@ -3735,24 +3735,24 @@ inline void ProcProto::set_typeint(uint32_t value) {
   // @@protoc_insertion_point(field_set:ProcProto.typeInt)
 }
 
-// bool runAfterBootScript = 8;
-inline void ProcProto::clear_runafterbootscript() {
-  _impl_.runafterbootscript_ = false;
+// bool runAfterCoSandbox = 8;
+inline void ProcProto::clear_runaftercosandbox() {
+  _impl_.runaftercosandbox_ = false;
 }
-inline bool ProcProto::_internal_runafterbootscript() const {
-  return _impl_.runafterbootscript_;
+inline bool ProcProto::_internal_runaftercosandbox() const {
+  return _impl_.runaftercosandbox_;
 }
-inline bool ProcProto::runafterbootscript() const {
-  // @@protoc_insertion_point(field_get:ProcProto.runAfterBootScript)
-  return _internal_runafterbootscript();
+inline bool ProcProto::runaftercosandbox() const {
+  // @@protoc_insertion_point(field_get:ProcProto.runAfterCoSandbox)
+  return _internal_runaftercosandbox();
 }
-inline void ProcProto::_internal_set_runafterbootscript(bool value) {
+inline void ProcProto::_internal_set_runaftercosandbox(bool value) {
   
-  _impl_.runafterbootscript_ = value;
+  _impl_.runaftercosandbox_ = value;
 }
-inline void ProcProto::set_runafterbootscript(bool value) {
-  _internal_set_runafterbootscript(value);
-  // @@protoc_insertion_point(field_set:ProcProto.runAfterBootScript)
+inline void ProcProto::set_runaftercosandbox(bool value) {
+  _internal_set_runaftercosandbox(value);
+  // @@protoc_insertion_point(field_set:ProcProto.runAfterCoSandbox)
 }
 
 // uint64 queueableResourcePoolID = 9;
@@ -3865,45 +3865,45 @@ inline void ProcProto::set_allocated_resourceres(::ResourceReservationProto* res
   // @@protoc_insertion_point(field_set_allocated:ProcProto.resourceRes)
 }
 
-// .ResourceReservationProto bootScriptResourceRes = 11;
-inline bool ProcProto::_internal_has_bootscriptresourceres() const {
-  return this != internal_default_instance() && _impl_.bootscriptresourceres_ != nullptr;
+// .ResourceReservationProto coSandboxResourceRes = 11;
+inline bool ProcProto::_internal_has_cosandboxresourceres() const {
+  return this != internal_default_instance() && _impl_.cosandboxresourceres_ != nullptr;
 }
-inline bool ProcProto::has_bootscriptresourceres() const {
-  return _internal_has_bootscriptresourceres();
+inline bool ProcProto::has_cosandboxresourceres() const {
+  return _internal_has_cosandboxresourceres();
 }
-inline void ProcProto::clear_bootscriptresourceres() {
-  if (GetArenaForAllocation() == nullptr && _impl_.bootscriptresourceres_ != nullptr) {
-    delete _impl_.bootscriptresourceres_;
+inline void ProcProto::clear_cosandboxresourceres() {
+  if (GetArenaForAllocation() == nullptr && _impl_.cosandboxresourceres_ != nullptr) {
+    delete _impl_.cosandboxresourceres_;
   }
-  _impl_.bootscriptresourceres_ = nullptr;
+  _impl_.cosandboxresourceres_ = nullptr;
 }
-inline const ::ResourceReservationProto& ProcProto::_internal_bootscriptresourceres() const {
-  const ::ResourceReservationProto* p = _impl_.bootscriptresourceres_;
+inline const ::ResourceReservationProto& ProcProto::_internal_cosandboxresourceres() const {
+  const ::ResourceReservationProto* p = _impl_.cosandboxresourceres_;
   return p != nullptr ? *p : reinterpret_cast<const ::ResourceReservationProto&>(
       ::_ResourceReservationProto_default_instance_);
 }
-inline const ::ResourceReservationProto& ProcProto::bootscriptresourceres() const {
-  // @@protoc_insertion_point(field_get:ProcProto.bootScriptResourceRes)
-  return _internal_bootscriptresourceres();
+inline const ::ResourceReservationProto& ProcProto::cosandboxresourceres() const {
+  // @@protoc_insertion_point(field_get:ProcProto.coSandboxResourceRes)
+  return _internal_cosandboxresourceres();
 }
-inline void ProcProto::unsafe_arena_set_allocated_bootscriptresourceres(
-    ::ResourceReservationProto* bootscriptresourceres) {
+inline void ProcProto::unsafe_arena_set_allocated_cosandboxresourceres(
+    ::ResourceReservationProto* cosandboxresourceres) {
   if (GetArenaForAllocation() == nullptr) {
-    delete reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(_impl_.bootscriptresourceres_);
+    delete reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(_impl_.cosandboxresourceres_);
   }
-  _impl_.bootscriptresourceres_ = bootscriptresourceres;
-  if (bootscriptresourceres) {
+  _impl_.cosandboxresourceres_ = cosandboxresourceres;
+  if (cosandboxresourceres) {
     
   } else {
     
   }
-  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:ProcProto.bootScriptResourceRes)
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:ProcProto.coSandboxResourceRes)
 }
-inline ::ResourceReservationProto* ProcProto::release_bootscriptresourceres() {
+inline ::ResourceReservationProto* ProcProto::release_cosandboxresourceres() {
   
-  ::ResourceReservationProto* temp = _impl_.bootscriptresourceres_;
-  _impl_.bootscriptresourceres_ = nullptr;
+  ::ResourceReservationProto* temp = _impl_.cosandboxresourceres_;
+  _impl_.cosandboxresourceres_ = nullptr;
 #ifdef PROTOBUF_FORCE_COPY_IN_RELEASE
   auto* old =  reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(temp);
   temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
@@ -3915,44 +3915,44 @@ inline ::ResourceReservationProto* ProcProto::release_bootscriptresourceres() {
 #endif  // !PROTOBUF_FORCE_COPY_IN_RELEASE
   return temp;
 }
-inline ::ResourceReservationProto* ProcProto::unsafe_arena_release_bootscriptresourceres() {
-  // @@protoc_insertion_point(field_release:ProcProto.bootScriptResourceRes)
+inline ::ResourceReservationProto* ProcProto::unsafe_arena_release_cosandboxresourceres() {
+  // @@protoc_insertion_point(field_release:ProcProto.coSandboxResourceRes)
   
-  ::ResourceReservationProto* temp = _impl_.bootscriptresourceres_;
-  _impl_.bootscriptresourceres_ = nullptr;
+  ::ResourceReservationProto* temp = _impl_.cosandboxresourceres_;
+  _impl_.cosandboxresourceres_ = nullptr;
   return temp;
 }
-inline ::ResourceReservationProto* ProcProto::_internal_mutable_bootscriptresourceres() {
+inline ::ResourceReservationProto* ProcProto::_internal_mutable_cosandboxresourceres() {
   
-  if (_impl_.bootscriptresourceres_ == nullptr) {
+  if (_impl_.cosandboxresourceres_ == nullptr) {
     auto* p = CreateMaybeMessage<::ResourceReservationProto>(GetArenaForAllocation());
-    _impl_.bootscriptresourceres_ = p;
+    _impl_.cosandboxresourceres_ = p;
   }
-  return _impl_.bootscriptresourceres_;
+  return _impl_.cosandboxresourceres_;
 }
-inline ::ResourceReservationProto* ProcProto::mutable_bootscriptresourceres() {
-  ::ResourceReservationProto* _msg = _internal_mutable_bootscriptresourceres();
-  // @@protoc_insertion_point(field_mutable:ProcProto.bootScriptResourceRes)
+inline ::ResourceReservationProto* ProcProto::mutable_cosandboxresourceres() {
+  ::ResourceReservationProto* _msg = _internal_mutable_cosandboxresourceres();
+  // @@protoc_insertion_point(field_mutable:ProcProto.coSandboxResourceRes)
   return _msg;
 }
-inline void ProcProto::set_allocated_bootscriptresourceres(::ResourceReservationProto* bootscriptresourceres) {
+inline void ProcProto::set_allocated_cosandboxresourceres(::ResourceReservationProto* cosandboxresourceres) {
   ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
   if (message_arena == nullptr) {
-    delete _impl_.bootscriptresourceres_;
+    delete _impl_.cosandboxresourceres_;
   }
-  if (bootscriptresourceres) {
+  if (cosandboxresourceres) {
     ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
-        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(bootscriptresourceres);
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(cosandboxresourceres);
     if (message_arena != submessage_arena) {
-      bootscriptresourceres = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
-          message_arena, bootscriptresourceres, submessage_arena);
+      cosandboxresourceres = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, cosandboxresourceres, submessage_arena);
     }
     
   } else {
     
   }
-  _impl_.bootscriptresourceres_ = bootscriptresourceres;
-  // @@protoc_insertion_point(field_set_allocated:ProcProto.bootScriptResourceRes)
+  _impl_.cosandboxresourceres_ = cosandboxresourceres;
+  // @@protoc_insertion_point(field_set_allocated:ProcProto.coSandboxResourceRes)
 }
 
 // bool measurePSS = 12;

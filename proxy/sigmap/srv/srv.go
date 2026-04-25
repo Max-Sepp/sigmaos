@@ -135,10 +135,10 @@ func (spps *SPProxySrv) IncomingProc(p *proc.Proc) {
 	spps.psm.AllocProcState(p.GetProcEnv(), p)
 }
 
-func (spps *SPProxySrv) WaitBootScriptCompletion(pid sp.Tpid) (wasmrpc.Tstatus, string, error) {
-	db.DPrintf(db.SPPROXYSRV, "[%v] Wait for completion of bootscript", pid)
-	status, msg, err := spps.psm.WaitBootScriptCompletion(pid)
-	db.DPrintf(db.SPPROXYSRV, "[%v] Done waiting for completion of bootscript: %v %v %v", pid, status, msg, err)
+func (spps *SPProxySrv) WaitCoSandboxCompletion(pid sp.Tpid) (wasmrpc.Tstatus, string, error) {
+	db.DPrintf(db.SPPROXYSRV, "[%v] Wait for completion of cosandbox", pid)
+	status, msg, err := spps.psm.WaitCoSandboxCompletion(pid)
+	db.DPrintf(db.SPPROXYSRV, "[%v] Done waiting for completion of cosandbox: %v %v %v", pid, status, msg, err)
 	return status, msg, err
 }
 
@@ -192,8 +192,8 @@ func (sppsc *SPProxySrvCmd) InformProcDone(p *proc.Proc) error {
 	return sppsc.cc.InformProcDone(p)
 }
 
-func (sppsc *SPProxySrvCmd) WaitBootScriptCompletion(pid sp.Tpid) (wasmrpc.Tstatus, string, error) {
-	return sppsc.cc.WaitBootScriptCompletion(pid)
+func (sppsc *SPProxySrvCmd) WaitCoSandboxCompletion(pid sp.Tpid) (wasmrpc.Tstatus, string, error) {
+	return sppsc.cc.WaitCoSandboxCompletion(pid)
 }
 
 func (sppsc *SPProxySrvCmd) GetProc() *proc.Proc {

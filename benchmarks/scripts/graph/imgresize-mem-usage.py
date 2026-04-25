@@ -13,7 +13,7 @@ def parse_pss_line(line):
     """
     Parse a line containing " PSS:" and extract the memory value in KB.
     Expected format: ... PSS: ... XXXXKB
-    Returns tuple of (memory_kb, has_bootscript) or None if parsing fails.
+    Returns tuple of (memory_kb, has_cosandbox) or None if parsing fails.
     """
     if " PSS:" not in line:
         return None
@@ -27,16 +27,16 @@ def parse_pss_line(line):
         return None
 
     memory_kb = int(match.group(1))
-    has_bootscript = "BootScript" in line
+    has_cosandbox = "CoSandbox" in line
 
-    return (memory_kb, has_bootscript)
+    return (memory_kb, has_cosandbox)
 
 
 def extract_pss_values(dir_path):
     """
     Search all log files in dir_path/sigmaos-node-logs for lines containing " PSS:"
     and extract memory values.
-    Returns two lists: (bootscript_pss, no_bootscript_pss) in KB.
+    Returns two lists: (cosandbox_pss, no_cosandbox_pss) in KB.
     """
     log_dir = os.path.join(dir_path, "sigmaos-node-logs")
 
@@ -50,8 +50,8 @@ def extract_pss_values(dir_path):
         print(f"Error: No log files found in {log_dir}", file=sys.stderr)
         return [], []
 
-    bootscript_pss = []
-    no_bootscript_pss = []
+    cosandbox_pss = []
+    no_cosandbox_pss = []
 
     for log_file in sorted(log_files):
         # Skip directories
@@ -63,20 +63,20 @@ def extract_pss_values(dir_path):
                 for line in f:
                     result = parse_pss_line(line)
                     if result is not None:
-                        memory_kb, has_bootscript = result
-                        if has_bootscript:
-                            bootscript_pss.append(memory_kb)
+                        memory_kb, has_cosandbox = result
+                        if has_cosandbox:
+                            cosandbox_pss.append(memory_kb)
                         else:
-                            no_bootscript_pss.append(memory_kb)
+                            no_cosandbox_pss.append(memory_kb)
         except Exception as e:
             print(f"Warning: Could not read {log_file}: {e}", file=sys.stderr)
 
-    return bootscript_pss, no_bootscript_pss
+    return cosandbox_pss, no_cosandbox_pss
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Create bar graph comparing PSS memory usage for BootScript vs non-BootScript processes"
+        description="Create bar graph comparing PSS memory usage for CoSandbox vs non-CoSandbox processes"
     )
     parser.add_argument(
         "--input_dir",
@@ -92,28 +92,28 @@ def main():
     args = parser.parse_args()
 
     # Extract PSS values
-    bootscript_pss, no_bootscript_pss = extract_pss_values(args.input_dir)
+    cosandbox_pss, no_cosandbox_pss = extract_pss_values(args.input_dir)
 
-    if not bootscript_pss:
-        print(f"Warning: No BootScript PSS values found in {args.input_dir}", file=sys.stderr)
-    if not no_bootscript_pss:
-        print(f"Warning: No non-BootScript PSS values found in {args.input_dir}", file=sys.stderr)
+    if not cosandbox_pss:
+        print(f"Warning: No CoSandbox PSS values found in {args.input_dir}", file=sys.stderr)
+    if not no_cosandbox_pss:
+        print(f"Warning: No non-CoSandbox PSS values found in {args.input_dir}", file=sys.stderr)
 
-    if not bootscript_pss and not no_bootscript_pss:
+    if not cosandbox_pss and not no_cosandbox_pss:
         print("Error: No PSS data found", file=sys.stderr)
         sys.exit(1)
 
     # Calculate averages in KB, then convert to MB
-    avg_bootscript_kb = np.mean(bootscript_pss) if bootscript_pss else 0
-    avg_no_bootscript_kb = np.mean(no_bootscript_pss) if no_bootscript_pss else 0
+    avg_cosandbox_kb = np.mean(cosandbox_pss) if cosandbox_pss else 0
+    avg_no_cosandbox_kb = np.mean(no_cosandbox_pss) if no_cosandbox_pss else 0
 
     # Convert to MB
-    avg_bootscript = avg_bootscript_kb / 1024
-    avg_no_bootscript = avg_no_bootscript_kb / 1024
+    avg_cosandbox = avg_cosandbox_kb / 1024
+    avg_no_cosandbox = avg_no_cosandbox_kb / 1024
 
     # Prepare data for plotting
     labels = ['No co-sandbox', 'co-sandbox']
-    averages = [avg_no_bootscript, avg_bootscript]
+    averages = [avg_no_cosandbox, avg_cosandbox]
     colors = ['steelblue', 'coral']
 
     # Create bar graph
@@ -145,44 +145,44 @@ def main():
     print("\nSummary:")
     print("=" * 80)
 
-    # Without BootScript stats
-    if no_bootscript_pss:
-        std_no_bootscript = np.std(no_bootscript_pss) / 1024
-        median_no_bootscript = np.median(no_bootscript_pss) / 1024
-        min_no_bootscript = np.min(no_bootscript_pss) / 1024
-        max_no_bootscript = np.max(no_bootscript_pss) / 1024
-        print(f"Without BootScript: {len(no_bootscript_pss)} samples")
-        print(f"  Avg:    {avg_no_bootscript:.1f}MB")
-        print(f"  Median: {median_no_bootscript:.1f}MB")
-        print(f"  StdDev: {std_no_bootscript:.1f}MB")
-        print(f"  Min:    {min_no_bootscript:.1f}MB")
-        print(f"  Max:    {max_no_bootscript:.1f}MB")
+    # Without CoSandbox stats
+    if no_cosandbox_pss:
+        std_no_cosandbox = np.std(no_cosandbox_pss) / 1024
+        median_no_cosandbox = np.median(no_cosandbox_pss) / 1024
+        min_no_cosandbox = np.min(no_cosandbox_pss) / 1024
+        max_no_cosandbox = np.max(no_cosandbox_pss) / 1024
+        print(f"Without CoSandbox: {len(no_cosandbox_pss)} samples")
+        print(f"  Avg:    {avg_no_cosandbox:.1f}MB")
+        print(f"  Median: {median_no_cosandbox:.1f}MB")
+        print(f"  StdDev: {std_no_cosandbox:.1f}MB")
+        print(f"  Min:    {min_no_cosandbox:.1f}MB")
+        print(f"  Max:    {max_no_cosandbox:.1f}MB")
     else:
-        print("Without BootScript: No data")
+        print("Without CoSandbox: No data")
 
     print()
 
-    # With BootScript stats
-    if bootscript_pss:
-        std_bootscript = np.std(bootscript_pss) / 1024
-        median_bootscript = np.median(bootscript_pss) / 1024
-        min_bootscript = np.min(bootscript_pss) / 1024
-        max_bootscript = np.max(bootscript_pss) / 1024
-        print(f"With BootScript:    {len(bootscript_pss)} samples")
-        print(f"  Avg:    {avg_bootscript:.1f}MB")
-        print(f"  Median: {median_bootscript:.1f}MB")
-        print(f"  StdDev: {std_bootscript:.1f}MB")
-        print(f"  Min:    {min_bootscript:.1f}MB")
-        print(f"  Max:    {max_bootscript:.1f}MB")
+    # With CoSandbox stats
+    if cosandbox_pss:
+        std_cosandbox = np.std(cosandbox_pss) / 1024
+        median_cosandbox = np.median(cosandbox_pss) / 1024
+        min_cosandbox = np.min(cosandbox_pss) / 1024
+        max_cosandbox = np.max(cosandbox_pss) / 1024
+        print(f"With CoSandbox:    {len(cosandbox_pss)} samples")
+        print(f"  Avg:    {avg_cosandbox:.1f}MB")
+        print(f"  Median: {median_cosandbox:.1f}MB")
+        print(f"  StdDev: {std_cosandbox:.1f}MB")
+        print(f"  Min:    {min_cosandbox:.1f}MB")
+        print(f"  Max:    {max_cosandbox:.1f}MB")
     else:
-        print("With BootScript: No data")
+        print("With CoSandbox: No data")
 
     print()
 
     # Comparison
-    if avg_no_bootscript > 0 and avg_bootscript > 0:
-        diff = avg_bootscript - avg_no_bootscript
-        pct = (diff / avg_no_bootscript) * 100
+    if avg_no_cosandbox > 0 and avg_cosandbox > 0:
+        diff = avg_cosandbox - avg_no_cosandbox
+        pct = (diff / avg_no_cosandbox) * 100
         print(f"Difference (avg):    {diff:.1f}MB ({pct:.1f}%)")
 
 

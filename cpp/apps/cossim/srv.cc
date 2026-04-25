@@ -65,7 +65,7 @@ void Srv::fetch_init_vectors_from_cache(
   std::shared_ptr<std::string> buf;
   std::vector<uint64_t> lengths;
   // If retrieving delegated initialization RPCs
-  if (_sp_clnt->ProcEnv()->GetRunBootScript()) {
+  if (_sp_clnt->ProcEnv()->GetRunCoSandbox()) {
     std::shared_ptr<std::vector<std::shared_ptr<sigmaos::apps::cache::Value>>>
         vals;
     // Get the serialized vector from cached
@@ -147,7 +147,7 @@ std::expected<int, sigmaos::serr::Error> Srv::Init() {
     key_vecs_int[server_id]->push_back(i);
   }
   // If not running boot script, pre-estables cached connections
-  if (!_sp_clnt->ProcEnv()->GetRunBootScript()) {
+  if (!_sp_clnt->ProcEnv()->GetRunCoSandbox()) {
     // Establish connections to cached servers
     auto startConnect = GetCurrentTime();
     {

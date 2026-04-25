@@ -158,25 +158,25 @@ func (r *Resources) getQueueableResourcePool(p *proc.Proc) (*QueueableProcResour
 	return nil, false
 }
 
-// Pool of resources allocated to run bootscripts & queueable procs
+// Pool of resources allocated to run cosandboxes & queueable procs
 type QueueableProcResourcePool struct {
 	id                uint64
-	maxBootScriptMcpu proc.Tmcpu // Max (initial) CPU resources for running queueable procs in this pool
-	maxBootScriptMem  proc.Tmem  // Max (initial) Mem resources for running queueable procs in this pool
-	bootScriptMcpu    proc.Tmcpu // CPU resources for running bootscripts
-	bootScriptMem     proc.Tmem  // Mem resources for running bootscripts
+	maxCoSandboxMcpu proc.Tmcpu // Max (initial) CPU resources for running queueable procs in this pool
+	maxCoSandboxMem  proc.Tmem  // Max (initial) Mem resources for running queueable procs in this pool
+	coSandboxMcpu    proc.Tmcpu // CPU resources for running cosandboxes
+	coSandboxMem     proc.Tmem  // Mem resources for running cosandboxes
 	procMcpu          proc.Tmcpu // CPU resources for running queueable procs which share the pool
 	procMem           proc.Tmem  // Mem resources for running queueable procs which share the pool
 	nproc             int        // Number of procs allocated to this pool
 }
 
-func newQueueableProcResourcePool(id uint64, bootScriptMcpu proc.Tmcpu, bootScriptMem proc.Tmem, procMcpu proc.Tmcpu, procMem proc.Tmem) *QueueableProcResourcePool {
+func newQueueableProcResourcePool(id uint64, coSandboxMcpu proc.Tmcpu, coSandboxMem proc.Tmem, procMcpu proc.Tmcpu, procMem proc.Tmem) *QueueableProcResourcePool {
 	return &QueueableProcResourcePool{
 		id:                id,
-		maxBootScriptMcpu: bootScriptMcpu,
-		maxBootScriptMem:  bootScriptMem,
-		bootScriptMcpu:    bootScriptMcpu,
-		bootScriptMem:     bootScriptMem,
+		maxCoSandboxMcpu: coSandboxMcpu,
+		maxCoSandboxMem:  coSandboxMem,
+		coSandboxMcpu:    coSandboxMcpu,
+		coSandboxMem:     coSandboxMem,
 		procMcpu:          procMcpu,
 		procMem:           procMem,
 		nproc:             0,
@@ -186,9 +186,9 @@ func newQueueableProcResourcePool(id uint64, bootScriptMcpu proc.Tmcpu, bootScri
 func (qprp *QueueableProcResourcePool) Alloc(p *proc.Proc) {
 	defer qprp.sanityCheck()
 
-	// Update resources available to run bootscripts in this resource pool
-	qprp.bootScriptMcpu -= p.GetBootScriptMcpu()
-	qprp.bootScriptMem -= p.GetBootScriptMem()
+	// Update resources available to run cosandboxes in this resource pool
+	qprp.coSandboxMcpu -= p.GetCoSandboxMcpu()
+	qprp.coSandboxMem -= p.GetCoSandboxMem()
 	// Update number of running procs assigned to this resource pool
 	qprp.nproc++
 	p.SetQueueableResourcePoolID(qprp.id)
@@ -198,29 +198,29 @@ func (qprp *QueueableProcResourcePool) Alloc(p *proc.Proc) {
 func (qprp *QueueableProcResourcePool) Free(p *proc.Proc) bool {
 	defer qprp.sanityCheck()
 
-	// Update resources available to run bootscripts in this resource pool
-	qprp.bootScriptMcpu += p.GetBootScriptMcpu()
-	qprp.bootScriptMem += p.GetBootScriptMem()
+	// Update resources available to run cosandboxes in this resource pool
+	qprp.coSandboxMcpu += p.GetCoSandboxMcpu()
+	qprp.coSandboxMem += p.GetCoSandboxMem()
 	// Update number of running procs assigned to this resource pool
 	qprp.nproc--
 	return qprp.nproc == 0
 }
 
 func (qprp *QueueableProcResourcePool) sanityCheck() {
-	if qprp.bootScriptMcpu < 0 || qprp.bootScriptMem < 0 {
-		db.DFatalf("Invalid bootscript mcpu (%v) or mem (%v): too little", qprp.bootScriptMcpu, qprp.bootScriptMem)
+	if qprp.coSandboxMcpu < 0 || qprp.coSandboxMem < 0 {
+		db.DFatalf("Invalid cosandbox mcpu (%v) or mem (%v): too little", qprp.coSandboxMcpu, qprp.coSandboxMem)
 	}
-	if qprp.bootScriptMcpu > qprp.maxBootScriptMcpu || qprp.bootScriptMem > qprp.maxBootScriptMem {
-		db.DFatalf("Invalid bootscript mcpu (%v) or mem (%v): too much", qprp.bootScriptMcpu, qprp.bootScriptMem)
+	if qprp.coSandboxMcpu > qprp.maxCoSandboxMcpu || qprp.coSandboxMem > qprp.maxCoSandboxMem {
+		db.DFatalf("Invalid cosandbox mcpu (%v) or mem (%v): too much", qprp.coSandboxMcpu, qprp.coSandboxMem)
 	}
-	if qprp.nproc == 0 && (qprp.bootScriptMcpu != qprp.maxBootScriptMcpu || qprp.bootScriptMem != qprp.maxBootScriptMem) {
-		db.DFatalf("No procs allocated to pool, but boot script mcpu (%v) or mem (%v) not replenished", qprp.bootScriptMcpu, qprp.bootScriptMem)
+	if qprp.nproc == 0 && (qprp.coSandboxMcpu != qprp.maxCoSandboxMcpu || qprp.coSandboxMem != qprp.maxCoSandboxMem) {
+		db.DFatalf("No procs allocated to pool, but boot script mcpu (%v) or mem (%v) not replenished", qprp.coSandboxMcpu, qprp.coSandboxMem)
 	}
 }
 
 func (qprp *QueueableProcResourcePool) IsEligible(p *proc.Proc) bool {
 	// If there is room in the pool to run the boot script, and the proc component of the pool is large enough to run the queueable proc, then the proc is eligible to run on this pool
-	if p.GetBootScriptMcpu() <= qprp.bootScriptMcpu && p.GetBootScriptMem() <= qprp.bootScriptMem &&
+	if p.GetCoSandboxMcpu() <= qprp.coSandboxMcpu && p.GetCoSandboxMem() <= qprp.coSandboxMem &&
 		p.GetMcpu() <= qprp.procMcpu && p.GetMem() <= qprp.procMem {
 		return true
 	}
@@ -228,7 +228,7 @@ func (qprp *QueueableProcResourcePool) IsEligible(p *proc.Proc) bool {
 }
 
 func (qprp *QueueableProcResourcePool) GetResources() (proc.Tmcpu, proc.Tmem) {
-	return qprp.procMcpu + qprp.maxBootScriptMcpu, qprp.procMem + qprp.maxBootScriptMem
+	return qprp.procMcpu + qprp.maxCoSandboxMcpu, qprp.procMem + qprp.maxCoSandboxMem
 }
 
 func (qprp *QueueableProcResourcePool) GetID() uint64 {

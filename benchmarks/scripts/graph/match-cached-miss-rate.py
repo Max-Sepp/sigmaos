@@ -103,9 +103,9 @@ def normalize_timestamps(data, start_time=None):
 
 def main():
     parser = argparse.ArgumentParser(description='Graph cache miss rate over time')
-    parser.add_argument('--measurement_dir_initscripts', type=str, required=True,
+    parser.add_argument('--measurement_dir_cosandboxes', type=str, required=True,
                         help='Directory containing data with init scripts')
-    parser.add_argument('--measurement_dir_noinitscripts', type=str, required=True,
+    parser.add_argument('--measurement_dir_nocosandboxes', type=str, required=True,
                         help='Directory containing data without init scripts')
     parser.add_argument('--output', type=str, default='match-cached-miss-rate.pdf',
                         help='Output file path (default: match-cached-miss-rate.pdf)')
@@ -122,13 +122,13 @@ def main():
     hit_pattern = r'hotel-matchd-.+-hit-tpt\.out'
     miss_pattern = r'hotel-matchd-.+-miss-tpt\.out'
 
-    # Read data for initscripts configuration
-    print("Reading initscripts data...")
-    init_hit_file = find_file(args.measurement_dir_initscripts, hit_pattern)
-    init_miss_file = find_file(args.measurement_dir_initscripts, miss_pattern)
+    # Read data for cosandboxes configuration
+    print("Reading cosandboxes data...")
+    init_hit_file = find_file(args.measurement_dir_cosandboxes, hit_pattern)
+    init_miss_file = find_file(args.measurement_dir_cosandboxes, miss_pattern)
 
     if not init_hit_file or not init_miss_file:
-        print(f"Error: Could not find hit/miss files in {args.measurement_dir_initscripts}")
+        print(f"Error: Could not find hit/miss files in {args.measurement_dir_cosandboxes}")
         print(f"Hit file: {init_hit_file}")
         print(f"Miss file: {init_miss_file}")
         sys.exit(1)
@@ -137,13 +137,13 @@ def main():
     init_misses = read_csv_data(init_miss_file)
     init_miss_rate = calculate_miss_rate(init_hits, init_misses, args.window_size)
 
-    # Read data for no_initscripts configuration
-    print("Reading no_initscripts data...")
-    no_init_hit_file = find_file(args.measurement_dir_noinitscripts, hit_pattern)
-    no_init_miss_file = find_file(args.measurement_dir_noinitscripts, miss_pattern)
+    # Read data for no_cosandboxes configuration
+    print("Reading no_cosandboxes data...")
+    no_init_hit_file = find_file(args.measurement_dir_nocosandboxes, hit_pattern)
+    no_init_miss_file = find_file(args.measurement_dir_nocosandboxes, miss_pattern)
 
     if not no_init_hit_file or not no_init_miss_file:
-        print(f"Error: Could not find hit/miss files in {args.measurement_dir_noinitscripts}")
+        print(f"Error: Could not find hit/miss files in {args.measurement_dir_nocosandboxes}")
         print(f"Hit file: {no_init_hit_file}")
         print(f"Miss file: {no_init_miss_file}")
         sys.exit(1)

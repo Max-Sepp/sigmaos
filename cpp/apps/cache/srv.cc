@@ -120,7 +120,7 @@ std::expected<int, sigmaos::serr::Error> Srv::Init(int old_n_srv,
   }
   log(CACHESRV, "Load shard dumps from old servers nshard: {}", nrpc);
   auto startLoad = GetCurrentTime();
-  if (!_sp_clnt->ProcEnv()->GetRunBootScript()) {
+  if (!_sp_clnt->ProcEnv()->GetRunCoSandbox()) {
     // Establish connections to other cached servers
     auto startConnect = GetCurrentTime();
     if (!_migrated) {

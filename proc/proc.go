@@ -89,7 +89,7 @@ func NewPrivProcPid(pid sp.Tpid, program string, args []string, priv bool) *Proc
 	p.Args = args
 	p.TypeInt = uint32(T_BE)
 	p.ResourceRes = NewResourceReservationProto(0, 0)
-	p.BootScriptResourceRes = NewResourceReservationProto(0, 0)
+	p.CoSandboxResourceRes = NewResourceReservationProto(0, 0)
 	if p.ProcEnvProto.Privileged {
 		p.TypeInt = uint32(T_LC)
 	}
@@ -254,7 +254,7 @@ func (p *Proc) String() string {
 		"Args:%v "+
 		"Type:%v "+
 		"ResourceRerervation:%v "+
-		"BootScriptResourceRerervation:%v "+
+		"CoSandboxResourceRerervation:%v "+
 		"Queueable:%v "+
 		"Kernels:%v "+
 		"}",
@@ -274,7 +274,7 @@ func (p *Proc) String() string {
 		p.Args,
 		p.GetType(),
 		p.GetResourceReservation(),
-		p.GetBootScriptResourceReservation(),
+		p.GetCoSandboxResourceReservation(),
 		p.GetIsQueueable(),
 		p.ProcEnvProto.Kernels,
 	)
@@ -353,11 +353,11 @@ func (p *Proc) GetMcpu() Tmcpu {
 	return mcpu
 }
 
-func (p *Proc) GetBootScriptMcpu() Tmcpu {
-	mcpu := p.ProcProto.BootScriptResourceRes.GetMcpu()
+func (p *Proc) GetCoSandboxMcpu() Tmcpu {
+	mcpu := p.ProcProto.CoSandboxResourceRes.GetMcpu()
 	// Sanity check
 	if mcpu > 0 && mcpu%10 != 0 {
-		log.Fatalf("%v FATAL: Error! Suspected missed MCPU conversion in GetBootScriptMcpu: %v", GetSigmaDebugPid(), mcpu)
+		log.Fatalf("%v FATAL: Error! Suspected missed MCPU conversion in GetCoSandboxMcpu: %v", GetSigmaDebugPid(), mcpu)
 	}
 	return mcpu
 }
@@ -366,8 +366,8 @@ func (p *Proc) GetMem() Tmem {
 	return p.ProcProto.ResourceRes.GetMem()
 }
 
-func (p *Proc) GetBootScriptMem() Tmem {
-	return p.ProcProto.BootScriptResourceRes.GetMem()
+func (p *Proc) GetCoSandboxMem() Tmem {
+	return p.ProcProto.CoSandboxResourceRes.GetMem()
 }
 
 func (p *Proc) GetRealm() sp.Trealm {
@@ -403,7 +403,7 @@ func (p *Proc) GetHow() Thow {
 }
 
 func (p *Proc) GetIsQueueable() bool {
-	return p.GetRunAfterBootScript()
+	return p.GetRunAfterCoSandbox()
 }
 
 func (p *Proc) GetQueueableResourcePoolID() uint64 {
@@ -414,12 +414,12 @@ func (p *Proc) SetQueueableResourcePoolID(id uint64) {
 	p.QueueableResourcePoolID = id
 }
 
-func (p *Proc) GetRunAfterBootScript() bool {
-	return p.RunAfterBootScript
+func (p *Proc) GetRunAfterCoSandbox() bool {
+	return p.RunAfterCoSandbox
 }
 
-func (p *Proc) SetRunAfterBootScript(runAfter bool) {
-	p.RunAfterBootScript = runAfter
+func (p *Proc) SetRunAfterCoSandbox(runAfter bool) {
+	p.RunAfterCoSandbox = runAfter
 }
 
 func (p *Proc) SetMSchedEndpoint(ep *sp.Tendpoint) {
@@ -446,27 +446,27 @@ func (p *Proc) GetNamedEndpoint() *sp.TendpointProto {
 	return ep.GetProto()
 }
 
-func (p *Proc) GetBootScript() []byte {
+func (p *Proc) GetCoSandbox() []byte {
 	return p.Blob.Iov[0]
 }
 
-func (p *Proc) GetBootScriptInput() []byte {
-	return p.BootScriptInput
+func (p *Proc) GetCoSandboxInput() []byte {
+	return p.CoSandboxInput
 }
 
-func (p *Proc) SetBootScript(b []byte, input []byte) {
+func (p *Proc) SetCoSandbox(b []byte, input []byte) {
 	p.Blob = &rpcproto.Blob{
 		Iov: [][]byte{b},
 	}
-	p.BootScriptInput = input
+	p.CoSandboxInput = input
 }
 
-func (p *Proc) SetRunBootScript(run bool) {
-	p.ProcEnvProto.SetRunBootScript(run)
+func (p *Proc) SetRunCoSandbox(run bool) {
+	p.ProcEnvProto.SetRunCoSandbox(run)
 }
 
-func (p *Proc) GetRunBootScript() bool {
-	return p.ProcEnvProto.GetRunBootScript()
+func (p *Proc) GetRunCoSandbox() bool {
+	return p.ProcEnvProto.GetRunCoSandbox()
 }
 
 func (p *Proc) SetProcContainerType(t ProcContainerType) {
@@ -498,8 +498,8 @@ func (p *Proc) GetResourceReservation() *ResourceReservation {
 	return &ResourceReservation{p.ResourceRes}
 }
 
-func (p *Proc) GetBootScriptResourceReservation() *ResourceReservation {
-	return &ResourceReservation{p.BootScriptResourceRes}
+func (p *Proc) GetCoSandboxResourceReservation() *ResourceReservation {
+	return &ResourceReservation{p.CoSandboxResourceRes}
 }
 
 // Return Env map as a []string
@@ -532,8 +532,8 @@ func (p *Proc) SetMcpu(mcpu Tmcpu) {
 	}
 }
 
-func (p *Proc) SetBootScriptMcpu(mcpu Tmcpu) {
-	p.BootScriptResourceRes.SetMcpu(mcpu)
+func (p *Proc) SetCoSandboxMcpu(mcpu Tmcpu) {
+	p.CoSandboxResourceRes.SetMcpu(mcpu)
 }
 
 // Set the aendpoint of memory (in MB) required to run this proc.
@@ -541,8 +541,8 @@ func (p *Proc) SetMem(mb Tmem) {
 	p.ResourceRes.SetMem(mb)
 }
 
-func (p *Proc) SetBootScriptMem(mb Tmem) {
-	p.BootScriptResourceRes.SetMem(mb)
+func (p *Proc) SetCoSandboxMem(mb Tmem) {
+	p.CoSandboxResourceRes.SetMem(mb)
 }
 
 func (p *Proc) Marshal() []byte {

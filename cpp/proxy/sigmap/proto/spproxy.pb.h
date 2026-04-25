@@ -139,12 +139,12 @@ extern SigmaSizeRepDefaultTypeInternal _SigmaSizeRep_default_instance_;
 class SigmaStatRep;
 struct SigmaStatRepDefaultTypeInternal;
 extern SigmaStatRepDefaultTypeInternal _SigmaStatRep_default_instance_;
-class SigmaWaitBootScriptRep;
-struct SigmaWaitBootScriptRepDefaultTypeInternal;
-extern SigmaWaitBootScriptRepDefaultTypeInternal _SigmaWaitBootScriptRep_default_instance_;
-class SigmaWaitBootScriptReq;
-struct SigmaWaitBootScriptReqDefaultTypeInternal;
-extern SigmaWaitBootScriptReqDefaultTypeInternal _SigmaWaitBootScriptReq_default_instance_;
+class SigmaWaitCoSandboxRep;
+struct SigmaWaitCoSandboxRepDefaultTypeInternal;
+extern SigmaWaitCoSandboxRepDefaultTypeInternal _SigmaWaitCoSandboxRep_default_instance_;
+class SigmaWaitCoSandboxReq;
+struct SigmaWaitCoSandboxReqDefaultTypeInternal;
+extern SigmaWaitCoSandboxReqDefaultTypeInternal _SigmaWaitCoSandboxReq_default_instance_;
 class SigmaWriteReq;
 struct SigmaWriteReqDefaultTypeInternal;
 extern SigmaWriteReqDefaultTypeInternal _SigmaWriteReq_default_instance_;
@@ -179,31 +179,31 @@ template<> ::SigmaRenameReq* Arena::CreateMaybeMessage<::SigmaRenameReq>(Arena*)
 template<> ::SigmaSeekReq* Arena::CreateMaybeMessage<::SigmaSeekReq>(Arena*);
 template<> ::SigmaSizeRep* Arena::CreateMaybeMessage<::SigmaSizeRep>(Arena*);
 template<> ::SigmaStatRep* Arena::CreateMaybeMessage<::SigmaStatRep>(Arena*);
-template<> ::SigmaWaitBootScriptRep* Arena::CreateMaybeMessage<::SigmaWaitBootScriptRep>(Arena*);
-template<> ::SigmaWaitBootScriptReq* Arena::CreateMaybeMessage<::SigmaWaitBootScriptReq>(Arena*);
+template<> ::SigmaWaitCoSandboxRep* Arena::CreateMaybeMessage<::SigmaWaitCoSandboxRep>(Arena*);
+template<> ::SigmaWaitCoSandboxReq* Arena::CreateMaybeMessage<::SigmaWaitCoSandboxReq>(Arena*);
 template<> ::SigmaWriteReq* Arena::CreateMaybeMessage<::SigmaWriteReq>(Arena*);
 PROTOBUF_NAMESPACE_CLOSE
 
 // ===================================================================
 
-class SigmaWaitBootScriptReq final :
-    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:SigmaWaitBootScriptReq) */ {
+class SigmaWaitCoSandboxReq final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:SigmaWaitCoSandboxReq) */ {
  public:
-  inline SigmaWaitBootScriptReq() : SigmaWaitBootScriptReq(nullptr) {}
-  ~SigmaWaitBootScriptReq() override;
-  explicit PROTOBUF_CONSTEXPR SigmaWaitBootScriptReq(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+  inline SigmaWaitCoSandboxReq() : SigmaWaitCoSandboxReq(nullptr) {}
+  ~SigmaWaitCoSandboxReq() override;
+  explicit PROTOBUF_CONSTEXPR SigmaWaitCoSandboxReq(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
 
-  SigmaWaitBootScriptReq(const SigmaWaitBootScriptReq& from);
-  SigmaWaitBootScriptReq(SigmaWaitBootScriptReq&& from) noexcept
-    : SigmaWaitBootScriptReq() {
+  SigmaWaitCoSandboxReq(const SigmaWaitCoSandboxReq& from);
+  SigmaWaitCoSandboxReq(SigmaWaitCoSandboxReq&& from) noexcept
+    : SigmaWaitCoSandboxReq() {
     *this = ::std::move(from);
   }
 
-  inline SigmaWaitBootScriptReq& operator=(const SigmaWaitBootScriptReq& from) {
+  inline SigmaWaitCoSandboxReq& operator=(const SigmaWaitCoSandboxReq& from) {
     CopyFrom(from);
     return *this;
   }
-  inline SigmaWaitBootScriptReq& operator=(SigmaWaitBootScriptReq&& from) noexcept {
+  inline SigmaWaitCoSandboxReq& operator=(SigmaWaitCoSandboxReq&& from) noexcept {
     if (this == &from) return *this;
     if (GetOwningArena() == from.GetOwningArena()
   #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
@@ -226,20 +226,20 @@ class SigmaWaitBootScriptReq final :
   static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
     return default_instance().GetMetadata().reflection;
   }
-  static const SigmaWaitBootScriptReq& default_instance() {
+  static const SigmaWaitCoSandboxReq& default_instance() {
     return *internal_default_instance();
   }
-  static inline const SigmaWaitBootScriptReq* internal_default_instance() {
-    return reinterpret_cast<const SigmaWaitBootScriptReq*>(
-               &_SigmaWaitBootScriptReq_default_instance_);
+  static inline const SigmaWaitCoSandboxReq* internal_default_instance() {
+    return reinterpret_cast<const SigmaWaitCoSandboxReq*>(
+               &_SigmaWaitCoSandboxReq_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
     0;
 
-  friend void swap(SigmaWaitBootScriptReq& a, SigmaWaitBootScriptReq& b) {
+  friend void swap(SigmaWaitCoSandboxReq& a, SigmaWaitCoSandboxReq& b) {
     a.Swap(&b);
   }
-  inline void Swap(SigmaWaitBootScriptReq* other) {
+  inline void Swap(SigmaWaitCoSandboxReq* other) {
     if (other == this) return;
   #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
     if (GetOwningArena() != nullptr &&
@@ -252,7 +252,7 @@ class SigmaWaitBootScriptReq final :
       ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
     }
   }
-  void UnsafeArenaSwap(SigmaWaitBootScriptReq* other) {
+  void UnsafeArenaSwap(SigmaWaitCoSandboxReq* other) {
     if (other == this) return;
     GOOGLE_DCHECK(GetOwningArena() == other->GetOwningArena());
     InternalSwap(other);
@@ -260,14 +260,14 @@ class SigmaWaitBootScriptReq final :
 
   // implements Message ----------------------------------------------
 
-  SigmaWaitBootScriptReq* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
-    return CreateMaybeMessage<SigmaWaitBootScriptReq>(arena);
+  SigmaWaitCoSandboxReq* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<SigmaWaitCoSandboxReq>(arena);
   }
   using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
-  void CopyFrom(const SigmaWaitBootScriptReq& from);
+  void CopyFrom(const SigmaWaitCoSandboxReq& from);
   using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
-  void MergeFrom( const SigmaWaitBootScriptReq& from) {
-    SigmaWaitBootScriptReq::MergeImpl(*this, from);
+  void MergeFrom( const SigmaWaitCoSandboxReq& from) {
+    SigmaWaitCoSandboxReq::MergeImpl(*this, from);
   }
   private:
   static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg);
@@ -285,15 +285,15 @@ class SigmaWaitBootScriptReq final :
   void SharedCtor(::PROTOBUF_NAMESPACE_ID::Arena* arena, bool is_message_owned);
   void SharedDtor();
   void SetCachedSize(int size) const final;
-  void InternalSwap(SigmaWaitBootScriptReq* other);
+  void InternalSwap(SigmaWaitCoSandboxReq* other);
 
   private:
   friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
   static ::PROTOBUF_NAMESPACE_ID::StringPiece FullMessageName() {
-    return "SigmaWaitBootScriptReq";
+    return "SigmaWaitCoSandboxReq";
   }
   protected:
-  explicit SigmaWaitBootScriptReq(::PROTOBUF_NAMESPACE_ID::Arena* arena,
+  explicit SigmaWaitCoSandboxReq(::PROTOBUF_NAMESPACE_ID::Arena* arena,
                        bool is_message_owned = false);
   public:
 
@@ -323,7 +323,7 @@ class SigmaWaitBootScriptReq final :
   std::string* _internal_mutable_pidstr();
   public:
 
-  // @@protoc_insertion_point(class_scope:SigmaWaitBootScriptReq)
+  // @@protoc_insertion_point(class_scope:SigmaWaitCoSandboxReq)
  private:
   class _Internal;
 
@@ -339,24 +339,24 @@ class SigmaWaitBootScriptReq final :
 };
 // -------------------------------------------------------------------
 
-class SigmaWaitBootScriptRep final :
-    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:SigmaWaitBootScriptRep) */ {
+class SigmaWaitCoSandboxRep final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:SigmaWaitCoSandboxRep) */ {
  public:
-  inline SigmaWaitBootScriptRep() : SigmaWaitBootScriptRep(nullptr) {}
-  ~SigmaWaitBootScriptRep() override;
-  explicit PROTOBUF_CONSTEXPR SigmaWaitBootScriptRep(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+  inline SigmaWaitCoSandboxRep() : SigmaWaitCoSandboxRep(nullptr) {}
+  ~SigmaWaitCoSandboxRep() override;
+  explicit PROTOBUF_CONSTEXPR SigmaWaitCoSandboxRep(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
 
-  SigmaWaitBootScriptRep(const SigmaWaitBootScriptRep& from);
-  SigmaWaitBootScriptRep(SigmaWaitBootScriptRep&& from) noexcept
-    : SigmaWaitBootScriptRep() {
+  SigmaWaitCoSandboxRep(const SigmaWaitCoSandboxRep& from);
+  SigmaWaitCoSandboxRep(SigmaWaitCoSandboxRep&& from) noexcept
+    : SigmaWaitCoSandboxRep() {
     *this = ::std::move(from);
   }
 
-  inline SigmaWaitBootScriptRep& operator=(const SigmaWaitBootScriptRep& from) {
+  inline SigmaWaitCoSandboxRep& operator=(const SigmaWaitCoSandboxRep& from) {
     CopyFrom(from);
     return *this;
   }
-  inline SigmaWaitBootScriptRep& operator=(SigmaWaitBootScriptRep&& from) noexcept {
+  inline SigmaWaitCoSandboxRep& operator=(SigmaWaitCoSandboxRep&& from) noexcept {
     if (this == &from) return *this;
     if (GetOwningArena() == from.GetOwningArena()
   #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
@@ -379,20 +379,20 @@ class SigmaWaitBootScriptRep final :
   static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
     return default_instance().GetMetadata().reflection;
   }
-  static const SigmaWaitBootScriptRep& default_instance() {
+  static const SigmaWaitCoSandboxRep& default_instance() {
     return *internal_default_instance();
   }
-  static inline const SigmaWaitBootScriptRep* internal_default_instance() {
-    return reinterpret_cast<const SigmaWaitBootScriptRep*>(
-               &_SigmaWaitBootScriptRep_default_instance_);
+  static inline const SigmaWaitCoSandboxRep* internal_default_instance() {
+    return reinterpret_cast<const SigmaWaitCoSandboxRep*>(
+               &_SigmaWaitCoSandboxRep_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
     1;
 
-  friend void swap(SigmaWaitBootScriptRep& a, SigmaWaitBootScriptRep& b) {
+  friend void swap(SigmaWaitCoSandboxRep& a, SigmaWaitCoSandboxRep& b) {
     a.Swap(&b);
   }
-  inline void Swap(SigmaWaitBootScriptRep* other) {
+  inline void Swap(SigmaWaitCoSandboxRep* other) {
     if (other == this) return;
   #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
     if (GetOwningArena() != nullptr &&
@@ -405,7 +405,7 @@ class SigmaWaitBootScriptRep final :
       ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
     }
   }
-  void UnsafeArenaSwap(SigmaWaitBootScriptRep* other) {
+  void UnsafeArenaSwap(SigmaWaitCoSandboxRep* other) {
     if (other == this) return;
     GOOGLE_DCHECK(GetOwningArena() == other->GetOwningArena());
     InternalSwap(other);
@@ -413,14 +413,14 @@ class SigmaWaitBootScriptRep final :
 
   // implements Message ----------------------------------------------
 
-  SigmaWaitBootScriptRep* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
-    return CreateMaybeMessage<SigmaWaitBootScriptRep>(arena);
+  SigmaWaitCoSandboxRep* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<SigmaWaitCoSandboxRep>(arena);
   }
   using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
-  void CopyFrom(const SigmaWaitBootScriptRep& from);
+  void CopyFrom(const SigmaWaitCoSandboxRep& from);
   using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
-  void MergeFrom( const SigmaWaitBootScriptRep& from) {
-    SigmaWaitBootScriptRep::MergeImpl(*this, from);
+  void MergeFrom( const SigmaWaitCoSandboxRep& from) {
+    SigmaWaitCoSandboxRep::MergeImpl(*this, from);
   }
   private:
   static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg);
@@ -438,15 +438,15 @@ class SigmaWaitBootScriptRep final :
   void SharedCtor(::PROTOBUF_NAMESPACE_ID::Arena* arena, bool is_message_owned);
   void SharedDtor();
   void SetCachedSize(int size) const final;
-  void InternalSwap(SigmaWaitBootScriptRep* other);
+  void InternalSwap(SigmaWaitCoSandboxRep* other);
 
   private:
   friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
   static ::PROTOBUF_NAMESPACE_ID::StringPiece FullMessageName() {
-    return "SigmaWaitBootScriptRep";
+    return "SigmaWaitCoSandboxRep";
   }
   protected:
-  explicit SigmaWaitBootScriptRep(::PROTOBUF_NAMESPACE_ID::Arena* arena,
+  explicit SigmaWaitCoSandboxRep(::PROTOBUF_NAMESPACE_ID::Arena* arena,
                        bool is_message_owned = false);
   public:
 
@@ -505,7 +505,7 @@ class SigmaWaitBootScriptRep final :
   void _internal_set_status(uint64_t value);
   public:
 
-  // @@protoc_insertion_point(class_scope:SigmaWaitBootScriptRep)
+  // @@protoc_insertion_point(class_scope:SigmaWaitCoSandboxRep)
  private:
   class _Internal;
 
@@ -6003,44 +6003,44 @@ class SigmaMultiDelegatedRPCRep final :
   #pragma GCC diagnostic push
   #pragma GCC diagnostic ignored "-Wstrict-aliasing"
 #endif  // __GNUC__
-// SigmaWaitBootScriptReq
+// SigmaWaitCoSandboxReq
 
 // string pIDStr = 1;
-inline void SigmaWaitBootScriptReq::clear_pidstr() {
+inline void SigmaWaitCoSandboxReq::clear_pidstr() {
   _impl_.pidstr_.ClearToEmpty();
 }
-inline const std::string& SigmaWaitBootScriptReq::pidstr() const {
-  // @@protoc_insertion_point(field_get:SigmaWaitBootScriptReq.pIDStr)
+inline const std::string& SigmaWaitCoSandboxReq::pidstr() const {
+  // @@protoc_insertion_point(field_get:SigmaWaitCoSandboxReq.pIDStr)
   return _internal_pidstr();
 }
 template <typename ArgT0, typename... ArgT>
 inline PROTOBUF_ALWAYS_INLINE
-void SigmaWaitBootScriptReq::set_pidstr(ArgT0&& arg0, ArgT... args) {
+void SigmaWaitCoSandboxReq::set_pidstr(ArgT0&& arg0, ArgT... args) {
  
  _impl_.pidstr_.Set(static_cast<ArgT0 &&>(arg0), args..., GetArenaForAllocation());
-  // @@protoc_insertion_point(field_set:SigmaWaitBootScriptReq.pIDStr)
+  // @@protoc_insertion_point(field_set:SigmaWaitCoSandboxReq.pIDStr)
 }
-inline std::string* SigmaWaitBootScriptReq::mutable_pidstr() {
+inline std::string* SigmaWaitCoSandboxReq::mutable_pidstr() {
   std::string* _s = _internal_mutable_pidstr();
-  // @@protoc_insertion_point(field_mutable:SigmaWaitBootScriptReq.pIDStr)
+  // @@protoc_insertion_point(field_mutable:SigmaWaitCoSandboxReq.pIDStr)
   return _s;
 }
-inline const std::string& SigmaWaitBootScriptReq::_internal_pidstr() const {
+inline const std::string& SigmaWaitCoSandboxReq::_internal_pidstr() const {
   return _impl_.pidstr_.Get();
 }
-inline void SigmaWaitBootScriptReq::_internal_set_pidstr(const std::string& value) {
+inline void SigmaWaitCoSandboxReq::_internal_set_pidstr(const std::string& value) {
   
   _impl_.pidstr_.Set(value, GetArenaForAllocation());
 }
-inline std::string* SigmaWaitBootScriptReq::_internal_mutable_pidstr() {
+inline std::string* SigmaWaitCoSandboxReq::_internal_mutable_pidstr() {
   
   return _impl_.pidstr_.Mutable(GetArenaForAllocation());
 }
-inline std::string* SigmaWaitBootScriptReq::release_pidstr() {
-  // @@protoc_insertion_point(field_release:SigmaWaitBootScriptReq.pIDStr)
+inline std::string* SigmaWaitCoSandboxReq::release_pidstr() {
+  // @@protoc_insertion_point(field_release:SigmaWaitCoSandboxReq.pIDStr)
   return _impl_.pidstr_.Release();
 }
-inline void SigmaWaitBootScriptReq::set_allocated_pidstr(std::string* pidstr) {
+inline void SigmaWaitCoSandboxReq::set_allocated_pidstr(std::string* pidstr) {
   if (pidstr != nullptr) {
     
   } else {
@@ -6052,69 +6052,69 @@ inline void SigmaWaitBootScriptReq::set_allocated_pidstr(std::string* pidstr) {
     _impl_.pidstr_.Set("", GetArenaForAllocation());
   }
 #endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
-  // @@protoc_insertion_point(field_set_allocated:SigmaWaitBootScriptReq.pIDStr)
+  // @@protoc_insertion_point(field_set_allocated:SigmaWaitCoSandboxReq.pIDStr)
 }
 
 // -------------------------------------------------------------------
 
-// SigmaWaitBootScriptRep
+// SigmaWaitCoSandboxRep
 
 // uint64 status = 1;
-inline void SigmaWaitBootScriptRep::clear_status() {
+inline void SigmaWaitCoSandboxRep::clear_status() {
   _impl_.status_ = uint64_t{0u};
 }
-inline uint64_t SigmaWaitBootScriptRep::_internal_status() const {
+inline uint64_t SigmaWaitCoSandboxRep::_internal_status() const {
   return _impl_.status_;
 }
-inline uint64_t SigmaWaitBootScriptRep::status() const {
-  // @@protoc_insertion_point(field_get:SigmaWaitBootScriptRep.status)
+inline uint64_t SigmaWaitCoSandboxRep::status() const {
+  // @@protoc_insertion_point(field_get:SigmaWaitCoSandboxRep.status)
   return _internal_status();
 }
-inline void SigmaWaitBootScriptRep::_internal_set_status(uint64_t value) {
+inline void SigmaWaitCoSandboxRep::_internal_set_status(uint64_t value) {
   
   _impl_.status_ = value;
 }
-inline void SigmaWaitBootScriptRep::set_status(uint64_t value) {
+inline void SigmaWaitCoSandboxRep::set_status(uint64_t value) {
   _internal_set_status(value);
-  // @@protoc_insertion_point(field_set:SigmaWaitBootScriptRep.status)
+  // @@protoc_insertion_point(field_set:SigmaWaitCoSandboxRep.status)
 }
 
 // string msg = 2;
-inline void SigmaWaitBootScriptRep::clear_msg() {
+inline void SigmaWaitCoSandboxRep::clear_msg() {
   _impl_.msg_.ClearToEmpty();
 }
-inline const std::string& SigmaWaitBootScriptRep::msg() const {
-  // @@protoc_insertion_point(field_get:SigmaWaitBootScriptRep.msg)
+inline const std::string& SigmaWaitCoSandboxRep::msg() const {
+  // @@protoc_insertion_point(field_get:SigmaWaitCoSandboxRep.msg)
   return _internal_msg();
 }
 template <typename ArgT0, typename... ArgT>
 inline PROTOBUF_ALWAYS_INLINE
-void SigmaWaitBootScriptRep::set_msg(ArgT0&& arg0, ArgT... args) {
+void SigmaWaitCoSandboxRep::set_msg(ArgT0&& arg0, ArgT... args) {
  
  _impl_.msg_.Set(static_cast<ArgT0 &&>(arg0), args..., GetArenaForAllocation());
-  // @@protoc_insertion_point(field_set:SigmaWaitBootScriptRep.msg)
+  // @@protoc_insertion_point(field_set:SigmaWaitCoSandboxRep.msg)
 }
-inline std::string* SigmaWaitBootScriptRep::mutable_msg() {
+inline std::string* SigmaWaitCoSandboxRep::mutable_msg() {
   std::string* _s = _internal_mutable_msg();
-  // @@protoc_insertion_point(field_mutable:SigmaWaitBootScriptRep.msg)
+  // @@protoc_insertion_point(field_mutable:SigmaWaitCoSandboxRep.msg)
   return _s;
 }
-inline const std::string& SigmaWaitBootScriptRep::_internal_msg() const {
+inline const std::string& SigmaWaitCoSandboxRep::_internal_msg() const {
   return _impl_.msg_.Get();
 }
-inline void SigmaWaitBootScriptRep::_internal_set_msg(const std::string& value) {
+inline void SigmaWaitCoSandboxRep::_internal_set_msg(const std::string& value) {
   
   _impl_.msg_.Set(value, GetArenaForAllocation());
 }
-inline std::string* SigmaWaitBootScriptRep::_internal_mutable_msg() {
+inline std::string* SigmaWaitCoSandboxRep::_internal_mutable_msg() {
   
   return _impl_.msg_.Mutable(GetArenaForAllocation());
 }
-inline std::string* SigmaWaitBootScriptRep::release_msg() {
-  // @@protoc_insertion_point(field_release:SigmaWaitBootScriptRep.msg)
+inline std::string* SigmaWaitCoSandboxRep::release_msg() {
+  // @@protoc_insertion_point(field_release:SigmaWaitCoSandboxRep.msg)
   return _impl_.msg_.Release();
 }
-inline void SigmaWaitBootScriptRep::set_allocated_msg(std::string* msg) {
+inline void SigmaWaitCoSandboxRep::set_allocated_msg(std::string* msg) {
   if (msg != nullptr) {
     
   } else {
@@ -6126,26 +6126,26 @@ inline void SigmaWaitBootScriptRep::set_allocated_msg(std::string* msg) {
     _impl_.msg_.Set("", GetArenaForAllocation());
   }
 #endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
-  // @@protoc_insertion_point(field_set_allocated:SigmaWaitBootScriptRep.msg)
+  // @@protoc_insertion_point(field_set_allocated:SigmaWaitCoSandboxRep.msg)
 }
 
 // .Rerror err = 3;
-inline bool SigmaWaitBootScriptRep::_internal_has_err() const {
+inline bool SigmaWaitCoSandboxRep::_internal_has_err() const {
   return this != internal_default_instance() && _impl_.err_ != nullptr;
 }
-inline bool SigmaWaitBootScriptRep::has_err() const {
+inline bool SigmaWaitCoSandboxRep::has_err() const {
   return _internal_has_err();
 }
-inline const ::Rerror& SigmaWaitBootScriptRep::_internal_err() const {
+inline const ::Rerror& SigmaWaitCoSandboxRep::_internal_err() const {
   const ::Rerror* p = _impl_.err_;
   return p != nullptr ? *p : reinterpret_cast<const ::Rerror&>(
       ::_Rerror_default_instance_);
 }
-inline const ::Rerror& SigmaWaitBootScriptRep::err() const {
-  // @@protoc_insertion_point(field_get:SigmaWaitBootScriptRep.err)
+inline const ::Rerror& SigmaWaitCoSandboxRep::err() const {
+  // @@protoc_insertion_point(field_get:SigmaWaitCoSandboxRep.err)
   return _internal_err();
 }
-inline void SigmaWaitBootScriptRep::unsafe_arena_set_allocated_err(
+inline void SigmaWaitCoSandboxRep::unsafe_arena_set_allocated_err(
     ::Rerror* err) {
   if (GetArenaForAllocation() == nullptr) {
     delete reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(_impl_.err_);
@@ -6156,9 +6156,9 @@ inline void SigmaWaitBootScriptRep::unsafe_arena_set_allocated_err(
   } else {
     
   }
-  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:SigmaWaitBootScriptRep.err)
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:SigmaWaitCoSandboxRep.err)
 }
-inline ::Rerror* SigmaWaitBootScriptRep::release_err() {
+inline ::Rerror* SigmaWaitCoSandboxRep::release_err() {
   
   ::Rerror* temp = _impl_.err_;
   _impl_.err_ = nullptr;
@@ -6173,14 +6173,14 @@ inline ::Rerror* SigmaWaitBootScriptRep::release_err() {
 #endif  // !PROTOBUF_FORCE_COPY_IN_RELEASE
   return temp;
 }
-inline ::Rerror* SigmaWaitBootScriptRep::unsafe_arena_release_err() {
-  // @@protoc_insertion_point(field_release:SigmaWaitBootScriptRep.err)
+inline ::Rerror* SigmaWaitCoSandboxRep::unsafe_arena_release_err() {
+  // @@protoc_insertion_point(field_release:SigmaWaitCoSandboxRep.err)
   
   ::Rerror* temp = _impl_.err_;
   _impl_.err_ = nullptr;
   return temp;
 }
-inline ::Rerror* SigmaWaitBootScriptRep::_internal_mutable_err() {
+inline ::Rerror* SigmaWaitCoSandboxRep::_internal_mutable_err() {
   
   if (_impl_.err_ == nullptr) {
     auto* p = CreateMaybeMessage<::Rerror>(GetArenaForAllocation());
@@ -6188,12 +6188,12 @@ inline ::Rerror* SigmaWaitBootScriptRep::_internal_mutable_err() {
   }
   return _impl_.err_;
 }
-inline ::Rerror* SigmaWaitBootScriptRep::mutable_err() {
+inline ::Rerror* SigmaWaitCoSandboxRep::mutable_err() {
   ::Rerror* _msg = _internal_mutable_err();
-  // @@protoc_insertion_point(field_mutable:SigmaWaitBootScriptRep.err)
+  // @@protoc_insertion_point(field_mutable:SigmaWaitCoSandboxRep.err)
   return _msg;
 }
-inline void SigmaWaitBootScriptRep::set_allocated_err(::Rerror* err) {
+inline void SigmaWaitCoSandboxRep::set_allocated_err(::Rerror* err) {
   ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
   if (message_arena == nullptr) {
     delete reinterpret_cast< ::PROTOBUF_NAMESPACE_ID::MessageLite*>(_impl_.err_);
@@ -6211,7 +6211,7 @@ inline void SigmaWaitBootScriptRep::set_allocated_err(::Rerror* err) {
     
   }
   _impl_.err_ = err;
-  // @@protoc_insertion_point(field_set_allocated:SigmaWaitBootScriptRep.err)
+  // @@protoc_insertion_point(field_set_allocated:SigmaWaitCoSandboxRep.err)
 }
 
 // -------------------------------------------------------------------

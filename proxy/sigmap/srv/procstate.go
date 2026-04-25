@@ -68,7 +68,7 @@ func (psm *ProcStateMgr) DelProcState(p *proc.Proc) {
 	ps, ok := psm.ps[p.GetPid()]
 	if ok {
 		go func(ps *procState) {
-			ps.WaitBootScriptCompletion()
+			ps.WaitCoSandboxCompletion()
 
 			// Wait for the boot script to complete, then destroy the proc state if
 			// it hasn't been destroyed already (need to re-check because we released
@@ -86,13 +86,13 @@ func (psm *ProcStateMgr) DelProcState(p *proc.Proc) {
 	}
 }
 
-func (psm *ProcStateMgr) WaitBootScriptCompletion(pid sp.Tpid) (wasmrpc.Tstatus, string, error) {
+func (psm *ProcStateMgr) WaitCoSandboxCompletion(pid sp.Tpid) (wasmrpc.Tstatus, string, error) {
 	ps, ok := psm.getProcState(pid)
 	if !ok {
-		db.DPrintf(db.SPPROXYSRV_ERR, "Try to wait for bootscript completion for unknown proc: %v", pid)
-		return 0, sp.NOT_SET, fmt.Errorf("Try to wait for bootscript completion for unknown proc: %v", pid)
+		db.DPrintf(db.SPPROXYSRV_ERR, "Try to wait for cosandbox completion for unknown proc: %v", pid)
+		return 0, sp.NOT_SET, fmt.Errorf("Try to wait for cosandbox completion for unknown proc: %v", pid)
 	}
-	return ps.WaitBootScriptCompletion()
+	return ps.WaitCoSandboxCompletion()
 }
 
 func (psm *ProcStateMgr) getProcState(pid sp.Tpid) (*procState, bool) {
@@ -215,7 +215,7 @@ type procState struct {
 	spps                     *SPProxySrv
 	sigmaClntCreationStarted bool
 	done                     bool // done creating the proc state?
-	bootScriptCompleted      bool
+	coSandboxCompleted      bool
 	pe                       *proc.ProcEnv
 	p                        *proc.Proc
 	rpcReps                  *RPCState
@@ -230,9 +230,9 @@ type procState struct {
 	delRPCStartSet           bool
 	shmAlloc                 malloc.Allocator
 	err                      error           // Creation result
-	bsStatus                 wasmrpc.Tstatus // BootScript exit status
-	bsMsg                    string          // BootScript exit message
-	bsErr                    error           // BootScript result
+	bsStatus                 wasmrpc.Tstatus // CoSandbox exit status
+	bsMsg                    string          // CoSandbox exit message
+	bsErr                    error           // CoSandbox result
 }
 
 func newProcState(spps *SPProxySrv, pe *proc.ProcEnv, p *proc.Proc) *procState {
@@ -256,11 +256,11 @@ func newProcState(spps *SPProxySrv, pe *proc.ProcEnv, p *proc.Proc) *procState {
 		ps.shmAlloc = shmem.NewAllocator(ps.shm)
 		perf.LogSpawnLatency("SPProxySrv.shmem.NewSegment", ps.pe.GetPID(), ps.pe.GetSpawnTime(), start)
 	}
-	if ps.p.GetRunBootScript() {
+	if ps.p.GetRunCoSandbox() {
 		ps.sigmaClntCreationStarted = true
 		go ps.createSigmaClnt(spps)
 	} else {
-		ps.bootScriptCompleted = true
+		ps.coSandboxCompleted = true
 	}
 	return ps
 }
@@ -316,21 +316,21 @@ func (ps *procState) setSigmaClnt(sc *sigmaclnt.SigmaClnt, epcc *epcacheclnt.End
 	ps.cond.Broadcast()
 }
 
-func (ps *procState) WaitBootScriptCompletion() (wasmrpc.Tstatus, string, error) {
+func (ps *procState) WaitCoSandboxCompletion() (wasmrpc.Tstatus, string, error) {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 
-	for !ps.bootScriptCompleted {
+	for !ps.coSandboxCompleted {
 		ps.bsCond.Wait()
 	}
 	return ps.bsStatus, ps.bsMsg, ps.bsErr
 }
 
-func (ps *procState) bootScriptDone(status wasmrpc.Tstatus, msg string, err error) {
+func (ps *procState) coSandboxDone(status wasmrpc.Tstatus, msg string, err error) {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 
-	ps.bootScriptCompleted = true
+	ps.coSandboxCompleted = true
 	ps.bsStatus = status
 	ps.bsMsg = msg
 	ps.bsErr = err
@@ -375,7 +375,7 @@ func (ps *procState) createSigmaClnt(spps *SPProxySrv) {
 	if err != nil {
 		db.DPrintf(db.SPPROXYSRV_ERR, "Error NewSigmaClnt proc %v", ps.pe.GetPID())
 	}
-	if ps.p != nil && ps.p.GetRunBootScript() {
+	if ps.p != nil && ps.p.GetRunCoSandbox() {
 		start := time.Now()
 		// If the proc specified a boot script, create a WASM runtime and run the
 		// script
@@ -385,9 +385,9 @@ func (ps *procState) createSigmaClnt(spps *SPProxySrv) {
 		ps.wasmScriptStart = time.Now()
 		go func() {
 			// Run the module
-			status, msg, err := ps.wrt.RunModule(ps.p.GetPid(), ps.p.GetSpawnTime(), ps.p.GetBootScript(), ps.p.GetBootScriptInput())
+			status, msg, err := ps.wrt.RunModule(ps.p.GetPid(), ps.p.GetSpawnTime(), ps.p.GetCoSandbox(), ps.p.GetCoSandboxInput())
 			// Mark the script as done
-			ps.bootScriptDone(status, msg, err)
+			ps.coSandboxDone(status, msg, err)
 		}()
 	}
 	var epcc *epcacheclnt.EndpointCacheClnt

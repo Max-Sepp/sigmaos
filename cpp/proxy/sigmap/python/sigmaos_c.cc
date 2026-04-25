@@ -72,8 +72,8 @@ int sigmaos_started(SigmaosClnt clnt) {
   return 0;
 }
 
-int sigmaos_get_run_boot_script(SigmaosClnt clnt) {
-  return state(clnt)->sp->ProcEnv()->GetRunBootScript() ? 1 : 0;
+int sigmaos_get_run_co_sandbox(SigmaosClnt clnt) {
+  return state(clnt)->sp->ProcEnv()->GetRunCoSandbox() ? 1 : 0;
 }
 
 int sigmaos_exited(SigmaosClnt clnt, int status, const char* msg) {

@@ -43,12 +43,12 @@ func RunMemcachedShim(snapPn string, port string) error {
 	ms.ssrv = ssrv
 	start := time.Now()
 	// Create an S3 clnt
-	s3Clnt, err := s3clnt.NewS3ClntInit(ms.ssrv.SigmaClnt().FsLib, filepath.Join(sp.S3, pe.GetKernelID()), pe.GetRunBootScript())
+	s3Clnt, err := s3clnt.NewS3ClntInit(ms.ssrv.SigmaClnt().FsLib, filepath.Join(sp.S3, pe.GetKernelID()), pe.GetRunCoSandbox())
 	if err != nil {
 		db.DFatalf("Err newS3Clnt: %v", err)
 	}
 	ms.s3Clnt = s3Clnt
-	if !ms.ssrv.SigmaClnt().ProcEnv().GetRunBootScript() {
+	if !ms.ssrv.SigmaClnt().ProcEnv().GetRunCoSandbox() {
 		perf.LogSpawnLatency("Paper.Initialization.ConnectionSetup", pe.GetPID(), pe.GetSpawnTime(), start)
 	}
 	start = time.Now()
@@ -138,7 +138,7 @@ func (ms *MemcachedShim) restoreSnapshot(snapPn string) (time.Time, error) {
 	var err error
 	start := time.Now()
 	pe := proc.GetProcEnv()
-	if ms.ssrv.SigmaClnt().ProcEnv().GetRunBootScript() {
+	if ms.ssrv.SigmaClnt().ProcEnv().GetRunCoSandbox() {
 		var transferDur time.Duration
 		b, transferDur, err = ms.s3Clnt.DelegatedGetObject(0)
 		if err != nil {

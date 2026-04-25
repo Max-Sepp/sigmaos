@@ -59,14 +59,14 @@ func (scc *CtrlClnt) InformIncomingProc(p *proc.Proc) error {
 	return nil
 }
 
-// Wait until a proc's bootscript has completed
-func (scc *CtrlClnt) WaitBootScriptCompletion(pid sp.Tpid) (wasmrpc.Tstatus, string, error) {
+// Wait until a proc's cosandbox has completed
+func (scc *CtrlClnt) WaitCoSandboxCompletion(pid sp.Tpid) (wasmrpc.Tstatus, string, error) {
 	db.DPrintf(db.SPPROXYCLNT, "[%v] Wait for boot script completion", pid)
-	req := spproto.SigmaWaitBootScriptReq{
+	req := spproto.SigmaWaitCoSandboxReq{
 		PIDStr: pid.String(),
 	}
-	rep := spproto.SigmaWaitBootScriptRep{}
-	err := scc.rpcc.RPC("CtrlAPI.WaitBootScriptCompletion", &req, &rep)
+	rep := spproto.SigmaWaitCoSandboxRep{}
+	err := scc.rpcc.RPC("CtrlAPI.WaitCoSandboxCompletion", &req, &rep)
 	status := wasmrpc.Tstatus(rep.Status)
 	msg := rep.Msg
 	db.DPrintf(db.SPPROXYCLNT, "[%v] Done waiting for boot script completion: %v %v", pid, status, msg)

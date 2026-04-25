@@ -85,10 +85,10 @@ func newTstate(mrts *test.MultiRealmTstate, srvs []*hotel.Srv, ncache int, geoNI
 	cossimVecDim := 128
 	cossimEagerInit := true
 	cossimSrvMcpu := proc.Tmcpu(3000)
-	cossimDelegateInitRPCs := false
+	cossimUseCoSandboxRPCs := false
 
 	cacheConf := cachegrpmgr.NewCacheJobConfig(ncache, proc.Tmcpu(CACHE_MCPU), true)
-	csjConf := cossimsrv.NewCosSimJobConfig(ts.job, 0, cossimNVec, cossimVecDim, cossimEagerInit, cossimSrvMcpu, cachegrpmgr.NewCacheJobConfig(ncache, proc.Tmcpu(CACHE_MCPU), true), cossimDelegateInitRPCs)
+	csjConf := cossimsrv.NewCosSimJobConfig(ts.job, 0, cossimNVec, cossimVecDim, cossimEagerInit, cossimSrvMcpu, cachegrpmgr.NewCacheJobConfig(ncache, proc.Tmcpu(CACHE_MCPU), true), cossimUseCoSandboxRPCs)
 	hotelConf := hotel.NewHotelJobConfig(ts.job, srvs, 80, "cached", cacheConf, 0, 1, geoNIndex, geoSearchRadius, geoNResults, useMatch)
 
 	ts.hotel, err = hotel.NewHotelJob(ts.mrts.GetRealm(test.REALM1).SigmaClnt, hotelConf, csjConf)

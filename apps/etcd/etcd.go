@@ -10,11 +10,11 @@ import (
 )
 
 // For now, reuse imgprocess boot script
-func GetBootScript(sc *sigmaclnt.SigmaClnt) ([]byte, error) {
-	return wasmer.ReadBootScript(sc, "s3get_boot")
+func GetCoSandbox(sc *sigmaclnt.SigmaClnt) ([]byte, error) {
+	return wasmer.ReadCoSandbox(sc, "s3get_boot")
 }
 
-func GetBootScriptInput(bucket, key, kid string) ([]byte, error) {
+func GetCoSandboxInput(bucket, key, kid string) ([]byte, error) {
 	inputBuf := bytes.NewBuffer(make([]byte, 0, 12+len(bucket)+len(key)+len(kid)))
 	if err := binary.Write(inputBuf, binary.LittleEndian, uint32(len(bucket))); err != nil {
 		return nil, err

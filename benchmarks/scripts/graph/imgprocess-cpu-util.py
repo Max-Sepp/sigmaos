@@ -67,8 +67,8 @@ def align_timestamps(timestamps, start_time):
 
 def main():
     parser = argparse.ArgumentParser(description='Graph CPU utilization for image processing benchmarks')
-    parser.add_argument('--initscript_dir', required=True, help='Directory containing bench.out.* for initscript run')
-    parser.add_argument('--no_initscript_dir', required=True, help='Directory containing bench.out.* for no-initscript run')
+    parser.add_argument('--cosandbox_dir', required=True, help='Directory containing bench.out.* for cosandbox run')
+    parser.add_argument('--no_cosandbox_dir', required=True, help='Directory containing bench.out.* for no-cosandbox run')
     parser.add_argument('--output', default='imgprocess-cpu-util.png', help='Output filename for the graph')
     parser.add_argument('--verbose', '-v', action='store_true', help='Enable verbose output')
 
@@ -76,15 +76,15 @@ def main():
 
     # Find and parse both files
     if args.verbose:
-        print(f"Parsing initscript file from {args.initscript_dir}")
-    initscript_file = find_bench_file(args.initscript_dir, args.verbose)
-    init_timestamps, init_cpu_utils = parse_cpu_util_file(initscript_file, args.verbose)
+        print(f"Parsing cosandbox file from {args.cosandbox_dir}")
+    cosandbox_file = find_bench_file(args.cosandbox_dir, args.verbose)
+    init_timestamps, init_cpu_utils = parse_cpu_util_file(cosandbox_file, args.verbose)
     if args.verbose:
         print(f"Found {len(init_timestamps)} CPU utilization measurements")
 
     if args.verbose:
-        print(f"Parsing no-initscript file from {args.no_initscript_dir}")
-    no_init_file = find_bench_file(args.no_initscript_dir, args.verbose)
+        print(f"Parsing no-cosandbox file from {args.no_cosandbox_dir}")
+    no_init_file = find_bench_file(args.no_cosandbox_dir, args.verbose)
     no_init_timestamps, no_init_cpu_utils = parse_cpu_util_file(no_init_file, args.verbose)
     if args.verbose:
         print(f"Found {len(no_init_timestamps)} CPU utilization measurements")

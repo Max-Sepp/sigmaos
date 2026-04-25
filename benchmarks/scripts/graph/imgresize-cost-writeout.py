@@ -83,17 +83,17 @@ def extract_execution_times(dir_path):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Create bar graph comparing container execution times for initscript vs no-initscript"
+        description="Create bar graph comparing container execution times for cosandbox vs no-cosandbox"
     )
     parser.add_argument(
-        "--noinitscript_dir",
+        "--nocosandbox_dir",
         required=True,
-        help="Path to benchmark output directory without initscript"
+        help="Path to benchmark output directory without cosandbox"
     )
     parser.add_argument(
-        "--initscript_dir",
+        "--cosandbox_dir",
         required=True,
-        help="Path to benchmark output directory with initscript"
+        help="Path to benchmark output directory with cosandbox"
     )
     parser.add_argument(
         "--output",
@@ -104,25 +104,25 @@ def main():
     args = parser.parse_args()
 
     # Extract execution times for both configurations
-    times_noinitscript = extract_execution_times(args.noinitscript_dir)
-    times_initscript = extract_execution_times(args.initscript_dir)
+    times_nocosandbox = extract_execution_times(args.nocosandbox_dir)
+    times_cosandbox = extract_execution_times(args.cosandbox_dir)
 
-    if not times_noinitscript:
-        print(f"Warning: No execution times found in {args.noinitscript_dir}", file=sys.stderr)
-    if not times_initscript:
-        print(f"Warning: No execution times found in {args.initscript_dir}", file=sys.stderr)
+    if not times_nocosandbox:
+        print(f"Warning: No execution times found in {args.nocosandbox_dir}", file=sys.stderr)
+    if not times_cosandbox:
+        print(f"Warning: No execution times found in {args.cosandbox_dir}", file=sys.stderr)
 
-    if not times_noinitscript and not times_initscript:
+    if not times_nocosandbox and not times_cosandbox:
         print("Error: No data found in either directory", file=sys.stderr)
         sys.exit(1)
 
     # Calculate averages
-    avg_noinitscript = np.mean(times_noinitscript) if times_noinitscript else 0
-    avg_initscript = np.mean(times_initscript) if times_initscript else 0
+    avg_nocosandbox = np.mean(times_nocosandbox) if times_nocosandbox else 0
+    avg_cosandbox = np.mean(times_cosandbox) if times_cosandbox else 0
 
     # Prepare data for plotting
     labels = ['Without co-sandbox', 'With co-sandbox']
-    averages = [avg_noinitscript, avg_initscript]
+    averages = [avg_nocosandbox, avg_cosandbox]
     colors = ['steelblue', 'coral']
 
     # Create bar graph
@@ -154,44 +154,44 @@ def main():
     print("\nSummary:")
     print("=" * 80)
 
-    # Without InitScript stats
-    if times_noinitscript:
-        std_noinitscript = np.std(times_noinitscript)
-        median_noinitscript = np.median(times_noinitscript)
-        p90_noinitscript = np.percentile(times_noinitscript, 90)
-        max_noinitscript = np.max(times_noinitscript)
-        print(f"Without InitScript: {len(times_noinitscript)} samples")
-        print(f"  Avg:    {avg_noinitscript:.2f}ms")
-        print(f"  Median: {median_noinitscript:.2f}ms")
-        print(f"  StdDev: {std_noinitscript:.2f}ms")
-        print(f"  90th percentile: {p90_noinitscript:.2f}ms")
-        print(f"  Max:    {max_noinitscript:.2f}ms")
+    # Without CoSandbox stats
+    if times_nocosandbox:
+        std_nocosandbox = np.std(times_nocosandbox)
+        median_nocosandbox = np.median(times_nocosandbox)
+        p90_nocosandbox = np.percentile(times_nocosandbox, 90)
+        max_nocosandbox = np.max(times_nocosandbox)
+        print(f"Without CoSandbox: {len(times_nocosandbox)} samples")
+        print(f"  Avg:    {avg_nocosandbox:.2f}ms")
+        print(f"  Median: {median_nocosandbox:.2f}ms")
+        print(f"  StdDev: {std_nocosandbox:.2f}ms")
+        print(f"  90th percentile: {p90_nocosandbox:.2f}ms")
+        print(f"  Max:    {max_nocosandbox:.2f}ms")
     else:
-        print("Without InitScript: No data")
+        print("Without CoSandbox: No data")
 
     print()
 
-    # With InitScript stats
-    if times_initscript:
-        std_initscript = np.std(times_initscript)
-        median_initscript = np.median(times_initscript)
-        p90_initscript = np.percentile(times_initscript, 90)
-        max_initscript = np.max(times_initscript)
-        print(f"With InitScript:    {len(times_initscript)} samples")
-        print(f"  Avg:    {avg_initscript:.2f}ms")
-        print(f"  Median: {median_initscript:.2f}ms")
-        print(f"  StdDev: {std_initscript:.2f}ms")
-        print(f"  90th percentile: {p90_initscript:.2f}ms")
-        print(f"  Max:    {max_initscript:.2f}ms")
+    # With CoSandbox stats
+    if times_cosandbox:
+        std_cosandbox = np.std(times_cosandbox)
+        median_cosandbox = np.median(times_cosandbox)
+        p90_cosandbox = np.percentile(times_cosandbox, 90)
+        max_cosandbox = np.max(times_cosandbox)
+        print(f"With CoSandbox:    {len(times_cosandbox)} samples")
+        print(f"  Avg:    {avg_cosandbox:.2f}ms")
+        print(f"  Median: {median_cosandbox:.2f}ms")
+        print(f"  StdDev: {std_cosandbox:.2f}ms")
+        print(f"  90th percentile: {p90_cosandbox:.2f}ms")
+        print(f"  Max:    {max_cosandbox:.2f}ms")
     else:
-        print("With InitScript: No data")
+        print("With CoSandbox: No data")
 
     print()
 
     # Comparison
-    if avg_noinitscript > 0 and avg_initscript > 0:
-        diff = avg_noinitscript - avg_initscript
-        pct = (diff / avg_noinitscript) * 100
+    if avg_nocosandbox > 0 and avg_cosandbox > 0:
+        diff = avg_nocosandbox - avg_cosandbox
+        pct = (diff / avg_nocosandbox) * 100
         print(f"Difference (avg):    {diff:.2f}ms ({pct:.1f}%)")
 
 

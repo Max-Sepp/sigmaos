@@ -20,7 +20,7 @@ type ImgSrvRPC struct {
 
 func NewRPCSrv(imgd *ImgSrv) *ImgSrvRPC {
 	rpcs := &ImgSrvRPC{imgd: imgd}
-	rpcs.mkProc = imgresize.GetMkProcFn(imgd.ftclnt.ServiceId(), imgd.nrounds, imgd.imgDim, imgd.workerMcpu, imgd.workerMem, imgd.workerBootScriptMcpu, imgd.workerBootScriptMem, imgd.bootScript, imgd.bootScriptWriteOut, imgd.useSPProxy, imgd.premountS3, imgd.s3EP, imgd.measurePSS, imgd.bailOut)
+	rpcs.mkProc = imgresize.GetMkProcFn(imgd.ftclnt.ServiceId(), imgd.nrounds, imgd.imgDim, imgd.workerMcpu, imgd.workerMem, imgd.workerCoSandboxMcpu, imgd.workerCoSandboxMem, imgd.coSandbox, imgd.coSandboxWriteOut, imgd.useSPProxy, imgd.premountS3, imgd.s3EP, imgd.measurePSS, imgd.bailOut)
 	return rpcs
 }
 
@@ -28,7 +28,7 @@ func (rpcs *ImgSrvRPC) Resize(ctx fs.CtxI, req proto.ImgResizeReq, rep *proto.Im
 	db.DPrintf(db.IMGD, "Resize %v", req)
 	defer db.DPrintf(db.IMGD, "Resize %v done", req)
 
-	t := imgresize.NewTask(req.InputPath, req.UseS3Clnt, rpcs.imgd.useBootScript, rpcs.imgd.writeOutViaBootScript)
+	t := imgresize.NewTask(req.InputPath, req.UseS3Clnt, rpcs.imgd.useCoSandbox, rpcs.imgd.writeOutViaCoSandbox)
 	p, err := rpcs.mkProc(fttask_clnt.Task[imgresize.Ttask]{
 		Id:   fttask_clnt.TaskId(0),
 		Data: *t,

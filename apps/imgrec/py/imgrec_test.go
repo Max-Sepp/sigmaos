@@ -23,9 +23,9 @@ const (
 	PY_SCRIPT_DIR = "/home/sigmaos/bin/python"
 )
 
-func getImgrecBootScript(t *testing.T, sc *sigmaclnt.SigmaClnt) []byte {
-	b, err := wasmrt.ReadBootScript(sc, "imgrec_boot")
-	if !assert.Nil(t, err, "ReadBootScript imgrec_boot: %v", err) {
+func getImgrecCoSandbox(t *testing.T, sc *sigmaclnt.SigmaClnt) []byte {
+	b, err := wasmrt.ReadCoSandbox(sc, "imgrec_boot")
+	if !assert.Nil(t, err, "ReadCoSandbox imgrec_boot: %v", err) {
 		t.FailNow()
 	}
 	return b
@@ -79,9 +79,9 @@ func TestImgrecPyCoSandbox(t *testing.T) {
 	rts := mrts.GetRealm(test.REALM1)
 	ref := imgrectestutil.GetReferenceOutput(t, rts.FsLib, IMG_BUCKET, IMG_KEY, MODEL_BUCKET, MODEL_KEY, KID)
 
-	bootScript := getImgrecBootScript(t, rts.SigmaClnt)
+	coSandbox := getImgrecCoSandbox(t, rts.SigmaClnt)
 	// Boot script input: model=rpcIdx 0, image=rpcIdx 1.
-	// imgrec.py detects RunBootScript and calls s3_delegated_get_object with
+	// imgrec.py detects RunCoSandbox and calls s3_delegated_get_object with
 	// matching indices.
 	bootInput := wasmrt.EncodeArgs([]string{IMG_BUCKET, IMG_KEY, MODEL_BUCKET, MODEL_KEY, KID})
 
@@ -93,8 +93,8 @@ func TestImgrecPyCoSandbox(t *testing.T) {
 	p.GetProcEnv().UseSPProxy = true
 	p.GetProcEnv().UseSPProxyProcClnt = true
 	p.SetProcContainerType(proc.ProcContainerType_PROC_CTR_PYTHON)
-	p.SetBootScript(bootScript, bootInput)
-	p.SetRunBootScript(true)
+	p.SetCoSandbox(coSandbox, bootInput)
+	p.SetRunCoSandbox(true)
 
 	err = rts.Spawn(p)
 	if !assert.Nil(t, err, "Spawn: %v", err) {
@@ -125,7 +125,7 @@ func TestImgrecPyShmem(t *testing.T) {
 	rts := mrts.GetRealm(test.REALM1)
 	ref := imgrectestutil.GetReferenceOutput(t, rts.FsLib, IMG_BUCKET, IMG_KEY, MODEL_BUCKET, MODEL_KEY, KID)
 
-	bootScript := getImgrecBootScript(t, rts.SigmaClnt)
+	coSandbox := getImgrecCoSandbox(t, rts.SigmaClnt)
 	bootInput := wasmrt.EncodeArgs([]string{IMG_BUCKET, IMG_KEY, MODEL_BUCKET, MODEL_KEY, KID})
 
 	p := proc.NewProc("imgrec.py", []string{
@@ -136,8 +136,8 @@ func TestImgrecPyShmem(t *testing.T) {
 	p.GetProcEnv().UseSPProxy = true
 	p.GetProcEnv().UseSPProxyProcClnt = true
 	p.SetProcContainerType(proc.ProcContainerType_PROC_CTR_PYTHON)
-	p.SetBootScript(bootScript, bootInput)
-	p.SetRunBootScript(true)
+	p.SetCoSandbox(coSandbox, bootInput)
+	p.SetRunCoSandbox(true)
 	p.SetShmemMB(proc.Tmem(256))
 
 	err = rts.Spawn(p)

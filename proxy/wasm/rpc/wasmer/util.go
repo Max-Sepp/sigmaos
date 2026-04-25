@@ -35,7 +35,7 @@ func projectRootPath() string {
 	return filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(b)))))
 }
 
-func UploadBootScriptRemote(sc *sigmaclnt.SigmaClnt, scriptName string) error {
+func UploadCoSandboxRemote(sc *sigmaclnt.SigmaClnt, scriptName string) error {
 	// Compute WASM binary path name
 	pn := filepath.Join(
 		projectRootPath(),
@@ -56,7 +56,7 @@ func UploadBootScriptRemote(sc *sigmaclnt.SigmaClnt, scriptName string) error {
 	return nil
 }
 
-func ReadBootScriptRemote(sc *sigmaclnt.SigmaClnt, scriptName string) ([]byte, error) {
+func ReadCoSandboxRemote(sc *sigmaclnt.SigmaClnt, scriptName string) ([]byte, error) {
 	// Else, read it out of S3
 	pn := filepath.Join(sp.S3, sp.ANY, sc.ProcEnv().BuildTag, "wasm", scriptName+".wasm")
 	b, err := sc.GetFile(pn)
@@ -68,7 +68,7 @@ func ReadBootScriptRemote(sc *sigmaclnt.SigmaClnt, scriptName string) ([]byte, e
 	return wrt.PrecompileModule(b)
 }
 
-func ReadBootScript(sc *sigmaclnt.SigmaClnt, scriptName string) ([]byte, error) {
+func ReadCoSandbox(sc *sigmaclnt.SigmaClnt, scriptName string) ([]byte, error) {
 	var b []byte
 	var err error
 	// If this is a local build, get the script from the local filesystem
@@ -87,6 +87,6 @@ func ReadBootScript(sc *sigmaclnt.SigmaClnt, scriptName string) ([]byte, error) 
 		wrt := NewWasmerRuntime(nil)
 		return wrt.PrecompileModule(b)
 	} else {
-		return ReadBootScriptRemote(sc, scriptName)
+		return ReadCoSandboxRemote(sc, scriptName)
 	}
 }

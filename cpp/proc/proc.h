@@ -39,7 +39,7 @@ class ProcEnv {
   }
   google::protobuf::Timestamp GetSpawnTime() { return _proto.spawntimepb(); }
   std::string GetPerf() { return _proto.perf(); }
-  bool GetRunBootScript() { return _proto.runbootscriptflag(); }
+  bool GetRunCoSandbox() { return _proto.runcosandboxflag(); }
   ProcContainerType GetContainerType() { return _proto.containertype(); }
   bool GetUseShmem() { return _proto.useshmem(); }
   size_t GetShmemMB() { return (size_t)_proto.shmemmbint(); }

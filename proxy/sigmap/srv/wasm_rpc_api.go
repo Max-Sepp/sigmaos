@@ -105,7 +105,7 @@ func (wp *WASMRPCProxy) Log(msg string) error {
 }
 
 func (wp *WASMRPCProxy) Exit(status wasmrpc.Tstatus, msg string) error {
-	db.DPrintf(db.SPPROXYSRV, "[%v] BootScript called exited status %v msg %v", wp.p.GetPid(), status, msg)
+	db.DPrintf(db.SPPROXYSRV, "[%v] CoSandbox called exited status %v msg %v", wp.p.GetPid(), status, msg)
 	wp.mu.Lock()
 	defer wp.mu.Unlock()
 
@@ -115,12 +115,12 @@ func (wp *WASMRPCProxy) Exit(status wasmrpc.Tstatus, msg string) error {
 	wp.exited = true
 	wp.cond.Broadcast()
 
-	db.DPrintf(db.SPPROXYSRV, "[%v] BootScript exited RPCs done status %v msg %v", wp.p.GetPid(), status, msg)
+	db.DPrintf(db.SPPROXYSRV, "[%v] CoSandbox exited RPCs done status %v msg %v", wp.p.GetPid(), status, msg)
 	return nil
 }
 
 func (wp *WASMRPCProxy) WaitExit() (wasmrpc.Tstatus, string, error) {
-	db.DPrintf(db.SPPROXYSRV, "[%v] BootScript WaitExit", wp.p.GetPid())
+	db.DPrintf(db.SPPROXYSRV, "[%v] CoSandbox WaitExit", wp.p.GetPid())
 	// Wait for any outstanding RPCs
 	wp.wg.Wait()
 
@@ -130,6 +130,6 @@ func (wp *WASMRPCProxy) WaitExit() (wasmrpc.Tstatus, string, error) {
 	for !wp.exited {
 		wp.cond.Wait()
 	}
-	db.DPrintf(db.SPPROXYSRV, "[%v] BootScript WaitExit done", wp.p.GetPid())
+	db.DPrintf(db.SPPROXYSRV, "[%v] CoSandbox WaitExit done", wp.p.GetPid())
 	return wp.exitStatus, wp.exitMsg, wp.exitErr
 }

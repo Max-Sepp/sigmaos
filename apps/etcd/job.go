@@ -21,18 +21,18 @@ type EtcdJobConfig struct {
 	Name          string     `json:"name"`          // Etcd node name
 	PeerPort      int        `json:"peer_port"`
 	ClientPort    int        `json:"client_port"`
-	UseInitScript bool       `json:"use_init_script"`
+	UseCoSandbox bool       `json:"use_co_sandbox"`
 	Mcpu          proc.Tmcpu `json:"mcpu"`
 }
 
-func NewEtcdJobConfig(job, snapshotPath, name string, peerPort, clientPort int, useInitScript bool, mcpu proc.Tmcpu) *EtcdJobConfig {
+func NewEtcdJobConfig(job, snapshotPath, name string, peerPort, clientPort int, useCoSandbox bool, mcpu proc.Tmcpu) *EtcdJobConfig {
 	return &EtcdJobConfig{
 		Job:           job,
 		SnapshotPath:  snapshotPath,
 		Name:          name,
 		PeerPort:      peerPort,
 		ClientPort:    clientPort,
-		UseInitScript: useInitScript,
+		UseCoSandbox: useCoSandbox,
 		Mcpu:          mcpu,
 	}
 }
@@ -43,8 +43,8 @@ type EtcdJob struct {
 	*sigmaclnt.SigmaClnt
 	EPCacheJob      *epsrv.EPCacheJob
 	p               *proc.Proc
-	bootScript      []byte
-	bootScriptInput []byte
+	coSandbox      []byte
+	coSandboxInput []byte
 	stopEPCJ        bool
 }
 
@@ -65,13 +65,13 @@ func NewEtcdJob(conf *EtcdJobConfig, sc *sigmaclnt.SigmaClnt, epcj *epsrv.EPCach
 }
 
 func newEtcdJob(conf *EtcdJobConfig, sc *sigmaclnt.SigmaClnt, epcj *epsrv.EPCacheJob, stopEPCJ bool) (*EtcdJob, error) {
-	var bootScript []byte
-	var bootScriptInput []byte
+	var coSandbox []byte
+	var coSandboxInput []byte
 	var err error
 
 	// If using init script, read boot script and prepare input
-	if conf.UseInitScript {
-		bootScript, err = GetBootScript(sc)
+	if conf.UseCoSandbox {
+		coSandbox, err = GetCoSandbox(sc)
 		if err != nil {
 			db.DPrintf(db.ERROR, "Err read boot script: %v", err)
 			return nil, err
@@ -82,9 +82,9 @@ func newEtcdJob(conf *EtcdJobConfig, sc *sigmaclnt.SigmaClnt, epcj *epsrv.EPCach
 		bucket := splitFN[0]
 		key := filepath.Join(splitFN[1:]...)
 
-		bootScriptInput, err = GetBootScriptInput(bucket, key, sp.LOCAL)
+		coSandboxInput, err = GetCoSandboxInput(bucket, key, sp.LOCAL)
 		if err != nil {
-			db.DPrintf(db.ERROR, "Err GetBootScriptInput: %v", err)
+			db.DPrintf(db.ERROR, "Err GetCoSandboxInput: %v", err)
 			return nil, err
 		}
 	}
@@ -93,8 +93,8 @@ func newEtcdJob(conf *EtcdJobConfig, sc *sigmaclnt.SigmaClnt, epcj *epsrv.EPCach
 		conf:            conf,
 		SigmaClnt:       sc,
 		EPCacheJob:      epcj,
-		bootScript:      bootScript,
-		bootScriptInput: bootScriptInput,
+		coSandbox:      coSandbox,
+		coSandboxInput: coSandboxInput,
 		stopEPCJ:        stopEPCJ,
 	}, nil
 }
@@ -114,10 +114,10 @@ func (j *EtcdJob) Start(sigmaPath string) error {
 	// Set MCPU
 	p.SetMcpu(j.conf.Mcpu)
 	// Configure proc environment
-	p.GetProcEnv().UseSPProxy = j.conf.UseInitScript
+	p.GetProcEnv().UseSPProxy = j.conf.UseCoSandbox
 	p.SetShmemMB(SHMEM_MB)
-	p.SetBootScript(j.bootScript, j.bootScriptInput)
-	p.SetRunBootScript(j.conf.UseInitScript)
+	p.SetCoSandbox(j.coSandbox, j.coSandboxInput)
+	p.SetRunCoSandbox(j.conf.UseCoSandbox)
 	// Set the proc's sigma path
 	if sigmaPath != sp.NOT_SET {
 		p.PrependSigmaPath(sigmaPath)
@@ -168,6 +168,6 @@ func (j *EtcdJob) GetProc() *proc.Proc {
 }
 
 func (cfg *EtcdJobConfig) String() string {
-	return fmt.Sprintf("&{ job:%v snapshot:%v name:%v peerPort:%v clientPort:%v useInitScript:%v mcpu:%v }",
-		cfg.Job, cfg.SnapshotPath, cfg.Name, cfg.PeerPort, cfg.ClientPort, cfg.UseInitScript, cfg.Mcpu)
+	return fmt.Sprintf("&{ job:%v snapshot:%v name:%v peerPort:%v clientPort:%v useCoSandbox:%v mcpu:%v }",
+		cfg.Job, cfg.SnapshotPath, cfg.Name, cfg.PeerPort, cfg.ClientPort, cfg.UseCoSandbox, cfg.Mcpu)
 }

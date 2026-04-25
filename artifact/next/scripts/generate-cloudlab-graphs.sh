@@ -85,7 +85,7 @@ GRAPH_OUT_DIR=$ROOT_DIR/benchmarks/results/graphs
 #  --measurement_dir_k8s     $RES_OUT_DIR/hotel_match_tail_latency \
 #  --out $GRAPH_OUT_DIR/hotel_match.pdf \
 #  --be_realm "" --hotel_realm benchrealm1 \
-#  --units "Req/sec,InitScript,No InitScript" \
+#  --units "Req/sec,CoSandbox,No CoSandbox" \
 #  --title "x" --total_ncore 32 --prefix "imgresize-" #\
 ##  --xmin 10000 --xmax 65000 #--legend_on_right 
 #echo "Done generating hotel match graph..."
@@ -98,7 +98,7 @@ GRAPH_OUT_DIR=$ROOT_DIR/benchmarks/results/graphs
 #  --measurement_dir_k8s     $RES_OUT_DIR/hotel_match_tail_latency_fast \
 #  --out $GRAPH_OUT_DIR/hotel_match_fast.pdf \
 #  --be_realm "" --hotel_realm benchrealm1 \
-#  --units "Req/sec,InitScript,No InitScript" \
+#  --units "Req/sec,CoSandbox,No CoSandbox" \
 #  --title "x" --total_ncore 32 --prefix "val.out" \
 #  --client_tpt_step_size 10 --perf_step_size 10 \
 #  --xmin 73000 --xmax 79000 #--legend_on_right 
@@ -108,23 +108,23 @@ GRAPH_OUT_DIR=$ROOT_DIR/benchmarks/results/graphs
 #echo "Generating hotel match (fast) cost graph..."
 #$GRAPH_SCRIPTS_DIR/deployment-cost.py \
 #  --input_load_label "hotel-wwwd" \
-#  --measurement_dir_initscripts $RES_OUT_DIR/hotel_match_tail_latency_fast_csdi \
-#  --measurement_dir_noinitscripts     $RES_OUT_DIR/hotel_match_tail_latency_fast \
+#  --measurement_dir_cosandboxes $RES_OUT_DIR/hotel_match_tail_latency_fast_csdi \
+#  --measurement_dir_nocosandboxes     $RES_OUT_DIR/hotel_match_tail_latency_fast \
 #  --out $GRAPH_OUT_DIR/hotel_match_depcost_fast.pdf \
 #  --xmin 74 --xmax 77 #--legend_on_right 
-##  --units "Req/sec,InitScript,No InitScript" \
+##  --units "Req/sec,CoSandbox,No CoSandbox" \
 ##  --title "x" --total_ncore 32 --prefix "imgresize-" \
 ##  --client_tpt_step_size 10 --perf_step_size 10 \
 #echo "Done generating hotel match (fast) cost graph..."
 #
 #echo "Generating hotel match cached hit rate graph..."
 #$GRAPH_SCRIPTS_DIR/match-cached-miss-rate.py \
-#  --measurement_dir_initscripts $RES_OUT_DIR/hotel_match_tail_latency_migrate_csdi \
-#  --measurement_dir_noinitscripts     $RES_OUT_DIR/hotel_match_tail_latency_migrate \
+#  --measurement_dir_cosandboxes $RES_OUT_DIR/hotel_match_tail_latency_migrate_csdi \
+#  --measurement_dir_nocosandboxes     $RES_OUT_DIR/hotel_match_tail_latency_migrate \
 #  --window_size 5000 \
 #  --output $GRAPH_OUT_DIR/hotel_match_migrate_cached_miss_rate.pdf \
 #  --xmin 2.5 --xmax 3 #--legend_on_right 
-##  --units "Req/sec,InitScript,No InitScript" \
+##  --units "Req/sec,CoSandbox,No CoSandbox" \
 ##  --title "x" --total_ncore 32 --prefix "imgresize-" \
 ##  --client_tpt_step_size 10 --perf_step_size 10 \
 #echo "Done generating hotel match cached hit rate graph..."
@@ -132,53 +132,53 @@ GRAPH_OUT_DIR=$ROOT_DIR/benchmarks/results/graphs
 #
 #echo "Generating Imgresize CPU utilization comparison..."
 #$GRAPH_SCRIPTS_DIR/imgprocess-cpu-util.py \
-#  --initscript_dir $RES_OUT_DIR/img_process_initscript \
-#  --no_initscript_dir $RES_OUT_DIR/img_process \
+#  --cosandbox_dir $RES_OUT_DIR/img_process_cosandbox \
+#  --no_cosandbox_dir $RES_OUT_DIR/img_process \
 #  --output $GRAPH_OUT_DIR/imgprocess-cpu-util.pdf
 #echo "Done generating Imgresize CPU utilization comparison..."
 
-echo "..............................................Cached, no initscript.............................................."
+echo "..............................................Cached, no cosandbox.............................................."
 ./benchmarks/scripts/graph/start-latency-breakdown-setup-init.py \
   --start \
   --dir_path benchmarks/results/NEXT/start_latency_cached \
   --proc_name cached-srv-cpp
-echo "..............................................Cached, initscript.............................................."
+echo "..............................................Cached, cosandbox.............................................."
 ./benchmarks/scripts/graph/start-latency-breakdown-setup-init.py \
   --start \
-  --dir_path benchmarks/results/NEXT/start_latency_cached_initscript \
+  --dir_path benchmarks/results/NEXT/start_latency_cached_cosandbox \
   --proc_name cached-srv-cpp
 printf "\n\n\n"
 
 echo "Generating imgresize time comparison..."
 ./benchmarks/scripts/graph/imgresize-time.py \
-   --dir_path_noinitscripts $RES_OUT_DIR/img_process \
-   --dir_path_initscripts $RES_OUT_DIR/img_process_initscript \
+   --dir_path_nocosandboxes $RES_OUT_DIR/img_process \
+   --dir_path_cosandboxes $RES_OUT_DIR/img_process_cosandbox \
    --output $GRAPH_OUT_DIR/imgresize-time.pdf
 echo "Done generating imgresize time comparison..."
 
 echo "Generating start latency comparison..."
-./benchmarks/scripts/graph/start-latency-initscript-bar-graph.py \
+./benchmarks/scripts/graph/start-latency-cosandbox-bar-graph.py \
   --dir_path_etcd $RES_OUT_DIR/start_latency_etcd \
-  --dir_path_etcd_initscript $RES_OUT_DIR/start_latency_etcd_initscript \
+  --dir_path_etcd_cosandbox $RES_OUT_DIR/start_latency_etcd_cosandbox \
   --dir_path_memcached $RES_OUT_DIR/start_latency_memcached \
-  --dir_path_memcached_initscript $RES_OUT_DIR/start_latency_memcached_initscript \
+  --dir_path_memcached_cosandbox $RES_OUT_DIR/start_latency_memcached_cosandbox \
   --dir_path_vecdb $RES_OUT_DIR/start_latency_cossim \
-  --dir_path_vecdb_initscript $RES_OUT_DIR/start_latency_cossim_initscript \
+  --dir_path_vecdb_cosandbox $RES_OUT_DIR/start_latency_cossim_cosandbox \
   --dir_path_cached $RES_OUT_DIR/start_latency_cached \
-  --dir_path_cached_initscript $RES_OUT_DIR/start_latency_cached_initscript \
+  --dir_path_cached_cosandbox $RES_OUT_DIR/start_latency_cached_cosandbox \
   --output $GRAPH_OUT_DIR/start-latency.pdf
 echo "Done generating start latency comparison..."
 
 echo "Generating imgresize mem usage comparison..."
 ./benchmarks/scripts/graph/imgresize-mem-usage.py \
-   --input_dir $RES_OUT_DIR/img_process_sequential_gvisor_initscript_pss \
+   --input_dir $RES_OUT_DIR/img_process_sequential_gvisor_cosandbox_pss \
    --output $GRAPH_OUT_DIR/imgresize-mem-usage.pdf
 echo "Done generating imgresize mem usage comparison..."
 
 echo "Generating imgresize writeout cost comparison..."
 ./benchmarks/scripts/graph/imgresize-cost-writeout.py \
-   --initscript_dir $RES_OUT_DIR/img_process_gvisor_initscript_writeout \
-   --noinitscript_dir $RES_OUT_DIR/img_process_gvisor_initscript \
+   --cosandbox_dir $RES_OUT_DIR/img_process_gvisor_cosandbox_writeout \
+   --nocosandbox_dir $RES_OUT_DIR/img_process_gvisor_cosandbox \
    --output $GRAPH_OUT_DIR/imgresize-cost-writeout.pdf
 echo "Done generating imgresize writeout cost comparison..."
 
@@ -188,9 +188,9 @@ echo "Generating cached start latency breakdown graph..."
   --dir_path_1 benchmarks/results/NEXT/start_latency_cached \
   --proc_name_1 cached-srv-cpp \
   --label_1 "Cached" \
-  --dir_path_2 benchmarks/results/NEXT/start_latency_cached_initscript \
+  --dir_path_2 benchmarks/results/NEXT/start_latency_cached_cosandbox \
   --proc_name_2 cached-srv-cpp \
-  --label_2 "Cached (initscript)" \
+  --label_2 "Cached (cosandbox)" \
   --output $GRAPH_OUT_DIR/cached-start-latency-breakdown-timeline.pdf
 echo "Done generating cached start latency breakdown graph..."
 
@@ -200,9 +200,9 @@ echo "Generating memcached start latency breakdown graph..."
   --dir_path_1 benchmarks/results/NEXT/start_latency_memcached \
   --proc_name_1 memcached-shim \
   --label_1 "Memcached" \
-  --dir_path_2 benchmarks/results/NEXT/start_latency_memcached_initscript \
+  --dir_path_2 benchmarks/results/NEXT/start_latency_memcached_cosandbox \
   --proc_name_2 memcached-shim \
-  --label_2 "Memcached (initscript)" \
+  --label_2 "Memcached (cosandbox)" \
   --output $GRAPH_OUT_DIR/memcached-start-latency-breakdown-timeline.pdf
 echo "Done generating memcached start latency breakdown graph..."
 

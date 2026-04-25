@@ -74,7 +74,7 @@ func TestResizeProc(t *testing.T) {
 	assert.True(t, status.IsStatusOK(), "WaitExit status error: %v", status)
 }
 
-func TestResizeProcInitScriptSimple(t *testing.T) {
+func TestResizeProcCoSandboxSimple(t *testing.T) {
 	mrts, err1 := test.NewMultiRealmTstate(t, []sp.Trealm{test.REALM1})
 	if !assert.Nil(t, err1, "Error New Tstate: %v", err1) {
 		return
@@ -86,21 +86,21 @@ func TestResizeProcInitScriptSimple(t *testing.T) {
 	out := filepath.Join(sp.S3, sp.LOCAL, outS3)
 	mrts.GetRealm(test.REALM1).Remove(out)
 
-	bootScript, err := imgresize.GetBootScript(mrts.GetRealm(test.REALM1).SigmaClnt)
-	if !assert.Nil(t, err, "Err read bootscript: %v", err) {
+	coSandbox, err := imgresize.GetCoSandbox(mrts.GetRealm(test.REALM1).SigmaClnt)
+	if !assert.Nil(t, err, "Err read cosandbox: %v", err) {
 		return
 	}
-	bootScriptInput, err := imgresize.GetBootScriptInput("9ps3", "img-save/8.jpg", sp.LOCAL)
-	if !assert.Nil(t, err, "Err construct bootscript input: %v", err) {
+	coSandboxInput, err := imgresize.GetCoSandboxInput("9ps3", "img-save/8.jpg", sp.LOCAL)
+	if !assert.Nil(t, err, "Err construct cosandbox input: %v", err) {
 		return
 	}
 	p := proc.NewProc("imgresize", []string{inS3, outS3, "1", "true", "false", "70", "false"})
 	p.GetProcEnv().UseSPProxy = true
 	p.SetShmemMB(imgresize.SHMEM_MB)
-	p.SetBootScript(bootScript, bootScriptInput)
-	p.SetRunBootScript(true)
+	p.SetCoSandbox(coSandbox, coSandboxInput)
+	p.SetRunCoSandbox(true)
 	// Run after boot script
-	p.SetRunAfterBootScript(true)
+	p.SetRunAfterCoSandbox(true)
 	p.SetMcpu(1000)
 	err = mrts.GetRealm(test.REALM1).Spawn(p)
 	assert.Nil(t, err, "Spawn")
@@ -111,7 +111,7 @@ func TestResizeProcInitScriptSimple(t *testing.T) {
 	assert.True(t, status.IsStatusOK(), "WaitExit status error: %v", status)
 }
 
-func TestResizeProcInitScriptWriteBack(t *testing.T) {
+func TestResizeProcCoSandboxWriteBack(t *testing.T) {
 	mrts, err1 := test.NewMultiRealmTstate(t, []sp.Trealm{test.REALM1})
 	if !assert.Nil(t, err1, "Error New Tstate: %v", err1) {
 		return
@@ -123,20 +123,20 @@ func TestResizeProcInitScriptWriteBack(t *testing.T) {
 	out := filepath.Join(sp.S3, sp.LOCAL, outS3)
 	mrts.GetRealm(test.REALM1).Remove(out)
 
-	bootScript, err := imgresize.GetBootScriptWriteOut(mrts.GetRealm(test.REALM1).SigmaClnt)
-	if !assert.Nil(t, err, "Err read bootscript: %v", err) {
+	coSandbox, err := imgresize.GetCoSandboxWriteOut(mrts.GetRealm(test.REALM1).SigmaClnt)
+	if !assert.Nil(t, err, "Err read cosandbox: %v", err) {
 		return
 	}
-	bootScriptInput, err := imgresize.GetBootScriptInput("9ps3", "img-save/8.jpg", sp.LOCAL)
-	if !assert.Nil(t, err, "Err construct bootscript input: %v", err) {
+	coSandboxInput, err := imgresize.GetCoSandboxInput("9ps3", "img-save/8.jpg", sp.LOCAL)
+	if !assert.Nil(t, err, "Err construct cosandbox input: %v", err) {
 		return
 	}
 	p := proc.NewProc("imgresize", []string{inS3, outS3, "1", "true", "true", "70", "false"})
 	p.GetProcEnv().UseSPProxy = true
-	p.SetBootScript(bootScript, bootScriptInput)
-	p.SetRunBootScript(true)
+	p.SetCoSandbox(coSandbox, coSandboxInput)
+	p.SetRunCoSandbox(true)
 	// Run after boot script
-	p.SetRunAfterBootScript(false)
+	p.SetRunAfterCoSandbox(false)
 	p.SetMcpu(1000)
 	err = mrts.GetRealm(test.REALM1).Spawn(p)
 	assert.Nil(t, err, "Spawn")
@@ -147,7 +147,7 @@ func TestResizeProcInitScriptWriteBack(t *testing.T) {
 	assert.True(t, status.IsStatusOK(), "WaitExit status error: %v", status)
 }
 
-func TestResizeProcInitScriptBailOut(t *testing.T) {
+func TestResizeProcCoSandboxBailOut(t *testing.T) {
 	mrts, err1 := test.NewMultiRealmTstate(t, []sp.Trealm{test.REALM1})
 	if !assert.Nil(t, err1, "Error New Tstate: %v", err1) {
 		return
@@ -159,20 +159,20 @@ func TestResizeProcInitScriptBailOut(t *testing.T) {
 	out := filepath.Join(sp.S3, sp.LOCAL, outS3)
 	mrts.GetRealm(test.REALM1).Remove(out)
 
-	bootScript, err := imgresize.GetBootScriptBailOut(mrts.GetRealm(test.REALM1).SigmaClnt)
-	if !assert.Nil(t, err, "Err read bootscript: %v", err) {
+	coSandbox, err := imgresize.GetCoSandboxBailOut(mrts.GetRealm(test.REALM1).SigmaClnt)
+	if !assert.Nil(t, err, "Err read cosandbox: %v", err) {
 		return
 	}
-	bootScriptInput, err := imgresize.GetBootScriptInput("9ps3", "img-save/8.jpg", sp.LOCAL)
-	if !assert.Nil(t, err, "Err construct bootscript input: %v", err) {
+	coSandboxInput, err := imgresize.GetCoSandboxInput("9ps3", "img-save/8.jpg", sp.LOCAL)
+	if !assert.Nil(t, err, "Err construct cosandbox input: %v", err) {
 		return
 	}
 	p := proc.NewProc("imgresize", []string{inS3, outS3, "1", "true", "true", "70", "true"})
 	p.GetProcEnv().UseSPProxy = true
-	p.SetBootScript(bootScript, bootScriptInput)
-	p.SetRunBootScript(true)
+	p.SetCoSandbox(coSandbox, coSandboxInput)
+	p.SetRunCoSandbox(true)
 	// Run after boot script
-	p.SetRunAfterBootScript(true)
+	p.SetRunAfterCoSandbox(true)
 	p.SetMcpu(1000)
 	err = mrts.GetRealm(test.REALM1).Spawn(p)
 	assert.Nil(t, err, "Spawn")
@@ -191,21 +191,21 @@ type Tstate struct {
 	clnt *imgresize.ImgdClnt[imgresize.Ttask]
 }
 
-func newTstate(mrts *test.MultiRealmTstate, persist bool, em *crash.TeventMap, useSPProxy, useBootScript bool) (*Tstate, error) {
+func newTstate(mrts *test.MultiRealmTstate, persist bool, em *crash.TeventMap, useSPProxy, useCoSandbox bool) (*Tstate, error) {
 	ts := &Tstate{}
 	ts.mrts = mrts
 	ts.job = rd.String(4)
 	ts.ch = make(chan bool)
 	ts.cleanup()
 
-	if useBootScript {
-		err := wasmer.UploadBootScriptRemote(mrts.GetRealm(test.REALM1).SigmaClnt, "s3get_boot")
+	if useCoSandbox {
+		err := wasmer.UploadCoSandboxRemote(mrts.GetRealm(test.REALM1).SigmaClnt, "s3get_boot")
 		if !assert.Nil(mrts.T, err, "Err upload boot script: %v", err) {
 			return nil, err
 		}
 	}
 
-	jobCfg := imgresize.NewImgdJobConfig(ts.job, IMG_RESIZE_MCPU, IMG_RESIZE_MEM, persist, 1, 0, useSPProxy, useBootScript, useBootScript, 0, 0, 1000)
+	jobCfg := imgresize.NewImgdJobConfig(ts.job, IMG_RESIZE_MCPU, IMG_RESIZE_MEM, persist, 1, 0, useSPProxy, useCoSandbox, useCoSandbox, 0, 0, 1000)
 	imgd, err := imgresize.NewImgdMgr[imgresize.Ttask](ts.mrts.GetRealm(test.REALM1).SigmaClnt, jobCfg, em)
 	if err != nil {
 		return nil, err
@@ -349,7 +349,7 @@ func TestImgdResizeRPCS3Clnt(t *testing.T) {
 	ts.stopProgress()
 }
 
-func TestImgdResizeRPCS3ClntBootScript(t *testing.T) {
+func TestImgdResizeRPCS3ClntCoSandbox(t *testing.T) {
 	mrts, err1 := test.NewMultiRealmTstate(t, []sp.Trealm{test.REALM1})
 	if !assert.Nil(t, err1, "Error New Tstate: %v", err1) {
 		return
@@ -357,7 +357,7 @@ func TestImgdResizeRPCS3ClntBootScript(t *testing.T) {
 	defer mrts.Shutdown()
 
 	if mrts.GetRealm(test.REALM1).ProcEnv().BuildTag == sp.LOCAL_BUILD {
-		db.DPrintf(db.TEST, "Skipping imgresized initscript test - can't run with local build")
+		db.DPrintf(db.TEST, "Skipping imgresized cosandbox test - can't run with local build")
 		return
 	}
 
@@ -391,7 +391,7 @@ func TestImgdResizeRPCS3ClntBootScript(t *testing.T) {
 	ts.stopProgress()
 }
 
-func TestImgdResizeRPCS3ClntBootScriptBailOut(t *testing.T) {
+func TestImgdResizeRPCS3ClntCoSandboxBailOut(t *testing.T) {
 	mrts, err1 := test.NewMultiRealmTstate(t, []sp.Trealm{test.REALM1})
 	if !assert.Nil(t, err1, "Error New Tstate: %v", err1) {
 		return
@@ -399,7 +399,7 @@ func TestImgdResizeRPCS3ClntBootScriptBailOut(t *testing.T) {
 	defer mrts.Shutdown()
 
 	if mrts.GetRealm(test.REALM1).ProcEnv().BuildTag == sp.LOCAL_BUILD {
-		db.DPrintf(db.TEST, "Skipping imgresized initscript test - can't run with local build")
+		db.DPrintf(db.TEST, "Skipping imgresized cosandbox test - can't run with local build")
 		return
 	}
 

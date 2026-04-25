@@ -243,9 +243,9 @@ def main():
     )
     parser.add_argument('--input_load_label', required=True,
                         help='Prefix of the file to search for in measurement directories')
-    parser.add_argument('--measurement_dir_initscripts', required=True,
+    parser.add_argument('--measurement_dir_cosandboxes', required=True,
                         help='Directory containing measurements with init scripts')
-    parser.add_argument('--measurement_dir_noinitscripts', required=True,
+    parser.add_argument('--measurement_dir_nocosandboxes', required=True,
                         help='Directory containing measurements without init scripts')
     parser.add_argument('--output', required=True,
                         help='Output path for the generated graph')
@@ -256,36 +256,36 @@ def main():
 
     args = parser.parse_args()
 
-    # Find and parse file from initscripts directory
-    initscripts_file = find_file_with_prefix(
-        args.measurement_dir_initscripts, args.input_load_label
+    # Find and parse file from cosandboxes directory
+    cosandboxes_file = find_file_with_prefix(
+        args.measurement_dir_cosandboxes, args.input_load_label
     )
-    if not initscripts_file:
+    if not cosandboxes_file:
         print(f"Error: No file with prefix '{args.input_load_label}' found in "
-              f"{args.measurement_dir_initscripts}")
+              f"{args.measurement_dir_cosandboxes}")
         return 1
 
-    times_init, values_init, init_start_time = parse_csv_file(initscripts_file)
+    times_init, values_init, init_start_time = parse_csv_file(cosandboxes_file)
 
-    # Find and parse file from noinitscripts directory
-    noinitscripts_file = find_file_with_prefix(
-        args.measurement_dir_noinitscripts, args.input_load_label
+    # Find and parse file from nocosandboxes directory
+    nocosandboxes_file = find_file_with_prefix(
+        args.measurement_dir_nocosandboxes, args.input_load_label
     )
-    if not noinitscripts_file:
+    if not nocosandboxes_file:
         print(f"Error: No file with prefix '{args.input_load_label}' found in "
-              f"{args.measurement_dir_noinitscripts}")
+              f"{args.measurement_dir_nocosandboxes}")
         return 1
 
-    times_noinit, values_noinit, noinit_start_time = parse_csv_file(noinitscripts_file)
+    times_noinit, values_noinit, noinit_start_time = parse_csv_file(nocosandboxes_file)
 
-    # Use initscripts start time as the reference
+    # Use cosandboxes start time as the reference
     # Both datasets will be relative to their own start (time 0), so they align at the beginning
     reference_start_time = init_start_time
 
-    # Re-parse initscripts with its own start time (so it starts at 0)
-    times_init, values_init, _ = parse_csv_file(initscripts_file, init_start_time)
-    # Parse noinitscripts with its own start time (so it also starts at 0)
-    times_noinit, values_noinit, _ = parse_csv_file(noinitscripts_file, noinit_start_time)
+    # Re-parse cosandboxes with its own start time (so it starts at 0)
+    times_init, values_init, _ = parse_csv_file(cosandboxes_file, init_start_time)
+    # Parse nocosandboxes with its own start time (so it also starts at 0)
+    times_noinit, values_noinit, _ = parse_csv_file(nocosandboxes_file, noinit_start_time)
 
     # Aggregate values by 10ms windows (summing values within each window) - do this before time shifting
     times_init_load, values_init_load = aggregate_by_window(times_init, values_init, window_size=0.01)
@@ -293,24 +293,24 @@ def main():
 
     # Find and parse the MCPU data files (with "-val.out" suffix)
     # Look for any file ending with -val.out in the directories
-    initscripts_val_pattern = os.path.join(args.measurement_dir_initscripts, "*-val.out")
-    initscripts_val_files = glob.glob(initscripts_val_pattern)
-    if initscripts_val_files:
-        initscripts_val_file = initscripts_val_files[0]
-        # Use initscripts start time so val data aligns with load data
-        times_init_mcpu, values_init_mcpu, _ = parse_csv_file(initscripts_val_file, init_start_time)
+    cosandboxes_val_pattern = os.path.join(args.measurement_dir_cosandboxes, "*-val.out")
+    cosandboxes_val_files = glob.glob(cosandboxes_val_pattern)
+    if cosandboxes_val_files:
+        cosandboxes_val_file = cosandboxes_val_files[0]
+        # Use cosandboxes start time so val data aligns with load data
+        times_init_mcpu, values_init_mcpu, _ = parse_csv_file(cosandboxes_val_file, init_start_time)
     else:
-        print(f"No -val.out file found in {args.measurement_dir_initscripts}")
+        print(f"No -val.out file found in {args.measurement_dir_cosandboxes}")
         times_init_mcpu, values_init_mcpu = [], []
 
-    noinitscripts_val_pattern = os.path.join(args.measurement_dir_noinitscripts, "*-val.out")
-    noinitscripts_val_files = glob.glob(noinitscripts_val_pattern)
-    if noinitscripts_val_files:
-        noinitscripts_val_file = noinitscripts_val_files[0]
-        # Use noinitscripts start time so val data aligns with load data
-        times_noinit_mcpu, values_noinit_mcpu, _ = parse_csv_file(noinitscripts_val_file, noinit_start_time)
+    nocosandboxes_val_pattern = os.path.join(args.measurement_dir_nocosandboxes, "*-val.out")
+    nocosandboxes_val_files = glob.glob(nocosandboxes_val_pattern)
+    if nocosandboxes_val_files:
+        nocosandboxes_val_file = nocosandboxes_val_files[0]
+        # Use nocosandboxes start time so val data aligns with load data
+        times_noinit_mcpu, values_noinit_mcpu, _ = parse_csv_file(nocosandboxes_val_file, noinit_start_time)
     else:
-        print(f"No -val.out file found in {args.measurement_dir_noinitscripts}")
+        print(f"No -val.out file found in {args.measurement_dir_nocosandboxes}")
         times_noinit_mcpu, values_noinit_mcpu = [], []
 
     # Time-shift data to align the first max values (before filtering)
@@ -390,13 +390,13 @@ def main():
     ax1.set_ylim(bottom=0)
 
     # Second subplot: MCPU Reserved (With Init Scripts)
-    line2, = ax2.plot(times_init_mcpu, values_init_mcpu, label='Initscripts', linewidth=1.5, color='orange')
+    line2, = ax2.plot(times_init_mcpu, values_init_mcpu, label='CoSandboxes', linewidth=1.5, color='orange')
     ax2.set_ylabel('mCPU', fontsize=12)
     ax2.grid(True, alpha=0.3)
     ax2.set_ylim(bottom=0)
 
     # Third subplot: MCPU Reserved (Without Init Scripts)
-    line3, = ax3.plot(times_noinit_mcpu, values_noinit_mcpu, label='No Initscripts', linewidth=1.5, color='green')
+    line3, = ax3.plot(times_noinit_mcpu, values_noinit_mcpu, label='No CoSandboxes', linewidth=1.5, color='green')
     ax3.set_xlabel('Time (seconds)', fontsize=12)
     ax3.set_ylabel('mCPU', fontsize=12)
     ax3.grid(True, alpha=0.3)
@@ -408,7 +408,7 @@ def main():
 
     # Create a single horizontal legend above all subplots
     fig.legend(handles=[line1, line2, line3],
-               labels=['Client Load', 'Initscripts', 'No Initscripts'],
+               labels=['Client Load', 'CoSandboxes', 'No CoSandboxes'],
                loc='lower center',
                ncol=3,
                fontsize=10,

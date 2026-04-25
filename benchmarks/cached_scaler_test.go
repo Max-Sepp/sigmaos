@@ -311,7 +311,7 @@ func (ji *CachedScalerJobInstance) manuallyScaleCached() {
 			db.DPrintf(db.TEST, "Manual scale: Scale up cached servers by %v", deltas[i])
 			ji.scaling = true
 			for j := 0; j < deltas[i]; j++ {
-				if err := ji.cm.AddScalerServerWithSigmaPath(chunk.ChunkdPath(ji.warmCachedSrvKID), ji.cacheCfg.DelegateInit, ji.cacheCfg.CPP, true); !assert.Nil(ji.Ts.T, err, "Err add scaler server: %v", err) {
+				if err := ji.cm.AddScalerServerWithSigmaPath(chunk.ChunkdPath(ji.warmCachedSrvKID), ji.cacheCfg.UseCoSandbox, ji.cacheCfg.CPP, true); !assert.Nil(ji.Ts.T, err, "Err add scaler server: %v", err) {
 					return
 				}
 			}

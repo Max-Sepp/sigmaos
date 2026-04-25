@@ -20,11 +20,11 @@ import (
 )
 
 var wasmScript string
-var cossimBootScript string
+var cossimCoSandbox string
 
 func init() {
 	flag.StringVar(&wasmScript, "wasm_script", "/home/arielck/sigmaos/rs/wasm/hello-wasm/target/wasm32-unknown-unknown/release/hello_wasm.wasm", "path to WASM script")
-	flag.StringVar(&cossimBootScript, "cossim_boot_script", "/home/arielck/sigmaos/rs/wasm/cossim_boot/target/wasm32-unknown-unknown/release/cossim_boot.wasm", "path to WASM script")
+	flag.StringVar(&cossimCoSandbox, "cossim_co_sandbox", "/home/arielck/sigmaos/rs/wasm/cossim_boot/target/wasm32-unknown-unknown/release/cossim_boot.wasm", "path to WASM script")
 }
 
 func TestCompile(t *testing.T) {
@@ -295,7 +295,7 @@ func TestCosSimBoot(t *testing.T) {
 		N_SRV  uint32 = 2
 		N_KEYS uint64 = 120
 	)
-	bootScript, err := os.ReadFile(cossimBootScript)
+	coSandbox, err := os.ReadFile(cossimCoSandbox)
 	if !assert.Nil(t, err, "Err read wasm script: %v", err) {
 		return
 	}
@@ -308,11 +308,11 @@ func TestCosSimBoot(t *testing.T) {
 	ts := NewTestRPCAPI(t, cacheMultiGetReqs)
 	wasmRT := wasmrt.NewWasmerRuntime(ts)
 	start := time.Now()
-	bootScriptCompiled, err := wasmRT.PrecompileModule(bootScript)
+	coSandboxCompiled, err := wasmRT.PrecompileModule(coSandbox)
 	if !assert.Nil(t, err, "Err compile WASM module: %v", err) {
 		return
 	}
-	db.DPrintf(db.TEST, "Wasm module compilation (%vB) latency: %v", len(bootScript), time.Since(start))
+	db.DPrintf(db.TEST, "Wasm module compilation (%vB) latency: %v", len(coSandbox), time.Since(start))
 	// Write the input arguments to the boot script
 	inputBuf := bytes.NewBuffer(make([]byte, 0, 4))
 	if err := binary.Write(inputBuf, binary.LittleEndian, N_SRV); !assert.Nil(t, err, "Err write input to boot script: %v", err) {
@@ -321,7 +321,7 @@ func TestCosSimBoot(t *testing.T) {
 	if err := binary.Write(inputBuf, binary.LittleEndian, N_KEYS); !assert.Nil(t, err, "Err write input to boot script: %v", err) {
 		return
 	}
-	if err := wasmRT.RunModule(sp.Tpid("test-prog"), time.Now(), bootScriptCompiled, inputBuf.Bytes()); !assert.Nil(t, err, "Err run WASM boot module: %v", err) {
+	if err := wasmRT.RunModule(sp.Tpid("test-prog"), time.Now(), coSandboxCompiled, inputBuf.Bytes()); !assert.Nil(t, err, "Err run WASM boot module: %v", err) {
 		return
 	}
 }

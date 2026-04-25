@@ -183,9 +183,9 @@ def main():
         help="Path to etcd benchmark output directory"
     )
     parser.add_argument(
-        "--dir_path_etcd_initscript",
+        "--dir_path_etcd_cosandbox",
         required=True,
-        help="Path to etcd with initscript benchmark output directory"
+        help="Path to etcd with cosandbox benchmark output directory"
     )
     parser.add_argument(
         "--dir_path_vecdb",
@@ -193,9 +193,9 @@ def main():
         help="Path to vecdb benchmark output directory"
     )
     parser.add_argument(
-        "--dir_path_vecdb_initscript",
+        "--dir_path_vecdb_cosandbox",
         required=True,
-        help="Path to vecdb with initscript benchmark output directory"
+        help="Path to vecdb with cosandbox benchmark output directory"
     )
     parser.add_argument(
         "--dir_path_cached",
@@ -203,9 +203,9 @@ def main():
         help="Path to cached benchmark output directory"
     )
     parser.add_argument(
-        "--dir_path_cached_initscript",
+        "--dir_path_cached_cosandbox",
         required=True,
-        help="Path to cached with initscript benchmark output directory"
+        help="Path to cached with cosandbox benchmark output directory"
     )
     parser.add_argument(
         "--dir_path_memcached",
@@ -213,14 +213,14 @@ def main():
         help="Path to memcached benchmark output directory"
     )
     parser.add_argument(
-        "--dir_path_memcached_initscript",
+        "--dir_path_memcached_cosandbox",
         required=True,
-        help="Path to memcached with initscript benchmark output directory"
+        help="Path to memcached with cosandbox benchmark output directory"
     )
     parser.add_argument(
         "--output",
-        default="start-latency-initscript-comparison.png",
-        help="Output filename for the graph (default: start-latency-initscript-comparison.png)"
+        default="start-latency-cosandbox-comparison.png",
+        help="Output filename for the graph (default: start-latency-cosandbox-comparison.png)"
     )
 
     args = parser.parse_args()
@@ -228,25 +228,25 @@ def main():
     # Extract data for each proc
     data = {
         'etcd-shim': {
-            'without_initscript': get_last_init_time(args.dir_path_etcd, 'etcd-shim'),
-            'with_initscript': get_last_init_time(args.dir_path_etcd_initscript, 'etcd-shim')
+            'without_cosandbox': get_last_init_time(args.dir_path_etcd, 'etcd-shim'),
+            'with_cosandbox': get_last_init_time(args.dir_path_etcd_cosandbox, 'etcd-shim')
         },
         'cossim-srv-cpp': {
-            'without_initscript': get_last_init_time(args.dir_path_vecdb, 'cossim-srv-cpp'),
-            'with_initscript': get_last_init_time(args.dir_path_vecdb_initscript, 'cossim-srv-cpp')
+            'without_cosandbox': get_last_init_time(args.dir_path_vecdb, 'cossim-srv-cpp'),
+            'with_cosandbox': get_last_init_time(args.dir_path_vecdb_cosandbox, 'cossim-srv-cpp')
         },
         'cached-srv-cpp': {
-            'without_initscript': get_last_init_time(args.dir_path_cached, 'cached-srv-cpp'),
-            'with_initscript': get_last_init_time(args.dir_path_cached_initscript, 'cached-srv-cpp')
+            'without_cosandbox': get_last_init_time(args.dir_path_cached, 'cached-srv-cpp'),
+            'with_cosandbox': get_last_init_time(args.dir_path_cached_cosandbox, 'cached-srv-cpp')
         },
         'memcached-shim': {
-            'without_initscript': get_last_init_time(args.dir_path_memcached, 'memcached-shim'),
-            'with_initscript': get_last_init_time(args.dir_path_memcached_initscript, 'memcached-shim')
+            'without_cosandbox': get_last_init_time(args.dir_path_memcached, 'memcached-shim'),
+            'with_cosandbox': get_last_init_time(args.dir_path_memcached_cosandbox, 'memcached-shim')
         }
     }
 
     # Check if we have any data
-    if all(v['without_initscript'] is None and v['with_initscript'] is None for v in data.values()):
+    if all(v['without_cosandbox'] is None and v['with_cosandbox'] is None for v in data.values()):
         print("Error: No data found for any proc", file=sys.stderr)
         sys.exit(1)
 
@@ -254,16 +254,16 @@ def main():
     procs = ['etcd-shim', 'cossim-srv-cpp', 'cached-srv-cpp', 'memcached-shim']
     proc_labels = ['Etcd', 'VecDB', 'Cached', 'Memcached']
 
-    without_initscript = [data[proc]['without_initscript'] if data[proc]['without_initscript'] is not None else 0 for proc in procs]
-    with_initscript = [data[proc]['with_initscript'] if data[proc]['with_initscript'] is not None else 0 for proc in procs]
+    without_cosandbox = [data[proc]['without_cosandbox'] if data[proc]['without_cosandbox'] is not None else 0 for proc in procs]
+    with_cosandbox = [data[proc]['with_cosandbox'] if data[proc]['with_cosandbox'] is not None else 0 for proc in procs]
 
     # Create bar graph
     x = np.arange(len(proc_labels))
     width = 0.35
 
     fig, ax = plt.subplots(figsize=(6.4, 2.4))
-    bars1 = ax.bar(x - width/2, without_initscript, width, label='Without co-sandbox', color='steelblue')
-    bars2 = ax.bar(x + width/2, with_initscript, width, label='With co-sandbox', color='coral')
+    bars1 = ax.bar(x - width/2, without_cosandbox, width, label='Without co-sandbox', color='steelblue')
+    bars2 = ax.bar(x + width/2, with_cosandbox, width, label='With co-sandbox', color='coral')
 
     # Customize the plot
     ax.set_xlabel('Service', fontsize=12)
@@ -286,7 +286,7 @@ def main():
     add_value_labels(bars2)
 
     # Add headroom at the top for labels
-    y_max = max(max(without_initscript), max(with_initscript))
+    y_max = max(max(without_cosandbox), max(with_cosandbox))
     ax.set_ylim(0, y_max * 1.15)
 
     plt.tight_layout()
@@ -297,8 +297,8 @@ def main():
     print("\nSummary:")
     print("=" * 80)
     for i, proc in enumerate(procs):
-        without = data[proc]['without_initscript']
-        with_init = data[proc]['with_initscript']
+        without = data[proc]['without_cosandbox']
+        with_init = data[proc]['with_cosandbox']
         print(f"{proc_labels[i]:15} | Without: {without:.2f}ms | With: {with_init:.2f}ms | Diff: {(without - with_init):.2f}ms ({((without - with_init) / without * 100):.1f}%)" if without and with_init else f"{proc_labels[i]:15} | Data missing")
 
 

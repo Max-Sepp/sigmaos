@@ -7,11 +7,11 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "sigmaos/proxy/sigmap/proto";
 
-message SigmaWaitBootScriptReq {
+message SigmaWaitCoSandboxReq {
         string pIDStr = 1;
 }
 
-message SigmaWaitBootScriptRep {
+message SigmaWaitCoSandboxRep {
         uint64 status = 1;
         string msg = 2;
         Rerror err = 3;

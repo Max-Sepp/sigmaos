@@ -55,7 +55,7 @@ func RunCacheSrvScaler(cachedir, jobname, srvpn string, nshard int, oldNSrv int,
 	perf.LogSpawnLatency("Scaler.NewCacheClnt", pe.GetPID(), pe.GetSpawnTime(), start)
 	// We only need to mount the primary if we are not running the boot script
 	// (otherwise the RPC client can be lazily initialized)
-	if !pe.GetRunBootScript() {
+	if !pe.GetRunCoSandbox() {
 		start = time.Now()
 		for _, srcSrv := range srcSrvs {
 			peerpn := filepath.Join(cachedir, strconv.Itoa(srcSrv))
@@ -73,7 +73,7 @@ func RunCacheSrvScaler(cachedir, jobname, srvpn string, nshard int, oldNSrv int,
 	}
 	start = time.Now()
 	// If not doing delegated initialization, fetch directly from peer
-	if !pe.GetRunBootScript() {
+	if !pe.GetRunCoSandbox() {
 		// For each source server, dump shards to be stolen
 		for _, srcSrv := range srcSrvs {
 			peerpn := filepath.Join(cachedir, strconv.Itoa(srcSrv))

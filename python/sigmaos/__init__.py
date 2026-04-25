@@ -14,9 +14,9 @@ _lib.sigmaos_free_clnt.argtypes = [ctypes.c_void_p]
 _lib.sigmaos_started.restype = ctypes.c_int
 _lib.sigmaos_started.argtypes = [ctypes.c_void_p]
 
-# sigmaos_get_run_boot_script
-_lib.sigmaos_get_run_boot_script.restype = ctypes.c_int
-_lib.sigmaos_get_run_boot_script.argtypes = [ctypes.c_void_p]
+# sigmaos_get_run_co_sandbox
+_lib.sigmaos_get_run_co_sandbox.restype = ctypes.c_int
+_lib.sigmaos_get_run_co_sandbox.argtypes = [ctypes.c_void_p]
 
 # sigmaos_exited
 _lib.sigmaos_exited.restype = ctypes.c_int
@@ -94,8 +94,8 @@ class SigmaosClnt:
             _lib.sigmaos_free_clnt(self._clnt)
             self._clnt = None
 
-    def get_run_boot_script(self) -> bool:
-        return bool(_lib.sigmaos_get_run_boot_script(self._clnt))
+    def get_run_co_sandbox(self) -> bool:
+        return bool(_lib.sigmaos_get_run_co_sandbox(self._clnt))
 
     def started(self):
         rc = _lib.sigmaos_started(self._clnt)

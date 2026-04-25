@@ -33,7 +33,7 @@ func RunCacheSrvBackup(cachedir, jobname, shardpn string, nshard int, useEPCache
 	perf.LogSpawnLatency("Backup.NewCacheClnt", pe.GetPID(), pe.GetSpawnTime(), start)
 	// We only need to mount the primary if we are not running the boot script
 	// (otherwise the RPC client can be lazily initialized)
-	if !pe.GetRunBootScript() {
+	if !pe.GetRunCoSandbox() {
 		start = time.Now()
 		ep, _ := pe.GetCachedEndpoint(peerpn)
 		// First, mount the peer
@@ -45,7 +45,7 @@ func RunCacheSrvBackup(cachedir, jobname, shardpn string, nshard int, useEPCache
 	}
 	start = time.Now()
 	// If not doing delegated initialization, fetch directly from peer
-	if !pe.GetRunBootScript() {
+	if !pe.GetRunCoSandbox() {
 		hotShards, _, err := cc.GetHotShards(peerpn, uint32(topN))
 		if err != nil {
 			db.DFatalf("Err GetHotShards: %v", err)

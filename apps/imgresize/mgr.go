@@ -37,11 +37,11 @@ type ImgdJobConfig struct {
 	NRounds               int        `json:"n_rounds"`
 	ImgdMcpu              proc.Tmcpu `json:"imgd_mcpu"`
 	UseSPProxy            bool       `json:"use_sp_proxy"`
-	UseBootScript         bool       `json:"use_boot_script"`
-	WriteOutViaBootScript bool       `json:"write_out_via_boot_script"`
+	UseCoSandbox         bool       `json:"use_co_sandbox"`
+	WriteOutViaCoSandbox bool       `json:"write_out_via_co_sandbox"`
 	UseS3Clnt             bool       `json:"use_s3_clnt"`
-	WorkerBootScriptMcpu  proc.Tmcpu `json:"worker_boot_script_mcpu"`
-	WorkerBootScriptMem   proc.Tmem  `json:"worker_boot_script_mem"`
+	WorkerCoSandboxMcpu  proc.Tmcpu `json:"worker_co_sandbox_mcpu"`
+	WorkerCoSandboxMem   proc.Tmem  `json:"worker_co_sandbox_mem"`
 	FTTaskSrvMcpu         proc.Tmcpu `json:"ft_task_srv_mcpu"`
 	ImgDim                int        `json:"img_dim"`
 	PremountS3            bool       `json:"premount_s3"`
@@ -49,7 +49,7 @@ type ImgdJobConfig struct {
 	BailOut               bool       `json:"bail_out"`
 }
 
-func NewImgdJobConfig(job string, workerMcpu proc.Tmcpu, workerMem proc.Tmem, persist bool, nrounds int, imgdMcpu proc.Tmcpu, useSPProxy bool, useBootScript bool, useS3Clnt bool, workerBootScriptMcpu proc.Tmcpu, workerBootScriptMem proc.Tmem, ftTaskSrvMcpu proc.Tmcpu) *ImgdJobConfig {
+func NewImgdJobConfig(job string, workerMcpu proc.Tmcpu, workerMem proc.Tmem, persist bool, nrounds int, imgdMcpu proc.Tmcpu, useSPProxy bool, useCoSandbox bool, useS3Clnt bool, workerCoSandboxMcpu proc.Tmcpu, workerCoSandboxMem proc.Tmem, ftTaskSrvMcpu proc.Tmcpu) *ImgdJobConfig {
 	return &ImgdJobConfig{
 		Job:                  job,
 		WorkerMcpu:           workerMcpu,
@@ -58,31 +58,31 @@ func NewImgdJobConfig(job string, workerMcpu proc.Tmcpu, workerMem proc.Tmem, pe
 		NRounds:              nrounds,
 		ImgdMcpu:             imgdMcpu,
 		UseSPProxy:           useSPProxy,
-		UseBootScript:        useBootScript,
+		UseCoSandbox:        useCoSandbox,
 		UseS3Clnt:            useS3Clnt,
-		WorkerBootScriptMcpu: workerBootScriptMcpu,
-		WorkerBootScriptMem:  workerBootScriptMem,
+		WorkerCoSandboxMcpu: workerCoSandboxMcpu,
+		WorkerCoSandboxMem:  workerCoSandboxMem,
 		FTTaskSrvMcpu:        ftTaskSrvMcpu,
 	}
 }
 
 func (cfg *ImgdJobConfig) String() string {
-	return fmt.Sprintf("&{ job:%v workerMcpu:%v workerMem:%v persist:%v nrounds:%v imgdMcpu:%v useSPProxy:%v useBootScript:%v useS3Clnt:%v workerBootScriptMcpu:%v workerBootScriptMem:%v ftTaskSrvMcpu:%v imgDim:%v premountS3:%v measurePSS:%v bailOut:%v }", cfg.Job, cfg.WorkerMcpu, cfg.WorkerMem, cfg.Persist, cfg.NRounds, cfg.ImgdMcpu, cfg.UseSPProxy, cfg.UseBootScript, cfg.UseS3Clnt, cfg.WorkerBootScriptMcpu, cfg.WorkerBootScriptMem, cfg.FTTaskSrvMcpu, cfg.ImgDim, cfg.PremountS3, cfg.MeasurePSS, cfg.BailOut)
+	return fmt.Sprintf("&{ job:%v workerMcpu:%v workerMem:%v persist:%v nrounds:%v imgdMcpu:%v useSPProxy:%v useCoSandbox:%v useS3Clnt:%v workerCoSandboxMcpu:%v workerCoSandboxMem:%v ftTaskSrvMcpu:%v imgDim:%v premountS3:%v measurePSS:%v bailOut:%v }", cfg.Job, cfg.WorkerMcpu, cfg.WorkerMem, cfg.Persist, cfg.NRounds, cfg.ImgdMcpu, cfg.UseSPProxy, cfg.UseCoSandbox, cfg.UseS3Clnt, cfg.WorkerCoSandboxMcpu, cfg.WorkerCoSandboxMem, cfg.FTTaskSrvMcpu, cfg.ImgDim, cfg.PremountS3, cfg.MeasurePSS, cfg.BailOut)
 }
 
-func GetBootScriptBailOut(sc *sigmaclnt.SigmaClnt) ([]byte, error) {
-	return wasmer.ReadBootScript(sc, "imgprocess_bail_out_boot")
+func GetCoSandboxBailOut(sc *sigmaclnt.SigmaClnt) ([]byte, error) {
+	return wasmer.ReadCoSandbox(sc, "imgprocess_bail_out_boot")
 }
 
-func GetBootScriptWriteOut(sc *sigmaclnt.SigmaClnt) ([]byte, error) {
-	return wasmer.ReadBootScript(sc, "imgprocess_write_out_boot")
+func GetCoSandboxWriteOut(sc *sigmaclnt.SigmaClnt) ([]byte, error) {
+	return wasmer.ReadCoSandbox(sc, "imgprocess_write_out_boot")
 }
 
-func GetBootScript(sc *sigmaclnt.SigmaClnt) ([]byte, error) {
-	return wasmer.ReadBootScript(sc, "s3get_boot")
+func GetCoSandbox(sc *sigmaclnt.SigmaClnt) ([]byte, error) {
+	return wasmer.ReadCoSandbox(sc, "s3get_boot")
 }
 
-func GetBootScriptInput(bucket, key, kid string) ([]byte, error) {
+func GetCoSandboxInput(bucket, key, kid string) ([]byte, error) {
 	return wasmer.EncodeArgs([]string{bucket, key, kid}), nil
 }
 
@@ -97,16 +97,16 @@ func TaskSvcId(job string) string {
 type Ttask struct {
 	FileName              string `json:"file"`
 	UseS3Clnt             bool   `json:"use_s3_clnt"`
-	UseBootScript         bool   `json:"use_boot_script"`
-	WriteOutViaBootScript bool   `json:"write_out_via_boot_script"`
+	UseCoSandbox         bool   `json:"use_co_sandbox"`
+	WriteOutViaCoSandbox bool   `json:"write_out_via_co_sandbox"`
 }
 
-func NewTask(fn string, useS3Clnt, useBootScript, writeOutViaBootScript bool) *Ttask {
+func NewTask(fn string, useS3Clnt, useCoSandbox, writeOutViaCoSandbox bool) *Ttask {
 	return &Ttask{
 		FileName:              fn,
 		UseS3Clnt:             useS3Clnt,
-		UseBootScript:         useBootScript,
-		WriteOutViaBootScript: writeOutViaBootScript,
+		UseCoSandbox:         useCoSandbox,
+		WriteOutViaCoSandbox: writeOutViaCoSandbox,
 	}
 }
 
@@ -133,7 +133,7 @@ func NewImgdMgr[Data any](sc *sigmaclnt.SigmaClnt, jobCfg *ImgdJobConfig, em *cr
 		return nil, err
 	}
 
-	cfg := procgroupmgr.NewProcGroupConfig(1, "imgresized", []string{strconv.Itoa(int(jobCfg.WorkerMcpu)), strconv.Itoa(int(jobCfg.WorkerMem)), strconv.Itoa(jobCfg.NRounds), TaskSvcId(imgd.job), strconv.FormatBool(jobCfg.UseSPProxy), strconv.FormatBool(jobCfg.UseBootScript), strconv.Itoa(int(jobCfg.WorkerBootScriptMcpu)), strconv.Itoa(int(jobCfg.WorkerBootScriptMem)), strconv.FormatBool(jobCfg.WriteOutViaBootScript), strconv.Itoa(jobCfg.ImgDim), strconv.FormatBool(jobCfg.PremountS3), strconv.FormatBool(jobCfg.MeasurePSS), strconv.FormatBool(jobCfg.BailOut)}, jobCfg.ImgdMcpu, ImgSvcId(jobCfg.Job))
+	cfg := procgroupmgr.NewProcGroupConfig(1, "imgresized", []string{strconv.Itoa(int(jobCfg.WorkerMcpu)), strconv.Itoa(int(jobCfg.WorkerMem)), strconv.Itoa(jobCfg.NRounds), TaskSvcId(imgd.job), strconv.FormatBool(jobCfg.UseSPProxy), strconv.FormatBool(jobCfg.UseCoSandbox), strconv.Itoa(int(jobCfg.WorkerCoSandboxMcpu)), strconv.Itoa(int(jobCfg.WorkerCoSandboxMem)), strconv.FormatBool(jobCfg.WriteOutViaCoSandbox), strconv.Itoa(jobCfg.ImgDim), strconv.FormatBool(jobCfg.PremountS3), strconv.FormatBool(jobCfg.MeasurePSS), strconv.FormatBool(jobCfg.BailOut)}, jobCfg.ImgdMcpu, ImgSvcId(jobCfg.Job))
 
 	if jobCfg.Persist {
 		cfg.Persist(sc.FsLib)
@@ -208,11 +208,11 @@ func IsThumbNail(fn string) bool {
 	return strings.Contains(fn, "-thumb")
 }
 
-func GetMkProcFn(serverId task.FtTaskSvcId, nrounds int, imgDim int, workerMcpu proc.Tmcpu, workerMem proc.Tmem, workerBootScriptMcpu proc.Tmcpu, workerBootScriptMem proc.Tmem, bootScript []byte, bootScriptWriteOut []byte, useSPProxy bool, premountS3 bool, s3EP *sp.Tendpoint, measurePSS bool, bailOut bool) fttask_mgr.TnewProc[Ttask] {
+func GetMkProcFn(serverId task.FtTaskSvcId, nrounds int, imgDim int, workerMcpu proc.Tmcpu, workerMem proc.Tmem, workerCoSandboxMcpu proc.Tmcpu, workerCoSandboxMem proc.Tmem, coSandbox []byte, coSandboxWriteOut []byte, useSPProxy bool, premountS3 bool, s3EP *sp.Tendpoint, measurePSS bool, bailOut bool) fttask_mgr.TnewProc[Ttask] {
 	return func(task fttask_clnt.Task[Ttask]) (*proc.Proc, error) {
 		db.DPrintf(db.IMGD, "mkProc %v", task)
 		fn := task.Data.FileName
-		p := proc.NewProcPid(sp.GenPid(string(serverId)), "imgresize", []string{fn, ThumbName(fn), strconv.Itoa(nrounds), strconv.FormatBool(task.Data.UseS3Clnt), strconv.FormatBool(task.Data.WriteOutViaBootScript), strconv.Itoa(imgDim), strconv.FormatBool(bailOut)})
+		p := proc.NewProcPid(sp.GenPid(string(serverId)), "imgresize", []string{fn, ThumbName(fn), strconv.Itoa(nrounds), strconv.FormatBool(task.Data.UseS3Clnt), strconv.FormatBool(task.Data.WriteOutViaCoSandbox), strconv.Itoa(imgDim), strconv.FormatBool(bailOut)})
 		p.SetMcpu(workerMcpu)
 		p.SetMem(workerMem)
 		p.SetShmemMB(SHMEM_MB)
@@ -221,26 +221,26 @@ func GetMkProcFn(serverId task.FtTaskSvcId, nrounds int, imgDim int, workerMcpu 
 			p.SetCachedEndpoint(filepath.Join(sp.S3, sp.LOCAL), s3EP)
 		}
 		splitFN := strings.Split(fn, "/")
-		bootScriptInput, err := GetBootScriptInput(splitFN[0], filepath.Join(splitFN[1:]...), sp.LOCAL)
+		coSandboxInput, err := GetCoSandboxInput(splitFN[0], filepath.Join(splitFN[1:]...), sp.LOCAL)
 		if err != nil {
-			db.DPrintf(db.ERROR, "Err get bootscript input")
+			db.DPrintf(db.ERROR, "Err get cosandbox input")
 			return nil, err
 		}
 		p.GetProcEnv().UseSPProxy = useSPProxy
-		if task.Data.WriteOutViaBootScript {
-			p.SetBootScript(bootScriptWriteOut, bootScriptInput)
+		if task.Data.WriteOutViaCoSandbox {
+			p.SetCoSandbox(coSandboxWriteOut, coSandboxInput)
 		} else {
-			p.SetBootScript(bootScript, bootScriptInput)
+			p.SetCoSandbox(coSandbox, coSandboxInput)
 		}
-		p.SetRunBootScript(task.Data.UseBootScript)
-		if task.Data.UseBootScript {
+		p.SetRunCoSandbox(task.Data.UseCoSandbox)
+		if task.Data.UseCoSandbox {
 			// Run after boot script, if we set a resource reservation for the boot
 			// script
-			if workerBootScriptMcpu > 0 || workerBootScriptMem > 0 {
-				p.SetRunAfterBootScript(true)
+			if workerCoSandboxMcpu > 0 || workerCoSandboxMem > 0 {
+				p.SetRunAfterCoSandbox(true)
 			}
-			p.SetBootScriptMcpu(workerBootScriptMcpu)
-			p.SetBootScriptMem(workerBootScriptMem)
+			p.SetCoSandboxMcpu(workerCoSandboxMcpu)
+			p.SetCoSandboxMem(workerCoSandboxMem)
 		}
 		return p, nil
 	}

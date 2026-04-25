@@ -769,7 +769,7 @@ func GetCachedScalerClientCmdConstructor(leader bool, numClients int, prewarm bo
 	}
 }
 
-func GetStartLatencyCmdConstructor(startLatencyCfg *benchmarks.StartLatencyBenchConfig, cacheCfg *benchmarks.CacheBenchConfig, cossimCfg *benchmarks.CosSimBenchConfig, etcdCfg *benchmarks.EtcdBenchConfig, memcachedCfg *benchmarks.MemcachedBenchConfig, initscript bool, useGVisor bool) GetBenchCmdFn {
+func GetStartLatencyCmdConstructor(startLatencyCfg *benchmarks.StartLatencyBenchConfig, cacheCfg *benchmarks.CacheBenchConfig, cossimCfg *benchmarks.CosSimBenchConfig, etcdCfg *benchmarks.EtcdBenchConfig, memcachedCfg *benchmarks.MemcachedBenchConfig, cosandbox bool, useGVisor bool) GetBenchCmdFn {
 	return func(bcfg *BenchConfig, ccfg *ClusterConfig) string {
 		const (
 			debugSelectors string = "\"TEST;BENCH;SPAWN_LAT;PROXY_RPC_LAT;\""

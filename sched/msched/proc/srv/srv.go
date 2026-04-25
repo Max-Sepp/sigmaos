@@ -386,8 +386,8 @@ func (ps *ProcSrv) prefetchProcFileStat(realm sp.Trealm, upid sp.Tpid, prog stri
 // Run a proc inside of an sigma container
 func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 	uproc := proc.NewProcFromProto(req.ProcProto)
-	if uproc.GetProcEnv().GetRunBootScript() {
-		perf.LogSpawnLatency("Paper.Setup.DownloadInitScript", uproc.GetPid(), uproc.GetSpawnTime(), uproc.GetSpawnTime())
+	if uproc.GetProcEnv().GetRunCoSandbox() {
+		perf.LogSpawnLatency("Paper.Setup.DownloadCoSandbox", uproc.GetPid(), uproc.GetSpawnTime(), uproc.GetSpawnTime())
 	}
 	perf.LogSpawnLatency("Paper.Setup.GlobalScheduling", uproc.GetPid(), uproc.GetSpawnTime(), uproc.GetSpawnTime())
 	recordPSS := db.WillBePrinted(db.PSS) && uproc.GetMeasurePSS()
@@ -427,7 +427,7 @@ func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 		db.DFatalf("Err set sched policy: %v", err)
 	}
 	// If proc should only run after boot script completes, wait for it
-	if uproc.GetRunAfterBootScript() && uproc.GetProcEnv().UseSPProxy {
+	if uproc.GetRunAfterCoSandbox() && uproc.GetProcEnv().UseSPProxy {
 		var pssPre proc.Tmem
 		var err error
 		if recordPSS {
@@ -439,20 +439,20 @@ func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 		// Wait to make sure spproxy has heard about the proc we are going to wait
 		// for
 		informedWG.Wait()
-		db.DPrintf(db.PROCD, "[%v] Wait for bootscript completion", uproc.GetPid())
+		db.DPrintf(db.PROCD, "[%v] Wait for cosandbox completion", uproc.GetPid())
 		start := time.Now()
-		status, msg, err := ps.spc.WaitBootScriptCompletion(uproc.GetPid())
+		status, msg, err := ps.spc.WaitCoSandboxCompletion(uproc.GetPid())
 		if err != nil {
 			db.DFatalf("[%v] Wait for boot script completion err: %v", uproc.GetPid(), err)
 		}
-		db.DPrintf(db.PROCD, "[%v] Done waiting for bootscript completion: %v %v", uproc.GetPid(), status, msg)
-		perf.LogSpawnLatency("ProcSrv.Run WaitBootScriptCompletion", uproc.GetPid(), uproc.GetSpawnTime(), start)
+		db.DPrintf(db.PROCD, "[%v] Done waiting for cosandbox completion: %v %v", uproc.GetPid(), status, msg)
+		perf.LogSpawnLatency("ProcSrv.Run WaitCoSandboxCompletion", uproc.GetPid(), uproc.GetSpawnTime(), start)
 		if recordPSS {
 			pssPost, err := ps.spc.GetPSS()
 			if err != nil {
 				db.DPrintf(db.PSS_ERR, "Err GetPss spproxy post: %v", err)
 			}
-			db.DPrintf(db.PSS, "[%v] BootScript PSS: %vKB", uproc.GetPid(), pssPost-pssPre)
+			db.DPrintf(db.PSS, "[%v] CoSandbox PSS: %vKB", uproc.GetPid(), pssPost-pssPre)
 		}
 		if status == wasmrpc.EXIT_ABORT_LAUNCH {
 			return fmt.Errorf("Aborted launch: %v", msg)

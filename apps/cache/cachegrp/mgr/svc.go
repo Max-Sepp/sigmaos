@@ -36,9 +36,9 @@ type CachedSvc struct {
 	servers           []sp.Tpid
 	serverEPs         []*sp.Tendpoint
 	backupServers     []sp.Tpid
-	backupBootScript  []byte
-	scalerBootScript  []byte
-	migrateBootScript []byte
+	backupCoSandbox  []byte
+	scalerCoSandbox  []byte
+	migrateCoSandbox []byte
 	cfg               *CacheJobConfig
 	pn                string
 	job               string
@@ -90,7 +90,7 @@ func (cs *CachedSvc) addServer(i int) error {
 	return nil
 }
 
-func (cs *CachedSvc) addBackupServerWithSigmaPath(sigmaPath string, srvID int, ep *sp.Tendpoint, delegatedInit bool, topN int) error {
+func (cs *CachedSvc) addBackupServerWithSigmaPath(sigmaPath string, srvID int, ep *sp.Tendpoint, useCoSandbox bool, topN int) error {
 	// SpawnBurst to spread servers across procds.
 	p := proc.NewProc(cs.bin+"-backup", []string{filepath.Join(cs.pn, cachegrp.BACKUP), cs.job, strconv.Itoa(int(srvID)), strconv.FormatBool(cs.useEPCache), strconv.Itoa(topN), "false"})
 	if !cs.cfg.GC {
@@ -117,10 +117,10 @@ func (cs *CachedSvc) addBackupServerWithSigmaPath(sigmaPath string, srvID int, e
 	if err := binary.Write(inputBuf, binary.LittleEndian, uint32(topN)); err != nil {
 		return err
 	}
-	if delegatedInit {
-		bootScriptInput := inputBuf.Bytes()
-		p.SetBootScript(cs.backupBootScript, bootScriptInput)
-		p.SetRunBootScript(delegatedInit)
+	if useCoSandbox {
+		coSandboxInput := inputBuf.Bytes()
+		p.SetCoSandbox(cs.backupCoSandbox, coSandboxInput)
+		p.SetRunCoSandbox(useCoSandbox)
 	}
 	err := cs.Spawn(p)
 	if err != nil {
@@ -157,7 +157,7 @@ func (cs *CachedSvc) addBackupServerWithSigmaPath(sigmaPath string, srvID int, e
 	return nil
 }
 
-func (cs *CachedSvc) addScalerServerWithSigmaPath(sigmaPath string, delegatedInit bool, cpp bool, shmem bool) error {
+func (cs *CachedSvc) addScalerServerWithSigmaPath(sigmaPath string, useCoSandbox bool, cpp bool, shmem bool) error {
 	if shmem && !cpp {
 		return fmt.Errorf("error shmem without cpp")
 	}
@@ -203,10 +203,10 @@ func (cs *CachedSvc) addScalerServerWithSigmaPath(sigmaPath string, delegatedIni
 	if err := binary.Write(inputBuf, binary.LittleEndian, uint32(cache.NSHARD)); err != nil {
 		return err
 	}
-	if delegatedInit {
-		bootScriptInput := inputBuf.Bytes()
-		p.SetBootScript(cs.scalerBootScript, bootScriptInput)
-		p.SetRunBootScript(delegatedInit)
+	if useCoSandbox {
+		coSandboxInput := inputBuf.Bytes()
+		p.SetCoSandbox(cs.scalerCoSandbox, coSandboxInput)
+		p.SetRunCoSandbox(useCoSandbox)
 	}
 	err := cs.Spawn(p)
 	if err != nil {
@@ -249,7 +249,7 @@ func (cs *CachedSvc) addScalerServerWithSigmaPath(sigmaPath string, delegatedIni
 	return nil
 }
 
-func (cs *CachedSvc) migrateServerWithSigmaPath(cc *cacheclnt.CacheClnt, sigmaPath string, delegatedInit bool, srvID int) error {
+func (cs *CachedSvc) migrateServerWithSigmaPath(cc *cacheclnt.CacheClnt, sigmaPath string, useCoSandbox bool, srvID int) error {
 	nsrv := len(cs.servers)
 	bin := "cached-srv-cpp"
 	p := proc.NewProc(bin, []string{filepath.Join(cs.pn, cachegrp.SRVDIR), cs.job, strconv.Itoa(srvID), strconv.FormatBool(cs.useEPCache), strconv.Itoa(nsrv), strconv.Itoa(nsrv), strconv.Itoa(srvID), "true"})
@@ -285,10 +285,10 @@ func (cs *CachedSvc) migrateServerWithSigmaPath(cc *cacheclnt.CacheClnt, sigmaPa
 	if err := binary.Write(inputBuf, binary.LittleEndian, uint32(cache.NSHARD)); err != nil {
 		return err
 	}
-	if delegatedInit {
-		bootScriptInput := inputBuf.Bytes()
-		p.SetBootScript(cs.migrateBootScript, bootScriptInput)
-		p.SetRunBootScript(delegatedInit)
+	if useCoSandbox {
+		coSandboxInput := inputBuf.Bytes()
+		p.SetCoSandbox(cs.migrateCoSandbox, coSandboxInput)
+		p.SetRunCoSandbox(useCoSandbox)
 	}
 	if err := cc.PrepareToMigrate(cs.Server(strconv.Itoa(srvID))); err != nil {
 		db.DPrintf(db.ERROR, "Err prep to migrate %v: err", srvID, err)
@@ -360,17 +360,17 @@ func NewCachedSvcEPCache(sc *sigmaclnt.SigmaClnt, epCacheJob *epsrv.EPCacheJob, 
 			return nil, err
 		}
 	}
-	backupBootScript, err := wasmer.ReadBootScript(sc, "cached_backup_hot_shard_boot")
+	backupCoSandbox, err := wasmer.ReadCoSandbox(sc, "cached_backup_hot_shard_boot")
 	if err != nil {
 		db.DPrintf(db.ERROR, "Err read WASM backup boot script: %v", err)
 		return nil, err
 	}
-	scalerBootScript, err := wasmer.ReadBootScript(sc, "cached_scaler_boot")
+	scalerCoSandbox, err := wasmer.ReadCoSandbox(sc, "cached_scaler_boot")
 	if err != nil {
 		db.DPrintf(db.ERROR, "Err read WASM scaler boot script: %v", err)
 		return nil, err
 	}
-	migrateBootScript, err := wasmer.ReadBootScript(sc, "cached_migrate_boot")
+	migrateCoSandbox, err := wasmer.ReadCoSandbox(sc, "cached_migrate_boot")
 	if err != nil {
 		db.DPrintf(db.ERROR, "Err read WASM migrate boot script: %v", err)
 		return nil, err
@@ -396,9 +396,9 @@ func NewCachedSvcEPCache(sc *sigmaclnt.SigmaClnt, epCacheJob *epsrv.EPCacheJob, 
 		cfg:               cfg,
 		pn:                pn,
 		job:               job,
-		scalerBootScript:  scalerBootScript,
-		migrateBootScript: migrateBootScript,
-		backupBootScript:  backupBootScript,
+		scalerCoSandbox:  scalerCoSandbox,
+		migrateCoSandbox: migrateCoSandbox,
+		backupCoSandbox:  backupCoSandbox,
 	}
 	for i := 0; i < cs.cfg.NSrv; i++ {
 		if err := cs.addServer(i); err != nil {
@@ -416,32 +416,32 @@ func (cs *CachedSvc) AddServer() error {
 	return cs.addServer(n)
 }
 
-func (cs *CachedSvc) AddScalerServerWithSigmaPath(sigmaPath string, delegatedInit bool, cpp bool, shmem bool) error {
+func (cs *CachedSvc) AddScalerServerWithSigmaPath(sigmaPath string, useCoSandbox bool, cpp bool, shmem bool) error {
 	cs.Lock()
 	defer cs.Unlock()
 
-	return cs.addScalerServerWithSigmaPath(sigmaPath, delegatedInit, cpp, shmem)
+	return cs.addScalerServerWithSigmaPath(sigmaPath, useCoSandbox, cpp, shmem)
 }
 
-func (cs *CachedSvc) MigrateServerWithSigmaPath(cc *cacheclnt.CacheClnt, sigmaPath string, delegatedInit bool, srvID int) error {
+func (cs *CachedSvc) MigrateServerWithSigmaPath(cc *cacheclnt.CacheClnt, sigmaPath string, useCoSandbox bool, srvID int) error {
 	cs.Lock()
 	defer cs.Unlock()
 
-	return cs.migrateServerWithSigmaPath(cc, sigmaPath, delegatedInit, srvID)
+	return cs.migrateServerWithSigmaPath(cc, sigmaPath, useCoSandbox, srvID)
 }
 
-func (cs *CachedSvc) AddBackupServerWithSigmaPath(sigmaPath string, i int, ep *sp.Tendpoint, delegatedInit bool, topN int) error {
+func (cs *CachedSvc) AddBackupServerWithSigmaPath(sigmaPath string, i int, ep *sp.Tendpoint, useCoSandbox bool, topN int) error {
 	cs.Lock()
 	defer cs.Unlock()
 
-	return cs.addBackupServerWithSigmaPath(sigmaPath, i, ep, delegatedInit, topN)
+	return cs.addBackupServerWithSigmaPath(sigmaPath, i, ep, useCoSandbox, topN)
 }
 
-func (cs *CachedSvc) AddBackupServer(i int, ep *sp.Tendpoint, delegatedInit bool, topN int) error {
+func (cs *CachedSvc) AddBackupServer(i int, ep *sp.Tendpoint, useCoSandbox bool, topN int) error {
 	cs.Lock()
 	defer cs.Unlock()
 
-	return cs.AddBackupServerWithSigmaPath(sp.NOT_SET, i, ep, delegatedInit, topN)
+	return cs.AddBackupServerWithSigmaPath(sp.NOT_SET, i, ep, useCoSandbox, topN)
 }
 
 func (cs *CachedSvc) Nserver() int {

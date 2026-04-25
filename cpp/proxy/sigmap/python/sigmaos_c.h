@@ -21,8 +21,8 @@ void sigmaos_free_clnt(SigmaosClnt clnt);
 // Returns 0 on success, -1 on error.
 int sigmaos_started(SigmaosClnt clnt);
 
-// Returns 1 if the proc env has RunBootScript set, 0 otherwise.
-int sigmaos_get_run_boot_script(SigmaosClnt clnt);
+// Returns 1 if the proc env has RunCoSandbox set, 0 otherwise.
+int sigmaos_get_run_co_sandbox(SigmaosClnt clnt);
 
 // status should be one of the SIGMAOS_STATUS_* constants.
 // Returns 0 on success, -1 on error.

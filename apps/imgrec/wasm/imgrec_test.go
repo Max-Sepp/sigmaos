@@ -61,9 +61,9 @@ func uploadImgrecBin(t *testing.T, rts *test.RealmTstate) string {
 	return precompiledBinPath
 }
 
-func getImgrecBootScript(t *testing.T, sc *sigmaclnt.SigmaClnt) []byte {
-	b, err := wasmrt.ReadBootScript(sc, "imgrec_boot")
-	if !assert.Nil(t, err, "ReadBootScript imgrec_boot: %v", err) {
+func getImgrecCoSandbox(t *testing.T, sc *sigmaclnt.SigmaClnt) []byte {
+	b, err := wasmrt.ReadCoSandbox(sc, "imgrec_boot")
+	if !assert.Nil(t, err, "ReadCoSandbox imgrec_boot: %v", err) {
 		t.FailNow()
 	}
 	return b
@@ -119,7 +119,7 @@ func TestImgrecWASMCoSandbox(t *testing.T) {
 	ref := imgrectestutil.GetReferenceOutput(t, rts.FsLib, IMG_BUCKET, IMG_KEY, MODEL_BUCKET, MODEL_KEY, KID)
 
 	// Read and precompile the boot script.
-	bootScript := getImgrecBootScript(t, rts.SigmaClnt)
+	coSandbox := getImgrecCoSandbox(t, rts.SigmaClnt)
 	// Boot script input: model=rpcIdx 0, image=rpcIdx 1.
 	bootInput := wasmrt.EncodeArgs([]string{IMG_BUCKET, IMG_KEY, MODEL_BUCKET, MODEL_KEY, KID})
 
@@ -132,8 +132,8 @@ func TestImgrecWASMCoSandbox(t *testing.T) {
 	})
 	p.GetProcEnv().UseSPProxy = true
 	p.SetProcContainerType(proc.ProcContainerType_PROC_CTR_WASM)
-	p.SetBootScript(bootScript, bootInput)
-	p.SetRunBootScript(true)
+	p.SetCoSandbox(coSandbox, bootInput)
+	p.SetRunCoSandbox(true)
 	// XXX hack, remove eventually
 	p.PrependSigmaPath(filepath.Dir(precompiledBinPath))
 

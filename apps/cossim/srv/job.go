@@ -34,10 +34,10 @@ type CosSimJobConfig struct {
 	EagerInit        bool                        `json:"eager_init"`
 	SrvMcpu          proc.Tmcpu                  `json:"srv_mcpu"`
 	CacheCfg         *cachegrpmgr.CacheJobConfig `json:"cache_cfg"`
-	DelegateInitRPCs bool                        `json:"delegate_init_rpcs"`
+	UseCoSandboxRPCs bool                        `json:"use_co_sandbox_rpcs"`
 }
 
-func NewCosSimJobConfig(job string, nsrv int, nvec int, vecDim int, eagerInit bool, srvMcpu proc.Tmcpu, cacheCfg *cachegrpmgr.CacheJobConfig, delegateInitRPCs bool) *CosSimJobConfig {
+func NewCosSimJobConfig(job string, nsrv int, nvec int, vecDim int, eagerInit bool, srvMcpu proc.Tmcpu, cacheCfg *cachegrpmgr.CacheJobConfig, useCoSandboxRPCs bool) *CosSimJobConfig {
 	return &CosSimJobConfig{
 		Job:              job,
 		InitNSrv:         nsrv,
@@ -46,7 +46,7 @@ func NewCosSimJobConfig(job string, nsrv int, nvec int, vecDim int, eagerInit bo
 		EagerInit:        eagerInit,
 		SrvMcpu:          srvMcpu,
 		CacheCfg:         cacheCfg,
-		DelegateInitRPCs: delegateInitRPCs,
+		UseCoSandboxRPCs: useCoSandboxRPCs,
 	}
 }
 
@@ -123,8 +123,8 @@ type CosSimJob struct {
 	vecKeys         []string
 	srvs            []*proc.Proc
 	Clnt            *clnt.CosSimShardClnt
-	bootScript      []byte
-	bootScriptInput []byte
+	coSandbox      []byte
+	coSandboxInput []byte
 	stopEPCJ        bool
 	stopCaches      bool
 }
@@ -191,7 +191,7 @@ func newCosSimJob(conf *CosSimJobConfig, sc *sigmaclnt.SigmaClnt, epcj *epsrv.EP
 		db.DPrintf(db.COSSIMSRV_ERR, "Err newCosSimShardClnt: %v", err)
 		return nil, err
 	}
-	bootScript, err := wasmer.ReadBootScript(sc, "cossim_boot")
+	coSandbox, err := wasmer.ReadCoSandbox(sc, "cossim_boot")
 	if err != nil {
 		db.DPrintf(db.ERROR, "Err read WASM boot script: %v", err)
 		return nil, err
@@ -204,7 +204,7 @@ func newCosSimJob(conf *CosSimJobConfig, sc *sigmaclnt.SigmaClnt, epcj *epsrv.EP
 	if err := binary.Write(inputBuf, binary.LittleEndian, uint64(conf.NVec)); err != nil {
 		return nil, err
 	}
-	bootScriptInput := inputBuf.Bytes()
+	coSandboxInput := inputBuf.Bytes()
 	return &CosSimJob{
 		conf:            conf,
 		SigmaClnt:       sc,
@@ -218,8 +218,8 @@ func newCosSimJob(conf *CosSimJobConfig, sc *sigmaclnt.SigmaClnt, epcj *epsrv.EP
 		vecKeys:         vecKeys,
 		srvs:            []*proc.Proc{},
 		Clnt:            cscs,
-		bootScript:      bootScript,
-		bootScriptInput: bootScriptInput,
+		coSandbox:      coSandbox,
+		coSandboxInput: coSandboxInput,
 		stopEPCJ:        stopEPCJ,
 		stopCaches:      stopCaches,
 	}, nil
@@ -284,9 +284,9 @@ func (j *CosSimJob) addSrv(sigmaPath string) (*proc.Proc, time.Duration, error) 
 	for pn, ep := range j.cacheEPs {
 		p.SetCachedEndpoint(pn, ep)
 	}
-	p.SetBootScript(j.bootScript, j.bootScriptInput)
-	p.SetRunBootScript(j.conf.DelegateInitRPCs)
-	if j.conf.DelegateInitRPCs {
+	p.SetCoSandbox(j.coSandbox, j.coSandboxInput)
+	p.SetRunCoSandbox(j.conf.UseCoSandboxRPCs)
+	if j.conf.UseCoSandboxRPCs {
 		p.SetShmemMB(SHMEM_MB)
 	}
 	start := time.Now()
@@ -337,5 +337,5 @@ func (j *CosSimJob) Stop() error {
 }
 
 func (cfg *CosSimJobConfig) String() string {
-	return fmt.Sprintf("&{ job:%v initNSrv:%v nvec:%v vecdim:%v eager:%v srvmcpu:%v cacheCfg:%v delegatedinit:%v }", cfg.Job, cfg.InitNSrv, cfg.NVec, cfg.VecDim, cfg.EagerInit, cfg.SrvMcpu, cfg.CacheCfg, cfg.DelegateInitRPCs)
+	return fmt.Sprintf("&{ job:%v initNSrv:%v nvec:%v vecdim:%v eager:%v srvmcpu:%v cacheCfg:%v useCoSandboxRPCs:%v }", cfg.Job, cfg.InitNSrv, cfg.NVec, cfg.VecDim, cfg.EagerInit, cfg.SrvMcpu, cfg.CacheCfg, cfg.UseCoSandboxRPCs)
 }

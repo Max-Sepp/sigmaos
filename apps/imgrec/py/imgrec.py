@@ -4,7 +4,7 @@ SigmaOS image-recognition proc (Python).
 
 Args: img_bucket img_key model_bucket model_key kid
 
-If GetRunBootScript is true, fetches via delegated S3 RPCs (rpc_idx 0 for
+If GetRunCoSandbox is true, fetches via delegated S3 RPCs (rpc_idx 0 for
 both image and model); otherwise fetches directly by bucket/key.
 """
 
@@ -37,7 +37,7 @@ def main():
         sys.exit(1)
     img_bucket, img_key, model_bucket, model_key, _kid = sys.argv[1:]
 
-    if clnt.get_run_boot_script():
+    if clnt.get_run_co_sandbox():
         img_bytes   = clnt.s3_delegated_get_object(1)
         model_bytes = clnt.s3_delegated_get_object(0)
     else:

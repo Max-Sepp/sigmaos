@@ -46,7 +46,7 @@ message ProcEnvProto {
   string fail = 26;
   map<string, TendpointProto> cachedEndpoints = 27;
   string valgrind = 28;
-  bool runBootScriptFlag = 29;
+  bool runCoSandboxFlag = 29;
   bool useShmem = 30;
   uint64 shmemMBInt = 31;
   bool useSPProxyProcClnt = 32;
@@ -66,12 +66,12 @@ message ProcProto {
   repeated string addedBins = 3;
   map<string, string> env = 4;
   Blob blob = 5; // boot script
-  bytes bootScriptInput = 6;
+  bytes coSandboxInput = 6;
   uint32 typeInt = 7;
-  bool runAfterBootScript = 8;
+  bool runAfterCoSandbox = 8;
   uint64 queueableResourcePoolID = 9;
   ResourceReservationProto resourceRes = 10;
-  ResourceReservationProto bootScriptResourceRes = 11;
+  ResourceReservationProto coSandboxResourceRes = 11;
   bool measurePSS = 12;
   uint64 measurePSSDelayMS = 13;
 }

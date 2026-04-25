@@ -82,7 +82,7 @@ type ImgProcess struct {
 	nrounds               int
 	p                     *perf.Perf
 	useS3Clnt             bool
-	writeOutViaBootScript bool
+	writeOutViaCoSandbox bool
 	bailOutScript         bool
 	imgDim                int
 	s3Clnt                *s3clnt.S3Clnt
@@ -104,12 +104,12 @@ func NewImgProcess(pe *proc.ProcEnv, args []string, p *perf.Perf) (*ImgProcess, 
 	if err != nil {
 		db.DFatalf("Err parse useS3Clnt: %v", err)
 	}
-	writeOutViaBootScript, err := strconv.ParseBool(args[5])
+	writeOutViaCoSandbox, err := strconv.ParseBool(args[5])
 	if err != nil {
 		db.DFatalf("Err parse useS3Clnt: %v", err)
 	}
 	ip.useS3Clnt = useS3Clnt
-	ip.writeOutViaBootScript = writeOutViaBootScript
+	ip.writeOutViaCoSandbox = writeOutViaCoSandbox
 	ip.SigmaClnt = sc
 	ip.inputs = strings.Split(args[1], ",")
 	db.DPrintf(db.ALWAYS, "Args {%v} inputs {%v} fail {%v}", args[1], ip.inputs, proc.GetSigmaFail())
@@ -166,7 +166,7 @@ func (ip *ImgProcess) Work(i int, output string) *proc.Status {
 		var b []byte
 		var err error
 		start = time.Now()
-		if ip.ProcEnv().GetRunBootScript() {
+		if ip.ProcEnv().GetRunCoSandbox() {
 			var transferTime time.Duration
 			rpcIdx := uint64(0)
 			if ip.bailOutScript {
@@ -245,9 +245,9 @@ func (ip *ImgProcess) Work(i int, output string) *proc.Status {
 		pn := strings.Split(output, "/")
 		bucket := pn[0]
 		key := filepath.Join(pn[1:]...)
-		if ip.writeOutViaBootScript {
+		if ip.writeOutViaCoSandbox {
 			if err := ip.s3Clnt.DelegatedPutObject(1, bucket, key, outbuf.Bytes()); err != nil {
-				return proc.NewStatusErr(fmt.Sprintf("Err PutObjectViaBootScript bucket:%v key:%v", bucket, key), err)
+				return proc.NewStatusErr(fmt.Sprintf("Err PutObjectViaCoSandbox bucket:%v key:%v", bucket, key), err)
 			}
 		} else {
 			if err := ip.s3Clnt.PutObject(bucket, key, outbuf.Bytes()); err != nil {

@@ -989,10 +989,10 @@ func TestLCBEHotelImgResizeMultiplexing(t *testing.T) {
 			NRounds:              500,
 			ImgdMcpu:             proc.Tmcpu(1000),
 			UseSPProxy:           false,
-			UseBootScript:        false,
+			UseCoSandbox:        false,
 			UseS3Clnt:            false,
-			WorkerBootScriptMcpu: proc.Tmcpu(0),
-			WorkerBootScriptMem:  proc.Tmem(0),
+			WorkerCoSandboxMcpu: proc.Tmcpu(0),
+			WorkerCoSandboxMem:  proc.Tmem(0),
 			FTTaskSrvMcpu:        proc.Tmcpu(1000),
 		},
 		InputPath:      "name/ux/~local/8.jpg",
@@ -1099,10 +1099,10 @@ func TestLCBEHotelImgResizeRPCMultiplexing(t *testing.T) {
 			NRounds:              43,
 			ImgdMcpu:             proc.Tmcpu(1000),
 			UseSPProxy:           false,
-			UseBootScript:        false,
+			UseCoSandbox:        false,
 			UseS3Clnt:            false,
-			WorkerBootScriptMcpu: proc.Tmcpu(0),
-			WorkerBootScriptMem:  proc.Tmem(0),
+			WorkerCoSandboxMcpu: proc.Tmcpu(0),
+			WorkerCoSandboxMem:  proc.Tmem(0),
 			FTTaskSrvMcpu:        proc.Tmcpu(1000),
 		},
 		InputPath:      "name/ux/~local/8.jpg",
@@ -1137,7 +1137,7 @@ func TestScaleCosSim(t *testing.T) {
 		nCache                []int           = []int{1, 2, 4}
 		clientDelay           time.Duration   = 0 * time.Second
 		sleep                 time.Duration   = 0 * time.Second
-		delegateInit          []bool          = []bool{true, false}
+		useCoSandbox          []bool          = []bool{true, false}
 		manuallyScaleCosSim   []bool          = []bool{true, false}
 		scaleCosSimDelayBase  time.Duration   = 35 * time.Second
 		scaleCosSimExtraDelay []time.Duration = []time.Duration{0}
@@ -1148,7 +1148,7 @@ func TestScaleCosSim(t *testing.T) {
 		return
 	}
 	for _, numCaches := range nCache {
-		for _, delegate := range delegateInit {
+		for _, delegate := range useCoSandbox {
 			for _, scale := range manuallyScaleCosSim {
 				for _, numCosSimToAdd := range nAdditionalCosSim {
 					for _, extraDelay := range scaleCosSimExtraDelay {
@@ -1227,7 +1227,7 @@ func TestScaleCachedScaler(t *testing.T) {
 	var (
 		clientDelay      time.Duration = 0 * time.Second
 		sleep            time.Duration = 0 * time.Second
-		delegateInit     []bool        = []bool{true, false}
+		useCoSandbox     []bool        = []bool{true, false}
 		cppCached        []bool        = []bool{true, false}
 		prewarmRealm     []bool        = []bool{false} //[]bool{true, false}
 		useEPCache       bool          = true
@@ -1243,7 +1243,7 @@ func TestScaleCachedScaler(t *testing.T) {
 	}
 	for _, prewarm := range prewarmRealm {
 		for _, cpp := range cppCached {
-			for _, delegate := range delegateInit {
+			for _, delegate := range useCoSandbox {
 				for _, cossimBackend := range useCossimBackend {
 					db.DPrintf(db.ALWAYS, "Benchmark configuration:\n%v", ts)
 					benchName := benchNameBase
@@ -1269,7 +1269,7 @@ func TestScaleCachedScaler(t *testing.T) {
 						Shmem:         true,
 						CosSimBackend: cossimBackend,
 						UseEPCache:    useEPCache,
-						DelegateInit:  delegate,
+						UseCoSandbox:  delegate,
 						Autoscale:     false,
 						NKeys:         5000,
 						TopNShards:    1,
@@ -1419,12 +1419,12 @@ func TestHotelMatchTailLatency(t *testing.T) {
 		manuallyScaleGeo                 bool          = false
 		scaleGeoDelay                    time.Duration = 0 * time.Second
 		numGeoToAdd                      int           = 0
-		delegatedInit                    []bool        = []bool{true, false}
+		useCoSandbox                    []bool        = []bool{true, false}
 		autoscaleCosSim                  bool          = false
 		fastLoadChange                   []bool        = []bool{false, true}
 		proactiveScaling                 bool          = true
-		cosSimNoDelegatedInitScalingTime time.Duration = 85 * time.Millisecond
-		cosSimDelegatedInitScalingTime   time.Duration = 50 * time.Millisecond
+		cosSimNoCoSandboxScalingTime time.Duration = 85 * time.Millisecond
+		cosSimCoSandboxScalingTime   time.Duration = 50 * time.Millisecond
 		useMatchCaching                  bool          = true
 		migrate                          bool          = true
 		cachedUserFrac                   int64         = 70
@@ -1437,8 +1437,8 @@ func TestHotelMatchTailLatency(t *testing.T) {
 		benchNameBase += "_overlays"
 	}
 	for _, fast := range fastLoadChange {
-		for _, delInit := range delegatedInit {
-			scalingTime := cosSimNoDelegatedInitScalingTime
+		for _, delInit := range useCoSandbox {
+			scalingTime := cosSimNoCoSandboxScalingTime
 			benchName := benchNameBase
 			rps := rpsSlow
 			dur := durSlow
@@ -1459,7 +1459,7 @@ func TestHotelMatchTailLatency(t *testing.T) {
 			}
 			if delInit {
 				benchName += "_csdi"
-				scalingTime = cosSimDelegatedInitScalingTime
+				scalingTime = cosSimCoSandboxScalingTime
 			}
 			csScaleDurs := make([]time.Duration, len(dur))
 			csScaleDeltas := make([]int, len(dur))
@@ -1518,7 +1518,7 @@ func TestHotelMatchTailLatency(t *testing.T) {
 					JobCfg:       &cachegrpmgr.CacheJobConfig{NSrv: numCaches, MCPU: proc.Tmcpu(4000), GC: true},
 					Shmem:        true,
 					Autoscale:    autoscaleCache,
-					DelegateInit: delInit,
+					UseCoSandbox: delInit,
 					UseEPCache:   true,
 					ManuallyScale: &benchmarks.ManualScalingConfig{
 						Svc:         "cached",
@@ -1577,11 +1577,11 @@ func TestImgProcess(t *testing.T) {
 			false,
 			true,
 		}
-		initscriptSequential []bool = []bool{
+		cosandboxSequential []bool = []bool{
 			false,
 			true,
 		}
-		withInitScript []bool = []bool{
+		withCoSandbox []bool = []bool{
 			false,
 			true,
 		}
@@ -1589,7 +1589,7 @@ func TestImgProcess(t *testing.T) {
 			false,
 			true,
 		}
-		initScriptWriteOutResult []bool = []bool{
+		coSandboxWriteOutResult []bool = []bool{
 			false,
 			true,
 		}
@@ -1602,10 +1602,10 @@ func TestImgProcess(t *testing.T) {
 		benchNameBase += "_overlays"
 	}
 	for _, useGVisor := range withGVisor {
-		for _, sequential := range initscriptSequential {
-			for _, initscript := range withInitScript {
+		for _, sequential := range cosandboxSequential {
+			for _, cosandbox := range withCoSandbox {
 				for _, pss := range measurePSS {
-					for _, initscriptWriteout := range initScriptWriteOutResult {
+					for _, cosandboxWriteout := range coSandboxWriteOutResult {
 						inputPath := "9ps3/img-save/7.jpg"
 						//						inputPath := "9ps3/img-save/6.jpg"
 						//			inputPath := "9ps3/img-save/1.jpg" // for more I/O-bound version
@@ -1616,22 +1616,22 @@ func TestImgProcess(t *testing.T) {
 						if useGVisor {
 							benchName += "_gvisor"
 						}
-						if initscript {
-							benchName += "_initscript"
+						if cosandbox {
+							benchName += "_cosandbox"
 						}
 						if pss {
 							benchName += "_pss"
-							// If measuring PSS, only do so when using gVisor, initscripts, and
+							// If measuring PSS, only do so when using gVisor, cosandboxes, and
 							// sequential execution
-							if !useGVisor || !sequential || !initscript {
+							if !useGVisor || !sequential || !cosandbox {
 								continue
 							}
 						}
-						if initscriptWriteout {
-							// Only measure initscript writing results if not measuring PSS,
+						if cosandboxWriteout {
+							// Only measure cosandbox writing results if not measuring PSS,
 							// not running sequentially (running sequentially causes a hang),
-							// and if running with initscripts
-							if sequential || !initscript || pss {
+							// and if running with cosandboxes
+							if sequential || !cosandbox || pss {
 								continue
 							}
 							benchName += "_writeout"
@@ -1658,11 +1658,11 @@ func TestImgProcess(t *testing.T) {
 								ImgDim:                160,
 								ImgdMcpu:              imgdMcpu,
 								UseSPProxy:            true,
-								UseBootScript:         initscript,
-								WriteOutViaBootScript: initscriptWriteout,
+								UseCoSandbox:         cosandbox,
+								WriteOutViaCoSandbox: cosandboxWriteout,
 								UseS3Clnt:             true,
-								WorkerBootScriptMcpu:  bsMcpu,
-								WorkerBootScriptMem:   proc.Tmem(0),
+								WorkerCoSandboxMcpu:  bsMcpu,
+								WorkerCoSandboxMem:   proc.Tmem(0),
 								FTTaskSrvMcpu:         proc.Tmcpu(50),
 								PremountS3:            true,
 								MeasurePSS:            pss,
@@ -1700,7 +1700,7 @@ func TestStartLatency(t *testing.T) {
 			false,
 			true,
 		}
-		withInitScript []bool = []bool{
+		withCoSandbox []bool = []bool{
 			false,
 			true,
 		}
@@ -1720,11 +1720,11 @@ func TestStartLatency(t *testing.T) {
 		benchNameBase += "_overlays"
 	}
 	for app, useGVisor := range apps {
-		for _, initscript := range withInitScript {
+		for _, cosandbox := range withCoSandbox {
 			for _, shmem := range withShmem {
 				benchName := benchNameBase + "_" + app
-				if initscript {
-					benchName += "_initscript"
+				if cosandbox {
+					benchName += "_cosandbox"
 				}
 				if !shmem {
 					benchName += "_noshmem"
@@ -1747,7 +1747,7 @@ func TestStartLatency(t *testing.T) {
 					CPP:          true,
 					Shmem:        shmem,
 					UseEPCache:   true,
-					DelegateInit: initscript,
+					UseCoSandbox: cosandbox,
 					Autoscale:    false,
 					NKeys:        3000,
 					ValSize:      5000,
@@ -1778,7 +1778,7 @@ func TestStartLatency(t *testing.T) {
 							MCPU: proc.Tmcpu(1000),
 							GC:   true,
 						},
-						DelegateInitRPCs: initscript,
+						UseCoSandboxRPCs: cosandbox,
 					},
 				}
 				etcdCfg := &benchmarks.EtcdBenchConfig{
@@ -1788,7 +1788,7 @@ func TestStartLatency(t *testing.T) {
 						Name:          "etcd-proc",
 						PeerPort:      6380,
 						ClientPort:    6379,
-						UseInitScript: initscript,
+						UseCoSandbox: cosandbox,
 						Mcpu:          proc.Tmcpu(4000),
 					},
 				}
@@ -1797,12 +1797,12 @@ func TestStartLatency(t *testing.T) {
 						Job:           "memcached-job",
 						SnapshotPath:  "9ps3/memcached-snapshot-40M",
 						Port:          11211,
-						UseInitScript: initscript,
+						UseCoSandbox: cosandbox,
 						Mcpu:          proc.Tmcpu(4000),
 					},
 					Cache: false,
 				}
-				cmdFn := GetStartLatencyCmdConstructor(startLatencyCfg, cacheBenchCfg, cossimCfg, etcdCfg, memcachedCfg, initscript, useGVisor)
+				cmdFn := GetStartLatencyCmdConstructor(startLatencyCfg, cacheBenchCfg, cossimCfg, etcdCfg, memcachedCfg, cosandbox, useGVisor)
 				ts.RunStandardBenchmark(benchName, driverVM, cmdFn, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost, useGVisor)
 			}
 		}

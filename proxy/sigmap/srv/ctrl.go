@@ -50,8 +50,8 @@ func (capi *CtrlAPI) InformIncomingProc(ctx fs.CtxI, req scproto.SigmaInformProc
 	return nil
 }
 
-func (capi *CtrlAPI) WaitBootScriptCompletion(ctx fs.CtxI, req scproto.SigmaWaitBootScriptReq, rep *scproto.SigmaWaitBootScriptRep) error {
-	status, msg, err := capi.cc.spps.WaitBootScriptCompletion(sp.Tpid(req.PIDStr))
+func (capi *CtrlAPI) WaitCoSandboxCompletion(ctx fs.CtxI, req scproto.SigmaWaitCoSandboxReq, rep *scproto.SigmaWaitCoSandboxRep) error {
+	status, msg, err := capi.cc.spps.WaitCoSandboxCompletion(sp.Tpid(req.PIDStr))
 	if err != nil {
 		rep.Err = sp.NewRerrorErr(err)
 	} else {

@@ -39,7 +39,7 @@ func RunEtcdShim(snapPn, name string, peerUrls, clientUrls, listenClientUrls []s
 	es.ssrv = ssrv
 	start := time.Now()
 	// Create an S3 clnt
-	s3Clnt, err := s3clnt.NewS3ClntInit(es.ssrv.SigmaClnt().FsLib, filepath.Join(sp.S3, pe.GetKernelID()), pe.GetRunBootScript())
+	s3Clnt, err := s3clnt.NewS3ClntInit(es.ssrv.SigmaClnt().FsLib, filepath.Join(sp.S3, pe.GetKernelID()), pe.GetRunCoSandbox())
 	if err != nil {
 		db.DFatalf("Err newS3Clnt: %v", err)
 	}
@@ -125,7 +125,7 @@ func (es *EtcdShim) restoreSnapshot(snapPn string, name string, peerUrls []strin
 	var b []byte
 	var err error
 	start := time.Now()
-	if es.ssrv.SigmaClnt().ProcEnv().GetRunBootScript() {
+	if es.ssrv.SigmaClnt().ProcEnv().GetRunCoSandbox() {
 		var transferDur time.Duration
 		b, transferDur, err = es.s3Clnt.DelegatedGetObject(0)
 		if err != nil {

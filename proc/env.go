@@ -260,12 +260,12 @@ func (pe *ProcEnvProto) ClearCachedEndpoint(pn string) {
 	delete(pe.CachedEndpoints, pn)
 }
 
-func (pe *ProcEnvProto) SetRunBootScript(run bool) {
-	pe.RunBootScriptFlag = run
+func (pe *ProcEnvProto) SetRunCoSandbox(run bool) {
+	pe.RunCoSandboxFlag = run
 }
 
-func (pe *ProcEnvProto) GetRunBootScript() bool {
-	return pe.RunBootScriptFlag
+func (pe *ProcEnvProto) GetRunCoSandbox() bool {
+	return pe.RunCoSandboxFlag
 }
 
 func (pe *ProcEnvProto) SetShmemMB(mb Tmem) {
@@ -433,7 +433,7 @@ func (pe *ProcEnv) String() string {
 		"RealmSwitch:%v "+
 		"Fail:%v "+
 		"CachedEPs:%v "+
-		"RunBootScript:%v "+
+		"RunCoSandbox:%v "+
 		"}",
 		pe.Program,
 		pe.Version,
@@ -459,6 +459,6 @@ func (pe *ProcEnv) String() string {
 		pe.RealmSwitchStr,
 		pe.Fail,
 		pe.CachedEndpoints,
-		pe.GetRunBootScript(),
+		pe.GetRunCoSandbox(),
 	)
 }

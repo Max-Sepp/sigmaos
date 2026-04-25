@@ -20,16 +20,16 @@ type MemcachedJobConfig struct {
 	Job           string     `json:"job"`
 	SnapshotPath  string     `json:"snapshot_path"` // Path to snapshot file in SigmaOS
 	Port          int        `json:"port"`
-	UseInitScript bool       `json:"use_init_script"`
+	UseCoSandbox bool       `json:"use_co_sandbox"`
 	Mcpu          proc.Tmcpu `json:"mcpu"`
 }
 
-func NewMemcachedJobConfig(job, snapshotPath string, port int, useInitScript bool, mcpu proc.Tmcpu) *MemcachedJobConfig {
+func NewMemcachedJobConfig(job, snapshotPath string, port int, useCoSandbox bool, mcpu proc.Tmcpu) *MemcachedJobConfig {
 	return &MemcachedJobConfig{
 		Job:           job,
 		SnapshotPath:  snapshotPath,
 		Port:          port,
-		UseInitScript: useInitScript,
+		UseCoSandbox: useCoSandbox,
 		Mcpu:          mcpu,
 	}
 }
@@ -40,8 +40,8 @@ type MemcachedJob struct {
 	*sigmaclnt.SigmaClnt
 	EPCacheJob      *epsrv.EPCacheJob
 	p               *proc.Proc
-	bootScript      []byte
-	bootScriptInput []byte
+	coSandbox      []byte
+	coSandboxInput []byte
 	stopEPCJ        bool
 }
 
@@ -62,13 +62,13 @@ func NewMemcachedJob(conf *MemcachedJobConfig, sc *sigmaclnt.SigmaClnt, epcj *ep
 }
 
 func newMemcachedJob(conf *MemcachedJobConfig, sc *sigmaclnt.SigmaClnt, epcj *epsrv.EPCacheJob, stopEPCJ bool) (*MemcachedJob, error) {
-	var bootScript []byte
-	var bootScriptInput []byte
+	var coSandbox []byte
+	var coSandboxInput []byte
 	var err error
 
 	// If using init script, read boot script and prepare input
-	if conf.UseInitScript {
-		bootScript, err = GetBootScript(sc)
+	if conf.UseCoSandbox {
+		coSandbox, err = GetCoSandbox(sc)
 		if err != nil {
 			db.DPrintf(db.ERROR, "Err read boot script: %v", err)
 			return nil, err
@@ -79,9 +79,9 @@ func newMemcachedJob(conf *MemcachedJobConfig, sc *sigmaclnt.SigmaClnt, epcj *ep
 		bucket := splitFN[0]
 		key := filepath.Join(splitFN[1:]...)
 
-		bootScriptInput, err = GetBootScriptInput(bucket, key, sp.LOCAL)
+		coSandboxInput, err = GetCoSandboxInput(bucket, key, sp.LOCAL)
 		if err != nil {
-			db.DPrintf(db.ERROR, "Err GetBootScriptInput: %v", err)
+			db.DPrintf(db.ERROR, "Err GetCoSandboxInput: %v", err)
 			return nil, err
 		}
 	}
@@ -90,8 +90,8 @@ func newMemcachedJob(conf *MemcachedJobConfig, sc *sigmaclnt.SigmaClnt, epcj *ep
 		conf:            conf,
 		SigmaClnt:       sc,
 		EPCacheJob:      epcj,
-		bootScript:      bootScript,
-		bootScriptInput: bootScriptInput,
+		coSandbox:      coSandbox,
+		coSandboxInput: coSandboxInput,
 		stopEPCJ:        stopEPCJ,
 	}, nil
 }
@@ -108,10 +108,10 @@ func (j *MemcachedJob) Start(sigmaPath string) error {
 	// Set MCPU
 	p.SetMcpu(j.conf.Mcpu)
 	// Configure proc environment
-	p.GetProcEnv().UseSPProxy = j.conf.UseInitScript
+	p.GetProcEnv().UseSPProxy = j.conf.UseCoSandbox
 	p.GetProcEnv().SetShmemMB(SHMEM_MB)
-	p.SetBootScript(j.bootScript, j.bootScriptInput)
-	p.SetRunBootScript(j.conf.UseInitScript)
+	p.SetCoSandbox(j.coSandbox, j.coSandboxInput)
+	p.SetRunCoSandbox(j.conf.UseCoSandbox)
 	// Set the proc's sigma path
 	if sigmaPath != sp.NOT_SET {
 		p.PrependSigmaPath(sigmaPath)
@@ -162,6 +162,6 @@ func (j *MemcachedJob) GetProc() *proc.Proc {
 }
 
 func (cfg *MemcachedJobConfig) String() string {
-	return fmt.Sprintf("&{ job:%v snapshot:%v port:%v useInitScript:%v mcpu:%v }",
-		cfg.Job, cfg.SnapshotPath, cfg.Port, cfg.UseInitScript, cfg.Mcpu)
+	return fmt.Sprintf("&{ job:%v snapshot:%v port:%v useCoSandbox:%v mcpu:%v }",
+		cfg.Job, cfg.SnapshotPath, cfg.Port, cfg.UseCoSandbox, cfg.Mcpu)
 }
