@@ -54,6 +54,11 @@ _lib.sigmaos_s3_delegated_get_object.restype = ctypes.c_void_p
 _lib.sigmaos_s3_delegated_get_object.argtypes = [ctypes.c_void_p, ctypes.c_uint64,
                                                   ctypes.POINTER(ctypes.c_size_t)]
 
+# sigmaos_s3_delegated_get_object_view
+_lib.sigmaos_s3_delegated_get_object_view.restype = ctypes.c_void_p
+_lib.sigmaos_s3_delegated_get_object_view.argtypes = [ctypes.c_void_p, ctypes.c_uint64,
+                                                       ctypes.POINTER(ctypes.c_size_t)]
+
 # sigmaos_ux_get_file
 _lib.sigmaos_ux_get_file.restype = ctypes.c_void_p
 _lib.sigmaos_ux_get_file.argtypes = [ctypes.c_void_p, ctypes.c_char_p,
@@ -68,6 +73,11 @@ _lib.sigmaos_ux_put_file.argtypes = [ctypes.c_void_p, ctypes.c_char_p,
 _lib.sigmaos_ux_delegated_get_file.restype = ctypes.c_void_p
 _lib.sigmaos_ux_delegated_get_file.argtypes = [ctypes.c_void_p, ctypes.c_uint64,
                                                 ctypes.POINTER(ctypes.c_size_t)]
+
+# sigmaos_ux_delegated_get_file_view
+_lib.sigmaos_ux_delegated_get_file_view.restype = ctypes.c_void_p
+_lib.sigmaos_ux_delegated_get_file_view.argtypes = [ctypes.c_void_p, ctypes.c_uint64,
+                                                     ctypes.POINTER(ctypes.c_size_t)]
 
 # sigmaos_last_error
 _lib.sigmaos_last_error.restype = ctypes.c_char_p
@@ -130,6 +140,15 @@ class SigmaosClnt:
         finally:
             _lib.sigmaos_free_buf(ptr)
 
+    def s3_delegated_get_object_view(self, rpc_idx: int) -> memoryview:
+        out_len = ctypes.c_size_t(0)
+        ptr = _lib.sigmaos_s3_delegated_get_object_view(self._clnt, rpc_idx,
+                                                         ctypes.byref(out_len))
+        if not ptr:
+            raise RuntimeError(f"sigmaos_s3_delegated_get_object_view({rpc_idx}) failed: {_last_error()}")
+        arr = (ctypes.c_char * out_len.value).from_address(ptr)
+        return memoryview(arr)
+
     def s3_delegated_get_object(self, rpc_idx: int) -> bytes:
         out_len = ctypes.c_size_t(0)
         ptr = _lib.sigmaos_s3_delegated_get_object(self._clnt, rpc_idx,
@@ -157,6 +176,15 @@ class SigmaosClnt:
             return bytes(ctypes.cast(ptr, ctypes.POINTER(ctypes.c_char * out_len.value)).contents)
         finally:
             _lib.sigmaos_free_buf(ptr)
+
+    def ux_delegated_get_file_view(self, rpc_idx: int) -> memoryview:
+        out_len = ctypes.c_size_t(0)
+        ptr = _lib.sigmaos_ux_delegated_get_file_view(self._clnt, rpc_idx,
+                                                       ctypes.byref(out_len))
+        if not ptr:
+            raise RuntimeError(f"sigmaos_ux_delegated_get_file_view({rpc_idx}) failed: {_last_error()}")
+        arr = (ctypes.c_char * out_len.value).from_address(ptr)
+        return memoryview(arr)
 
     def ux_delegated_get_file(self, rpc_idx: int) -> bytes:
         out_len = ctypes.c_size_t(0)

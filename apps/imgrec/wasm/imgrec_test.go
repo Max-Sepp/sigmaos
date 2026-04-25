@@ -108,6 +108,48 @@ func TestImgrec(t *testing.T) {
 	imgrectestutil.AssertMatchesReference(t, msg, ref)
 }
 
+func TestImgrecWASMCoSandboxShmem(t *testing.T) {
+	mrts, err := test.NewMultiRealmTstate(t, []sp.Trealm{test.REALM1})
+	if !assert.Nil(t, err, "Error New Tstate: %v", err) {
+		return
+	}
+	defer mrts.Shutdown()
+
+	rts := mrts.GetRealm(test.REALM1)
+	ref := imgrectestutil.GetReferenceOutput(t, rts.FsLib, IMG_BUCKET, IMG_KEY, MODEL_BUCKET, MODEL_KEY, KID)
+
+	coSandbox := getImgrecCoSandbox(t, rts.SigmaClnt)
+	bootInput := wasmrt.EncodeArgs([]string{IMG_BUCKET, IMG_KEY, MODEL_BUCKET, MODEL_KEY, KID})
+	precompiledBinPath := uploadImgrecBin(t, rts)
+
+	p := proc.NewProc(PRECOMPILED_PROG, []string{
+		IMG_BUCKET, IMG_KEY,
+		MODEL_BUCKET, MODEL_KEY,
+		KID, "true", // use_delegated=true
+	})
+	p.GetProcEnv().UseSPProxy = true
+	p.SetProcContainerType(proc.ProcContainerType_PROC_CTR_WASM)
+	p.SetCoSandbox(coSandbox, bootInput)
+	p.SetRunCoSandbox(true)
+	p.SetShmemMB(proc.Tmem(32))
+	// XXX hack, remove eventually
+	p.PrependSigmaPath(filepath.Dir(precompiledBinPath))
+
+	err = rts.Spawn(p)
+	assert.Nil(t, err, "Spawn")
+
+	err = rts.WaitStart(p.GetPid())
+	assert.Nil(t, err, "WaitStart error")
+
+	status, err := rts.WaitExit(p.GetPid())
+	assert.Nil(t, err, "WaitExit error %v", err)
+	assert.True(t, status.IsStatusOK(), "WaitExit status error: %v", status)
+
+	msg := status.Msg()
+	db.DPrintf(db.TEST, "imgrec pred: %v", msg)
+	imgrectestutil.AssertMatchesReference(t, msg, ref)
+}
+
 func TestImgrecWASMCoSandbox(t *testing.T) {
 	mrts, err := test.NewMultiRealmTstate(t, []sp.Trealm{test.REALM1})
 	if !assert.Nil(t, err, "Error New Tstate: %v", err) {

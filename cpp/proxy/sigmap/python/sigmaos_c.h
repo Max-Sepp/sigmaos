@@ -51,6 +51,13 @@ int sigmaos_s3_put_object(SigmaosClnt clnt, const char* bucket, const char* key,
 char* sigmaos_s3_delegated_get_object(SigmaosClnt clnt, uint64_t rpc_idx,
                                       size_t* out_len);
 
+// Returns pointer into the delegated reply buffer (no malloc, no free needed),
+// or NULL on error. Valid for the proc's lifetime. The client retains ownership
+// of the underlying DelegatedBuf; callers must not free the returned pointer.
+const char* sigmaos_s3_delegated_get_object_view(SigmaosClnt clnt,
+                                                  uint64_t rpc_idx,
+                                                  size_t* out_len);
+
 // Returns malloc'd buffer of *out_len bytes, or NULL on error.
 // Caller must free with sigmaos_free_buf().
 char* sigmaos_ux_get_file(SigmaosClnt clnt, const char* path, size_t* out_len);
@@ -63,6 +70,13 @@ int sigmaos_ux_put_file(SigmaosClnt clnt, const char* path, const char* data,
 // Caller must free with sigmaos_free_buf().
 char* sigmaos_ux_delegated_get_file(SigmaosClnt clnt, uint64_t rpc_idx,
                                     size_t* out_len);
+
+// Returns pointer into the delegated reply buffer (no malloc, no free needed),
+// or NULL on error. Valid for the proc's lifetime. The client retains ownership
+// of the underlying DelegatedBuf; callers must not free the returned pointer.
+const char* sigmaos_ux_delegated_get_file_view(SigmaosClnt clnt,
+                                               uint64_t rpc_idx,
+                                               size_t* out_len);
 
 // Returns a thread-local string describing the last error, or "" if none.
 const char* sigmaos_last_error();

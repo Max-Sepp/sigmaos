@@ -38,8 +38,10 @@ def main():
     img_bucket, img_key, model_bucket, model_key, _kid = sys.argv[1:]
 
     if clnt.get_run_co_sandbox():
-        img_bytes   = clnt.s3_delegated_get_object(1)
-        model_bytes = clnt.s3_delegated_get_object(0)
+        # Zero-copy path: memoryviews backed by shmem, valid for proc lifetime.
+        # PIL/BytesIO accept memoryview directly; ORT requires bytes (one copy).
+        img_bytes   = clnt.s3_delegated_get_object_view(1)
+        model_bytes = bytes(clnt.s3_delegated_get_object_view(0))
     else:
         img_bytes   = clnt.s3_get_object(img_bucket, img_key)
         model_bytes = clnt.s3_get_object(model_bucket, model_key)

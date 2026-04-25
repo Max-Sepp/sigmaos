@@ -11,11 +11,12 @@ Clnt::Clnt(std::shared_ptr<sigmaos::proxy::sigmap::Clnt> sp_clnt,
     : _sp_clnt(sp_clnt) {
   auto chan =
       std::make_shared<sigmaos::rpc::spchannel::Channel>(svc_pn, sp_clnt);
-  _rpcc =
-      std::make_shared<sigmaos::rpc::Clnt>(chan, sp_clnt->GetSPProxyChannel());
+  _rpcc = std::make_shared<sigmaos::rpc::Clnt>(chan, sp_clnt->GetSPProxyChannel(),
+                                               sp_clnt->GetShmemSegment());
 }
 
-std::expected<std::shared_ptr<std::string>, sigmaos::serr::Error>
+std::expected<std::shared_ptr<sigmaos::proxy::buf::DataBuf>,
+              sigmaos::serr::Error>
 Clnt::GetObject(std::string bucket, std::string key, bool cache) {
   log(S3CLNT, "GetObject bucket:{} key:{}", bucket, key);
   S3Req req;
@@ -33,25 +34,24 @@ Clnt::GetObject(std::string bucket, std::string key, bool cache) {
     return std::unexpected(res.error());
   }
   log(S3CLNT, "GetObject ok bucket:{} key:{} len:{}", bucket, key, s->size());
-  return s;
+  return std::make_shared<sigmaos::proxy::buf::DataBuf>(std::move(s));
 }
 
-std::expected<
-    std::pair<std::shared_ptr<std::string>, google::protobuf::Timestamp>,
-    sigmaos::serr::Error>
+std::expected<std::shared_ptr<sigmaos::proxy::buf::DataBuf>,
+              sigmaos::serr::Error>
 Clnt::DelegatedGetObject(uint64_t rpc_idx) {
   log(S3CLNT, "DelegatedGetObject rpc_idx:{}", rpc_idx);
   S3Rep rep;
   Blob blob;
-  std::shared_ptr<std::string> s;
+  std::shared_ptr<std::string> owned;
   std::shared_ptr<std::vector<std::shared_ptr<std::string_view>>> views =
       nullptr;
   if (_sp_clnt->ProcEnv()->GetUseShmem()) {
     views = std::make_shared<std::vector<std::shared_ptr<std::string_view>>>();
     views->push_back(std::make_shared<std::string_view>());
   } else {
-    s = std::make_shared<std::string>();
-    blob.mutable_iov()->AddAllocated(s.get());
+    owned = std::make_shared<std::string>();
+    blob.mutable_iov()->AddAllocated(owned.get());
   }
   rep.set_allocated_blob(&blob);
   auto res = _rpcc->DelegatedRPC(rpc_idx, rep, views);
@@ -59,12 +59,14 @@ Clnt::DelegatedGetObject(uint64_t rpc_idx) {
     log(S3CLNT_ERR, "Err DelegatedGetObject: {}", res.error().String());
     return std::unexpected(res.error());
   }
+  std::shared_ptr<sigmaos::proxy::buf::DataBuf> dbuf;
   if (_sp_clnt->ProcEnv()->GetUseShmem()) {
-    auto& view = *views->at(0);
-    s = std::make_shared<std::string>(view.data(), view.size());
+    dbuf = std::make_shared<sigmaos::proxy::buf::DataBuf>(*views->at(0));
+  } else {
+    dbuf = std::make_shared<sigmaos::proxy::buf::DataBuf>(std::move(owned));
   }
-  log(S3CLNT, "DelegatedGetObject ok rpc_idx:{} len:{}", rpc_idx, s->size());
-  return std::make_pair(s, res.value());
+  log(S3CLNT, "DelegatedGetObject ok rpc_idx:{} len:{}", rpc_idx, dbuf->size());
+  return dbuf;
 }
 
 std::expected<int, sigmaos::serr::Error> Clnt::PutObject(std::string bucket,

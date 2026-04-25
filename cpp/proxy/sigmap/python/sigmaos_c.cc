@@ -1,10 +1,12 @@
 #include <proc/status.h>
+#include <proxy/buf/buf.h>
 #include <proxy/s3/clnt.h>
 #include <proxy/sigmap/python/sigmaos_c.h>
 #include <proxy/sigmap/sigmap.h>
 #include <proxy/ux/clnt.h>
 
 #include <cstring>
+#include <map>
 #include <memory>
 #include <string>
 
@@ -12,6 +14,9 @@ struct SigmaosClntState {
   std::shared_ptr<sigmaos::proxy::sigmap::Clnt> sp;
   std::shared_ptr<sigmaos::proxy::s3::Clnt> s3;
   std::shared_ptr<sigmaos::proxy::ux::Clnt> ux;
+  // Keeps DataBuf alive while Python holds a memoryview into its data.
+  std::map<uint64_t, std::shared_ptr<sigmaos::proxy::buf::DataBuf>>
+      data_bufs;
 };
 
 static SigmaosClntState* state(SigmaosClnt clnt) {
@@ -105,6 +110,7 @@ char* sigmaos_get_file(SigmaosClnt clnt, const char* pn, size_t* out_len) {
   return buf;
 }
 
+
 void sigmaos_free_buf(char* buf) { free(buf); }
 
 int sigmaos_put_file(SigmaosClnt clnt, const char* pn, unsigned int perm,
@@ -162,13 +168,30 @@ char* sigmaos_s3_delegated_get_object(SigmaosClnt clnt, uint64_t rpc_idx,
     *out_len = 0;
     return nullptr;
   }
-  auto& s = res.value().first;
-  *out_len = s->size();
-  char* buf = static_cast<char*>(malloc(s->size()));
+  auto& dbuf = res.value();
+  *out_len = dbuf->size();
+  char* buf = static_cast<char*>(malloc(dbuf->size()));
   if (buf) {
-    memcpy(buf, s->data(), s->size());
+    memcpy(buf, dbuf->data(), dbuf->size());
   }
   return buf;
+}
+
+const char* sigmaos_s3_delegated_get_object_view(SigmaosClnt clnt,
+                                                  uint64_t rpc_idx,
+                                                  size_t* out_len) {
+  clear_error();
+  auto res = s3_clnt(state(clnt))->DelegatedGetObject(rpc_idx);
+  if (!res.has_value()) {
+    set_error(res.error().String());
+    *out_len = 0;
+    return nullptr;
+  }
+  auto dbuf = std::move(res.value());
+  *out_len = dbuf->size();
+  const char* ptr = dbuf->data();
+  state(clnt)->data_bufs[rpc_idx] = std::move(dbuf);
+  return ptr;
 }
 
 char* sigmaos_ux_get_file(SigmaosClnt clnt, const char* path, size_t* out_len) {
@@ -209,13 +232,30 @@ char* sigmaos_ux_delegated_get_file(SigmaosClnt clnt, uint64_t rpc_idx,
     *out_len = 0;
     return nullptr;
   }
-  auto& s = res.value().first;
-  *out_len = s->size();
-  char* buf = static_cast<char*>(malloc(s->size()));
+  auto& dbuf = res.value();
+  *out_len = dbuf->size();
+  char* buf = static_cast<char*>(malloc(dbuf->size()));
   if (buf) {
-    memcpy(buf, s->data(), s->size());
+    memcpy(buf, dbuf->data(), dbuf->size());
   }
   return buf;
+}
+
+const char* sigmaos_ux_delegated_get_file_view(SigmaosClnt clnt,
+                                               uint64_t rpc_idx,
+                                               size_t* out_len) {
+  clear_error();
+  auto res = ux_clnt(state(clnt))->DelegatedGetFile(rpc_idx);
+  if (!res.has_value()) {
+    set_error(res.error().String());
+    *out_len = 0;
+    return nullptr;
+  }
+  auto dbuf = std::move(res.value());
+  *out_len = dbuf->size();
+  const char* ptr = dbuf->data();
+  state(clnt)->data_bufs[rpc_idx] = std::move(dbuf);
+  return ptr;
 }
 
 const char* sigmaos_last_error() { return tl_last_error.c_str(); }

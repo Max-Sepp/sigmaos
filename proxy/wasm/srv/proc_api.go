@@ -40,8 +40,7 @@ func NewWASMProcAPIImpl(ws *WASMSrv, sc *sigmaclnt.SigmaClnt, p *proc.Proc, rpcR
 		sc:      sc,
 		p:       p,
 		rpcReps: rpcReps,
-		// TODO(shmem): pass shmem segment once wasmd shmem support is wired up.
-		dc: delegatedrpcclnt.NewClnt(sc.FsLib, nil),
+		dc: delegatedrpcclnt.NewClnt(sc.FsLib),
 	}
 	impl.cond = sync.NewCond(&impl.mu)
 	return impl

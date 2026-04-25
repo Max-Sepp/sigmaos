@@ -1,6 +1,6 @@
 #pragma once
 
-#include <google/protobuf/timestamp.pb.h>
+#include <proxy/buf/buf.h>
 #include <proxy/sigmap/sigmap.h>
 #include <proxy/ux/proto/ux.pb.h>
 #include <rpc/clnt.h>
@@ -11,7 +11,6 @@
 #include <expected>
 #include <memory>
 #include <string>
-#include <utility>
 
 namespace sigmaos {
 namespace proxy::ux {
@@ -25,13 +24,12 @@ class Clnt {
        std::string svc_pn);
   ~Clnt() {}
 
-  std::expected<std::shared_ptr<std::string>, sigmaos::serr::Error> GetFile(
-      std::string path);
+  std::expected<std::shared_ptr<sigmaos::proxy::buf::DataBuf>,
+                sigmaos::serr::Error>
+  GetFile(std::string path);
 
-  // Returns (data, transfer_start_timestamp) on success.
-  std::expected<
-      std::pair<std::shared_ptr<std::string>, google::protobuf::Timestamp>,
-      sigmaos::serr::Error>
+  std::expected<std::shared_ptr<sigmaos::proxy::buf::DataBuf>,
+                sigmaos::serr::Error>
   DelegatedGetFile(uint64_t rpc_idx);
 
   std::expected<int, sigmaos::serr::Error> PutFile(std::string path,
