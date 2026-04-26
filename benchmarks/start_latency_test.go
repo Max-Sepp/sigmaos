@@ -16,6 +16,8 @@ import (
 	cossimsrv "sigmaos/apps/cossim/srv"
 	epsrv "sigmaos/apps/epcache/srv"
 	"sigmaos/apps/etcd"
+	imgrec_py "sigmaos/apps/imgrec/py"
+	imgrec_wasm "sigmaos/apps/imgrec/wasm"
 	"sigmaos/apps/memcached"
 	"sigmaos/benchmarks"
 	db "sigmaos/debug"
@@ -29,38 +31,44 @@ import (
 
 type StartLatencyJobInstance struct {
 	*test.RealmTstate
-	jobName      string
-	cfg          *benchmarks.StartLatencyBenchConfig
-	cacheCfg     *benchmarks.CacheBenchConfig
-	cossimCfg    *benchmarks.CosSimBenchConfig
-	etcdCfg      *benchmarks.EtcdBenchConfig
-	memcachedCfg *benchmarks.MemcachedBenchConfig
-	ready        chan bool
-	epcj         *epsrv.EPCacheJob
-	cacheJob     *cachegrpmgr.CacheMgr
-	msc          *mschedclnt.MSchedClnt
-	cacheClnt    *cachegrpclnt.CachedSvcClnt
-	cossimJob    *cossimsrv.CosSimJob
-	cossimClnt   *cossimclnt.CosSimShardClnt
-	etcdJob      *etcd.EtcdJob
-	memcachedJob *memcached.MemcachedJob
-	sleeperProc  *proc.Proc
-	keys         []string
-	vals         []*cacheproto.CacheString
-	needCached   bool
-	warmSrvKID   string
+	jobName       string
+	cfg           *benchmarks.StartLatencyBenchConfig
+	cacheCfg      *benchmarks.CacheBenchConfig
+	cossimCfg     *benchmarks.CosSimBenchConfig
+	etcdCfg       *benchmarks.EtcdBenchConfig
+	memcachedCfg  *benchmarks.MemcachedBenchConfig
+	imgrecPyCfg   *benchmarks.ImgrecPyBenchConfig
+	imgrecWASMCfg *benchmarks.ImgrecWASMBenchConfig
+	ready         chan bool
+	epcj          *epsrv.EPCacheJob
+	cacheJob      *cachegrpmgr.CacheMgr
+	msc           *mschedclnt.MSchedClnt
+	cacheClnt     *cachegrpclnt.CachedSvcClnt
+	cossimJob     *cossimsrv.CosSimJob
+	cossimClnt    *cossimclnt.CosSimShardClnt
+	etcdJob       *etcd.EtcdJob
+	memcachedJob  *memcached.MemcachedJob
+	imgrecPyJob   *imgrec_py.ImgrecPyJob
+	imgrecWASMJob *imgrec_wasm.ImgrecWASMJob
+	sleeperProc   *proc.Proc
+	keys          []string
+	vals          []*cacheproto.CacheString
+	needCached    bool
+	warmSrvKID    string
 }
 
-func NewStartLatencyJob(ts *test.RealmTstate, cfg *benchmarks.StartLatencyBenchConfig, cacheCfg *benchmarks.CacheBenchConfig, cossimCfg *benchmarks.CosSimBenchConfig, etcdCfg *benchmarks.EtcdBenchConfig, memcachedCfg *benchmarks.MemcachedBenchConfig) *StartLatencyJobInstance {
+func NewStartLatencyJob(ts *test.RealmTstate, cfg *benchmarks.StartLatencyBenchConfig, cacheCfg *benchmarks.CacheBenchConfig, cossimCfg *benchmarks.CosSimBenchConfig, etcdCfg *benchmarks.EtcdBenchConfig, memcachedCfg *benchmarks.MemcachedBenchConfig, imgrecPyCfg *benchmarks.ImgrecPyBenchConfig, imgrecWASMCfg *benchmarks.ImgrecWASMBenchConfig) *StartLatencyJobInstance {
 	ji := &StartLatencyJobInstance{
-		RealmTstate:  ts,
-		jobName:      "start-latency",
-		cfg:          cfg,
-		cacheCfg:     cacheCfg,
-		cossimCfg:    cossimCfg,
-		etcdCfg:      etcdCfg,
-		memcachedCfg: memcachedCfg,
-		ready:        make(chan bool),
+		RealmTstate:   ts,
+		jobName:       "start-latency",
+		cfg:           cfg,
+		cacheCfg:      cacheCfg,
+		cossimCfg:     cossimCfg,
+		etcdCfg:       etcdCfg,
+		memcachedCfg:  memcachedCfg,
+		imgrecPyCfg:   imgrecPyCfg,
+		imgrecWASMCfg: imgrecWASMCfg,
+		ready:         make(chan bool),
 	}
 	ji.msc = mschedclnt.NewMSchedClnt(ts.SigmaClnt.FsLib, sp.NOT_SET)
 	// Create a sleeper proc, which will block off a machine which can be used to
@@ -152,6 +160,16 @@ func NewStartLatencyJob(ts *test.RealmTstate, cfg *benchmarks.StartLatencyBenchC
 		if !assert.Nil(ts.Ts.T, err, "Err new etcd job: %v", err) {
 			return ji
 		}
+	case "imgrec-py":
+		ji.imgrecPyJob, err = imgrec_py.NewImgrecPyJob(ji.imgrecPyCfg.JobCfg, ts.SigmaClnt)
+		if !assert.Nil(ts.Ts.T, err, "Err new imgrec-py job: %v", err) {
+			return ji
+		}
+	case "imgrec-wasm":
+		ji.imgrecWASMJob, err = imgrec_wasm.NewImgrecWASMJob(ji.imgrecWASMCfg.JobCfg, ts.SigmaClnt)
+		if !assert.Nil(ts.Ts.T, err, "Err new imgrec-wasm job: %v", err) {
+			return ji
+		}
 	case "memcached":
 		// Create memcached job
 		ji.memcachedJob, err = memcached.NewMemcachedJob(ji.memcachedCfg.JobCfg, ts.SigmaClnt, ji.epcj)
@@ -201,6 +219,16 @@ func (ji *StartLatencyJobInstance) RunJob(rs *benchmarks.Results, crash bool) bo
 			return false
 		}
 		db.DPrintf(db.BENCH, "Cossim server started")
+	case "imgrec-py":
+		if _, err := ji.imgrecPyJob.Run(); !assert.Nil(ji.Ts.T, err, "Err run imgrec-py: %v", err) {
+			return false
+		}
+		db.DPrintf(db.BENCH, "imgrec-py ran")
+	case "imgrec-wasm":
+		if _, err := ji.imgrecWASMJob.Run(); !assert.Nil(ji.Ts.T, err, "Err run imgrec-wasm: %v", err) {
+			return false
+		}
+		db.DPrintf(db.BENCH, "imgrec-wasm ran")
 	case "etcd":
 		// Start etcd
 		if err := ji.etcdJob.Start(chunk.ChunkdPath(ji.warmSrvKID)); !assert.Nil(ji.Ts.T, err, "Err start etcd: %v", err) {

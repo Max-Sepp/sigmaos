@@ -8,6 +8,8 @@ import (
 	cossimsrv "sigmaos/apps/cossim/srv"
 	"sigmaos/apps/etcd"
 	"sigmaos/apps/hotel"
+	imgrec_py "sigmaos/apps/imgrec/py"
+	imgrec_wasm "sigmaos/apps/imgrec/wasm"
 	"sigmaos/apps/imgresize"
 	"sigmaos/apps/memcached"
 	"sigmaos/proc"
@@ -163,6 +165,31 @@ var DefaultMemcachedBenchConfig = &MemcachedBenchConfig{
 		Mcpu:          proc.Tmcpu(1000),
 	},
 	Cache: false,
+}
+
+var DefaultImgrecPyBenchConfig = &ImgrecPyBenchConfig{
+	JobCfg: &imgrec_py.ImgrecPyJobConfig{
+		ImgBucket:    "9ps3",
+		ImgKey:       "img-save/8.jpg",
+		ModelBucket:  "9ps3",
+		ModelKey:     "mobilenetv2-12.onnx",
+		Kid:          "~local",
+		UseCoSandbox: false,
+		ShmemMB:      proc.Tmem(0),
+	},
+}
+
+var DefaultImgrecWASMBenchConfig = &ImgrecWASMBenchConfig{
+	JobCfg: &imgrec_wasm.ImgrecWASMJobConfig{
+		ImgBucket:    "9ps3",
+		ImgKey:       "img-save/8.jpg",
+		ModelBucket:  "9ps3",
+		ModelKey:     "mobilenetv2-12.onnx",
+		Kid:          "~local",
+		UseDelegated: false,
+		UseCoSandbox: false,
+		ShmemMB:      proc.Tmem(0),
+	},
 }
 
 var DefaultStartLatencyBenchConfig = &StartLatencyBenchConfig{

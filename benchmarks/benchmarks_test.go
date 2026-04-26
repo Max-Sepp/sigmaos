@@ -1902,7 +1902,7 @@ func TestStartLatency(t *testing.T) {
 	defer p.Done()
 
 	rs := benchmarks.NewResults(1, benchmarks.E2E)
-	jobs, ji := newStartLatencyJobs(mrts.GetRealm(REALM1), StartLatencyBenchConfig, CacheBenchConfig, CosSimBenchConfig, EtcdBenchConfig, MemcachedBenchConfig)
+	jobs, ji := newStartLatencyJobs(mrts.GetRealm(REALM1), StartLatencyBenchConfig, CacheBenchConfig, CosSimBenchConfig, EtcdBenchConfig, MemcachedBenchConfig, ImgrecPyBenchConfig, ImgrecWASMBenchConfig)
 	go func() {
 		for _, j := range jobs {
 			// Wait until ready

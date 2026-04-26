@@ -17,6 +17,8 @@ var HotelBenchConfig *benchmarks.HotelBenchConfig
 var ImgBenchConfig *benchmarks.ImgBenchConfig
 var EtcdBenchConfig *benchmarks.EtcdBenchConfig
 var MemcachedBenchConfig *benchmarks.MemcachedBenchConfig
+var ImgrecPyBenchConfig *benchmarks.ImgrecPyBenchConfig
+var ImgrecWASMBenchConfig *benchmarks.ImgrecWASMBenchConfig
 var StartLatencyBenchConfig *benchmarks.StartLatencyBenchConfig
 
 var cossimBenchCfgStr string
@@ -25,6 +27,8 @@ var hotelBenchCfgStr string
 var imgBenchCfgStr string
 var etcdBenchCfgStr string
 var memcachedBenchCfgStr string
+var imgrecPyBenchCfgStr string
+var imgrecWASMBenchCfgStr string
 var startLatencyBenchCfgStr string
 
 func init() {
@@ -34,6 +38,8 @@ func init() {
 	flag.StringVar(&imgBenchCfgStr, "img_bench_cfg", sp.NOT_SET, "JSON string for ImgBenchConfig")
 	flag.StringVar(&etcdBenchCfgStr, "etcd_bench_cfg", sp.NOT_SET, "JSON string for EtcdBenchConfig")
 	flag.StringVar(&memcachedBenchCfgStr, "memcached_bench_cfg", sp.NOT_SET, "JSON string for MemcachedBenchConfig")
+	flag.StringVar(&imgrecPyBenchCfgStr, "imgrec_py_bench_cfg", sp.NOT_SET, "JSON string for ImgrecPyBenchConfig")
+	flag.StringVar(&imgrecWASMBenchCfgStr, "imgrec_wasm_bench_cfg", sp.NOT_SET, "JSON string for ImgrecWASMBenchConfig")
 	flag.StringVar(&startLatencyBenchCfgStr, "start_latency_bench_cfg", sp.NOT_SET, "JSON string for StartLatencyBenchConfig")
 }
 
@@ -112,6 +118,30 @@ func TestMain(m *testing.M) {
 		db.DPrintf(db.ALWAYS, "Loaded MemcachedBenchConfig")
 	}
 
+	// Parse ImgrecPyBenchConfig
+	if imgrecPyBenchCfgStr == sp.NOT_SET {
+		ImgrecPyBenchConfig = benchmarks.DefaultImgrecPyBenchConfig
+		db.DPrintf(db.ALWAYS, "Using default ImgrecPyBenchConfig")
+	} else {
+		err := json.Unmarshal([]byte(imgrecPyBenchCfgStr), &ImgrecPyBenchConfig)
+		if err != nil {
+			db.DFatalf("Error unmarshaling imgrec_py_bench_cfg: %v", err)
+		}
+		db.DPrintf(db.ALWAYS, "Loaded ImgrecPyBenchConfig")
+	}
+
+	// Parse ImgrecWASMBenchConfig
+	if imgrecWASMBenchCfgStr == sp.NOT_SET {
+		ImgrecWASMBenchConfig = benchmarks.DefaultImgrecWASMBenchConfig
+		db.DPrintf(db.ALWAYS, "Using default ImgrecWASMBenchConfig")
+	} else {
+		err := json.Unmarshal([]byte(imgrecWASMBenchCfgStr), &ImgrecWASMBenchConfig)
+		if err != nil {
+			db.DFatalf("Error unmarshaling imgrec_wasm_bench_cfg: %v", err)
+		}
+		db.DPrintf(db.ALWAYS, "Loaded ImgrecWASMBenchConfig")
+	}
+
 	// Parse StartLatencyBenchConfig
 	if startLatencyBenchCfgStr == sp.NOT_SET {
 		StartLatencyBenchConfig = benchmarks.DefaultStartLatencyBenchConfig
@@ -165,6 +195,18 @@ func TestMain(m *testing.M) {
 		db.DFatalf("Error marshaling MemcachedBenchConfig: %v", err)
 	}
 	db.DPrintf(db.ALWAYS, "MemcachedBenchConfig:\n%s", string(memcachedJSON))
+
+	imgrecPyJSON, err := json.MarshalIndent(ImgrecPyBenchConfig, "", "  ")
+	if err != nil {
+		db.DFatalf("Error marshaling ImgrecPyBenchConfig: %v", err)
+	}
+	db.DPrintf(db.ALWAYS, "ImgrecPyBenchConfig:\n%s", string(imgrecPyJSON))
+
+	imgrecWASMJSON, err := json.MarshalIndent(ImgrecWASMBenchConfig, "", "  ")
+	if err != nil {
+		db.DFatalf("Error marshaling ImgrecWASMBenchConfig: %v", err)
+	}
+	db.DPrintf(db.ALWAYS, "ImgrecWASMBenchConfig:\n%s", string(imgrecWASMJSON))
 
 	startLatencyJSON, err := json.MarshalIndent(StartLatencyBenchConfig, "", "  ")
 	if err != nil {

@@ -287,13 +287,13 @@ func newCachedScalerJobs(ts *test.RealmTstate, jobName string, cacheCfg *benchma
 
 // ========== Start Latency Helpers ==========
 
-func newStartLatencyJobs(ts *test.RealmTstate, cfg *benchmarks.StartLatencyBenchConfig, cacheCfg *benchmarks.CacheBenchConfig, cossimCfg *benchmarks.CosSimBenchConfig, etcdCfg *benchmarks.EtcdBenchConfig, memcachedCfg *benchmarks.MemcachedBenchConfig) ([]*StartLatencyJobInstance, []interface{}) {
+func newStartLatencyJobs(ts *test.RealmTstate, cfg *benchmarks.StartLatencyBenchConfig, cacheCfg *benchmarks.CacheBenchConfig, cossimCfg *benchmarks.CosSimBenchConfig, etcdCfg *benchmarks.EtcdBenchConfig, memcachedCfg *benchmarks.MemcachedBenchConfig, imgrecPyCfg *benchmarks.ImgrecPyBenchConfig, imgrecWASMCfg *benchmarks.ImgrecWASMBenchConfig) ([]*StartLatencyJobInstance, []interface{}) {
 	// n is ntrials, which is always 1.
 	n := 1
 	ws := make([]*StartLatencyJobInstance, 0, n)
 	is := make([]interface{}, 0, n)
 	for i := 0; i < n; i++ {
-		i := NewStartLatencyJob(ts, cfg, cacheCfg, cossimCfg, etcdCfg, memcachedCfg)
+		i := NewStartLatencyJob(ts, cfg, cacheCfg, cossimCfg, etcdCfg, memcachedCfg, imgrecPyCfg, imgrecWASMCfg)
 		ws = append(ws, i)
 		is = append(is, i)
 	}

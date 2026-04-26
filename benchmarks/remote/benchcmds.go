@@ -769,7 +769,7 @@ func GetCachedScalerClientCmdConstructor(leader bool, numClients int, prewarm bo
 	}
 }
 
-func GetStartLatencyCmdConstructor(startLatencyCfg *benchmarks.StartLatencyBenchConfig, cacheCfg *benchmarks.CacheBenchConfig, cossimCfg *benchmarks.CosSimBenchConfig, etcdCfg *benchmarks.EtcdBenchConfig, memcachedCfg *benchmarks.MemcachedBenchConfig, cosandbox bool, useGVisor bool) GetBenchCmdFn {
+func GetStartLatencyCmdConstructor(startLatencyCfg *benchmarks.StartLatencyBenchConfig, cacheCfg *benchmarks.CacheBenchConfig, cossimCfg *benchmarks.CosSimBenchConfig, etcdCfg *benchmarks.EtcdBenchConfig, memcachedCfg *benchmarks.MemcachedBenchConfig, imgrecPyCfg *benchmarks.ImgrecPyBenchConfig, imgrecWASMCfg *benchmarks.ImgrecWASMBenchConfig, cosandbox bool, useGVisor bool) GetBenchCmdFn {
 	return func(bcfg *BenchConfig, ccfg *ClusterConfig) string {
 		const (
 			debugSelectors string = "\"TEST;BENCH;SPAWN_LAT;PROXY_RPC_LAT;\""
@@ -803,6 +803,14 @@ func GetStartLatencyCmdConstructor(startLatencyCfg *benchmarks.StartLatencyBench
 		if err != nil {
 			db.DFatalf("Err marshal memcached config: %v", err)
 		}
+		imgrecPyCfgJSON, err := imgrecPyCfg.Marshal()
+		if err != nil {
+			db.DFatalf("Err marshal imgrec-py config: %v", err)
+		}
+		imgrecWASMCfgJSON, err := imgrecWASMCfg.Marshal()
+		if err != nil {
+			db.DFatalf("Err marshal imgrec-wasm config: %v", err)
+		}
 		return fmt.Sprintf("export SIGMADEBUG=%s; export SIGMAPERF=%s; go clean -testcache; "+
 			"ulimit -n 100000; "+
 			"./set-cores.sh --set 1 --start 2 --end 39 > /dev/null 2>&1 ; "+
@@ -813,6 +821,8 @@ func GetStartLatencyCmdConstructor(startLatencyCfg *benchmarks.StartLatencyBench
 			"--cossim_bench_cfg='%s' "+
 			"--etcd_bench_cfg='%s' "+
 			"--memcached_bench_cfg='%s' "+
+			"--imgrec_py_bench_cfg='%s' "+
+			"--imgrec_wasm_bench_cfg='%s' "+
 			"> /tmp/bench.out 2>&1 ;",
 			debugSelectors,
 			perfSelectors,
@@ -825,6 +835,8 @@ func GetStartLatencyCmdConstructor(startLatencyCfg *benchmarks.StartLatencyBench
 			cossimCfgJSON,
 			etcdCfgJSON,
 			memcachedCfgJSON,
+			imgrecPyCfgJSON,
+			imgrecWASMCfgJSON,
 		)
 	}
 }

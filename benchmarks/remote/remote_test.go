@@ -14,6 +14,8 @@ import (
 	cossimsrv "sigmaos/apps/cossim/srv"
 	"sigmaos/apps/etcd"
 	"sigmaos/apps/hotel"
+	imgrec_py "sigmaos/apps/imgrec/py"
+	imgrec_wasm "sigmaos/apps/imgrec/wasm"
 	"sigmaos/apps/imgresize"
 	"sigmaos/apps/memcached"
 	"sigmaos/benchmarks"
@@ -982,18 +984,18 @@ func TestLCBEHotelImgResizeMultiplexing(t *testing.T) {
 	}
 	imgCfg := &benchmarks.ImgBenchConfig{
 		JobCfg: &imgresize.ImgdJobConfig{
-			Job:                  "img-job",
-			WorkerMcpu:           proc.Tmcpu(0),
-			WorkerMem:            proc.Tmem(1500),
-			Persist:              false,
-			NRounds:              500,
-			ImgdMcpu:             proc.Tmcpu(1000),
-			UseSPProxy:           false,
+			Job:                 "img-job",
+			WorkerMcpu:          proc.Tmcpu(0),
+			WorkerMem:           proc.Tmem(1500),
+			Persist:             false,
+			NRounds:             500,
+			ImgdMcpu:            proc.Tmcpu(1000),
+			UseSPProxy:          false,
 			UseCoSandbox:        false,
-			UseS3Clnt:            false,
+			UseS3Clnt:           false,
 			WorkerCoSandboxMcpu: proc.Tmcpu(0),
 			WorkerCoSandboxMem:  proc.Tmem(0),
-			FTTaskSrvMcpu:        proc.Tmcpu(1000),
+			FTTaskSrvMcpu:       proc.Tmcpu(1000),
 		},
 		InputPath:      "name/ux/~local/8.jpg",
 		NTasks:         350,
@@ -1092,18 +1094,18 @@ func TestLCBEHotelImgResizeRPCMultiplexing(t *testing.T) {
 	}
 	imgCfg := &benchmarks.ImgBenchConfig{
 		JobCfg: &imgresize.ImgdJobConfig{
-			Job:                  "img-job",
-			WorkerMcpu:           proc.Tmcpu(0),
-			WorkerMem:            proc.Tmem(2500),
-			Persist:              false,
-			NRounds:              43,
-			ImgdMcpu:             proc.Tmcpu(1000),
-			UseSPProxy:           false,
+			Job:                 "img-job",
+			WorkerMcpu:          proc.Tmcpu(0),
+			WorkerMem:           proc.Tmem(2500),
+			Persist:             false,
+			NRounds:             43,
+			ImgdMcpu:            proc.Tmcpu(1000),
+			UseSPProxy:          false,
 			UseCoSandbox:        false,
-			UseS3Clnt:            false,
+			UseS3Clnt:           false,
 			WorkerCoSandboxMcpu: proc.Tmcpu(0),
 			WorkerCoSandboxMem:  proc.Tmem(0),
-			FTTaskSrvMcpu:        proc.Tmcpu(1000),
+			FTTaskSrvMcpu:       proc.Tmcpu(1000),
 		},
 		InputPath:      "name/ux/~local/8.jpg",
 		NTasks:         0,
@@ -1404,30 +1406,30 @@ func TestHotelMatchTailLatency(t *testing.T) {
 			// Finish
 			100 * time.Millisecond,
 		}
-		numCaches                        int           = 1
-		cacheType                        string        = "cached"
-		autoscaleCache                   bool          = false
-		clientDelay                      time.Duration = 0 * time.Second
-		sleep                            time.Duration = 0 * time.Second
-		manuallyScaleCaches              bool          = false
-		scaleCacheDelay                  time.Duration = 0 * time.Second
-		numCachesToAdd                   int           = 0
-		numGeo                           int           = 1
-		numGeoIdx                        int           = 1000
-		geoSearchRadius                  int           = 10
-		geoNResults                      int           = 5
-		manuallyScaleGeo                 bool          = false
-		scaleGeoDelay                    time.Duration = 0 * time.Second
-		numGeoToAdd                      int           = 0
-		useCoSandbox                    []bool        = []bool{true, false}
-		autoscaleCosSim                  bool          = false
-		fastLoadChange                   []bool        = []bool{false, true}
-		proactiveScaling                 bool          = true
+		numCaches                    int           = 1
+		cacheType                    string        = "cached"
+		autoscaleCache               bool          = false
+		clientDelay                  time.Duration = 0 * time.Second
+		sleep                        time.Duration = 0 * time.Second
+		manuallyScaleCaches          bool          = false
+		scaleCacheDelay              time.Duration = 0 * time.Second
+		numCachesToAdd               int           = 0
+		numGeo                       int           = 1
+		numGeoIdx                    int           = 1000
+		geoSearchRadius              int           = 10
+		geoNResults                  int           = 5
+		manuallyScaleGeo             bool          = false
+		scaleGeoDelay                time.Duration = 0 * time.Second
+		numGeoToAdd                  int           = 0
+		useCoSandbox                 []bool        = []bool{true, false}
+		autoscaleCosSim              bool          = false
+		fastLoadChange               []bool        = []bool{false, true}
+		proactiveScaling             bool          = true
 		cosSimNoCoSandboxScalingTime time.Duration = 85 * time.Millisecond
 		cosSimCoSandboxScalingTime   time.Duration = 50 * time.Millisecond
-		useMatchCaching                  bool          = true
-		migrate                          bool          = true
-		cachedUserFrac                   int64         = 70
+		useMatchCaching              bool          = true
+		migrate                      bool          = true
+		cachedUserFrac               int64         = 70
 	)
 	ts, err := NewTstate(t)
 	if !assert.Nil(ts.t, err, "Creating test state: %v", err) {
@@ -1650,22 +1652,22 @@ func TestImgProcess(t *testing.T) {
 						db.DPrintf(db.ALWAYS, "Benchmark configuration:\n%v", ts)
 						imgCfg := &benchmarks.ImgBenchConfig{
 							JobCfg: &imgresize.ImgdJobConfig{
-								Job:                   "img-job",
-								WorkerMcpu:            workerMcpu,
-								WorkerMem:             proc.Tmem(0),
-								Persist:               false,
-								NRounds:               nrounds,
-								ImgDim:                160,
-								ImgdMcpu:              imgdMcpu,
-								UseSPProxy:            true,
+								Job:                  "img-job",
+								WorkerMcpu:           workerMcpu,
+								WorkerMem:            proc.Tmem(0),
+								Persist:              false,
+								NRounds:              nrounds,
+								ImgDim:               160,
+								ImgdMcpu:             imgdMcpu,
+								UseSPProxy:           true,
 								UseCoSandbox:         cosandbox,
 								WriteOutViaCoSandbox: cosandboxWriteout,
-								UseS3Clnt:             true,
+								UseS3Clnt:            true,
 								WorkerCoSandboxMcpu:  bsMcpu,
 								WorkerCoSandboxMem:   proc.Tmem(0),
-								FTTaskSrvMcpu:         proc.Tmcpu(50),
-								PremountS3:            true,
-								MeasurePSS:            pss,
+								FTTaskSrvMcpu:        proc.Tmcpu(50),
+								PremountS3:           true,
+								MeasurePSS:           pss,
 							},
 							InputPath:      inputPath,
 							NTasks:         ntasks,
@@ -1706,10 +1708,12 @@ func TestStartLatency(t *testing.T) {
 		}
 		// If true, run with gvisor
 		apps map[string]bool = map[string]bool{
-			"cached":    false,
-			"cossim":    false,
-			"etcd":      true,
-			"memcached": true,
+			"cached":      false,
+			"cossim":      false,
+			"etcd":        true,
+			"memcached":   true,
+			"imgrec-py":   false,
+			"imgrec-wasm": false,
 		}
 	)
 	ts, err := NewTstate(t)
@@ -1783,26 +1787,57 @@ func TestStartLatency(t *testing.T) {
 				}
 				etcdCfg := &benchmarks.EtcdBenchConfig{
 					JobCfg: &etcd.EtcdJobConfig{
-						Job:           "etcd-job",
-						SnapshotPath:  "9ps3/snapshot-14MB.db",
-						Name:          "etcd-proc",
-						PeerPort:      6380,
-						ClientPort:    6379,
+						Job:          "etcd-job",
+						SnapshotPath: "9ps3/snapshot-14MB.db",
+						Name:         "etcd-proc",
+						PeerPort:     6380,
+						ClientPort:   6379,
 						UseCoSandbox: cosandbox,
-						Mcpu:          proc.Tmcpu(4000),
+						Mcpu:         proc.Tmcpu(4000),
 					},
 				}
 				memcachedCfg := &benchmarks.MemcachedBenchConfig{
 					JobCfg: &memcached.MemcachedJobConfig{
-						Job:           "memcached-job",
-						SnapshotPath:  "9ps3/memcached-snapshot-40M",
-						Port:          11211,
+						Job:          "memcached-job",
+						SnapshotPath: "9ps3/memcached-snapshot-40M",
+						Port:         11211,
 						UseCoSandbox: cosandbox,
-						Mcpu:          proc.Tmcpu(4000),
+						Mcpu:         proc.Tmcpu(4000),
 					},
 					Cache: false,
 				}
-				cmdFn := GetStartLatencyCmdConstructor(startLatencyCfg, cacheBenchCfg, cossimCfg, etcdCfg, memcachedCfg, cosandbox, useGVisor)
+				imgrecPyShmemMB := proc.Tmem(0)
+				if cosandbox {
+					imgrecPyShmemMB = proc.Tmem(256)
+				}
+				imgrecPyCfg := &benchmarks.ImgrecPyBenchConfig{
+					JobCfg: &imgrec_py.ImgrecPyJobConfig{
+						ImgBucket:    "9ps3",
+						ImgKey:       "img-save/8.jpg",
+						ModelBucket:  "9ps3",
+						ModelKey:     "mobilenetv2-12.onnx",
+						Kid:          "~local",
+						UseCoSandbox: cosandbox,
+						ShmemMB:      imgrecPyShmemMB,
+					},
+				}
+				imgrecWASMShmemMB := proc.Tmem(0)
+				if cosandbox {
+					imgrecWASMShmemMB = proc.Tmem(32)
+				}
+				imgrecWASMCfg := &benchmarks.ImgrecWASMBenchConfig{
+					JobCfg: &imgrec_wasm.ImgrecWASMJobConfig{
+						ImgBucket:    "9ps3",
+						ImgKey:       "img-save/8.jpg",
+						ModelBucket:  "9ps3",
+						ModelKey:     "mobilenetv2-12.onnx",
+						Kid:          "~local",
+						UseDelegated: cosandbox,
+						UseCoSandbox: cosandbox,
+						ShmemMB:      imgrecWASMShmemMB,
+					},
+				}
+				cmdFn := GetStartLatencyCmdConstructor(startLatencyCfg, cacheBenchCfg, cossimCfg, etcdCfg, memcachedCfg, imgrecPyCfg, imgrecWASMCfg, cosandbox, useGVisor)
 				ts.RunStandardBenchmark(benchName, driverVM, cmdFn, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost, useGVisor)
 			}
 		}

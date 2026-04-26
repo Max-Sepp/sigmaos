@@ -9,6 +9,8 @@ import (
 	cossimsrv "sigmaos/apps/cossim/srv"
 	"sigmaos/apps/etcd"
 	"sigmaos/apps/hotel"
+	imgrec_py "sigmaos/apps/imgrec/py"
+	imgrec_wasm "sigmaos/apps/imgrec/wasm"
 	"sigmaos/apps/imgresize"
 	"sigmaos/apps/memcached"
 )
@@ -160,6 +162,38 @@ func (cfg *MemcachedBenchConfig) GetJobConfig() *memcached.MemcachedJobConfig {
 }
 
 func (cfg *MemcachedBenchConfig) Marshal() (string, error) {
+	b, err := json.Marshal(cfg)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
+type ImgrecPyBenchConfig struct {
+	JobCfg *imgrec_py.ImgrecPyJobConfig `json:"job_cfg"`
+}
+
+func (cfg *ImgrecPyBenchConfig) String() string {
+	return fmt.Sprintf("&{ JobCfg:%v }", cfg.JobCfg)
+}
+
+func (cfg *ImgrecPyBenchConfig) Marshal() (string, error) {
+	b, err := json.Marshal(cfg)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
+type ImgrecWASMBenchConfig struct {
+	JobCfg *imgrec_wasm.ImgrecWASMJobConfig `json:"job_cfg"`
+}
+
+func (cfg *ImgrecWASMBenchConfig) String() string {
+	return fmt.Sprintf("&{ JobCfg:%v }", cfg.JobCfg)
+}
+
+func (cfg *ImgrecWASMBenchConfig) Marshal() (string, error) {
 	b, err := json.Marshal(cfg)
 	if err != nil {
 		return "", err
