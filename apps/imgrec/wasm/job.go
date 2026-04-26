@@ -65,9 +65,9 @@ func NewImgrecWASMJob(conf *ImgrecWASMJobConfig, sc *sigmaclnt.SigmaClnt) (*Imgr
 		j.coSandbox = b
 		j.bootInput = wasmrt.EncodeArgs([]string{conf.ImgBucket, conf.ImgKey, conf.ModelBucket, conf.ModelKey, conf.Kid})
 	}
-	raw, err := os.ReadFile(localWASMBinPath())
+	raw, err := readRawWASMBin(sc)
 	if err != nil {
-		db.DPrintf(db.ERROR, "ImgrecWASM ReadFile wasm bin err: %v", err)
+		db.DPrintf(db.ERROR, "ImgrecWASM read wasm bin err: %v", err)
 		return nil, err
 	}
 	wrt := wasmrt.NewWasmerRuntime(nil)
@@ -137,13 +137,17 @@ func (j *ImgrecWASMJob) Run() (string, error) {
 	return status.Msg(), nil
 }
 
-// localWASMBinPath returns the path to the raw imgrec.wasm binary on the local
-// filesystem, derived from this source file's location.
-func localWASMBinPath() string {
-	_, b, _, _ := runtime.Caller(0)
-	// b is .../apps/imgrec/wasm/job.go; go up 4 levels to project root
-	projectRoot := filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(b))))
-	return filepath.Join(projectRoot, "bin/wasm/imgrec.wasm")
+// readRawWASMBin reads the raw imgrec.wasm binary. For local builds it reads
+// from the local filesystem; for remote builds it reads from S3.
+func readRawWASMBin(sc *sigmaclnt.SigmaClnt) ([]byte, error) {
+	if sc.ProcEnv().BuildTag == sp.LOCAL_BUILD {
+		_, b, _, _ := runtime.Caller(0)
+		// b is .../apps/imgrec/wasm/job.go; go up 4 levels to project root
+		projectRoot := filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(b))))
+		return os.ReadFile(filepath.Join(projectRoot, "bin/wasm/imgrec.wasm"))
+	}
+	pn := filepath.Join(sp.S3, sp.ANY, sc.ProcEnv().BuildTag, "wasm", "imgrec.wasm")
+	return sc.GetFile(pn)
 }
 
 func precompiledBinPath(sc *sigmaclnt.SigmaClnt) sp.Tsigmapath {
