@@ -44,12 +44,12 @@ def main():
         # PIL/BytesIO accept memoryview directly; ORT requires bytes (one copy).
         img_bytes   = clnt.s3_delegated_get_object_view(1)
         model_bytes = bytes(clnt.s3_delegated_get_object_view(0))
-        clnt.log_spawn_latency("Paper.Initialization.DownloadState",
+        clnt.log_spawn_latency("Paper.Initialization.TransferState",
                                int((time.perf_counter() - transfer_start) * 1_000_000))
     else:
         img_bytes   = clnt.s3_get_object(img_bucket, img_key)
         model_bytes = clnt.s3_get_object(model_bucket, model_key)
-        clnt.log_spawn_latency("Paper.Initialization.TransferState",
+        clnt.log_spawn_latency("Paper.Initialization.DownloadState",
                                int((time.perf_counter() - transfer_start) * 1_000_000))
 
     infer_start = time.perf_counter()
