@@ -206,8 +206,11 @@ for vm in $vms; do
 
   cd sigmaos
   sudo ./load-apparmor.sh
-  docker pull arielszekely/sigmauser:$TAG
-  sudo ./create-gvisor-bundle.sh --user_ctr arielszekely/sigmauser:${TAG}
+  if docker pull arielszekely/sigmauser:$TAG | grep -q "Image is up to date"; then
+    echo "GVisor image already up-to-date"
+  else
+    sudo ./create-gvisor-bundle.sh --user_ctr arielszekely/sigmauser:${TAG}
+  fi
 
   echo "$PWD $SIGMADEBUG"
   if [ "${vm}" = "${MAIN}" ]; then 
@@ -236,7 +239,7 @@ for vm in $vms; do
     docker cp ~/8.jpg ${KERNELID}:/home/sigmaos/8.jpg
   fi
 ENDSSH
- if [ "${vm}" = "${MAIN}" ]; then
-     TOKEN=$(ssh -i key-$VPC.pem ubuntu@$vm docker swarm join-token worker | grep docker)
- fi   
+  if [ "${vm}" = "${MAIN}" ]; then
+      TOKEN=$(ssh -i key-$VPC.pem ubuntu@$vm docker swarm join-token worker | grep docker)
+  fi   
 done
