@@ -22,6 +22,7 @@ const (
 	CPU_UTIL       Tselector = "CPU_UTIL"
 	AUTOSCALER     Tselector = "AUTOSCALER"
 	AUTOSCALER_ERR Tselector = AUTOSCALER + ERR
+	REMOTE_BENCH   Tselector = "REMOTE_BENCH"
 )
 
 // Latency break-down.
