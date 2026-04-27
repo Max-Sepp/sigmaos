@@ -92,8 +92,6 @@ pub fn boot(b: *mut c_char, buf_sz: usize) {
             &req.write_to_bytes().unwrap(),
             2,
         );
-        let (buf_offs, buf_lens) = sigmaos::recv_rpc(buf, 0, true);
-        let model_bytes: Vec<u8> = buf[buf_offs[1]..buf_offs[1] + buf_lens[1]].to_vec();
 
         // send_rpc overwrites buf from the front, which is fine because we
         // already copied model bytes above.
@@ -108,6 +106,8 @@ pub fn boot(b: *mut c_char, buf_sz: usize) {
             &req.write_to_bytes().unwrap(),
             2,
         );
+        let (buf_offs, buf_lens) = sigmaos::recv_rpc(buf, 0, true);
+        let model_bytes: Vec<u8> = buf[buf_offs[1]..buf_offs[1] + buf_lens[1]].to_vec();
         let (buf_offs, buf_lens) = sigmaos::recv_rpc(buf, 1, true);
         let img_bytes: Vec<u8> = buf[buf_offs[1]..buf_offs[1] + buf_lens[1]].to_vec();
         sigmaos::log_spawn_latency(
