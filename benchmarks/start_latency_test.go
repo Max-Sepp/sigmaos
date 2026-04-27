@@ -114,6 +114,9 @@ func NewStartLatencyJob(ts *test.RealmTstate, cfg *benchmarks.StartLatencyBenchC
 		"imgrec.py-v" + sp.Version,
 		"imgrec_precompiled.wasm-v" + sp.Version,
 	}
+	if err = precompileUploadWasmProcs(ts); !assert.Nil(ts.Ts.T, err, "Err precompile/upload WASM procs: %v", err) {
+		return ji
+	}
 	// Warm up the warm server with the proc binaries
 	for _, bin := range bins {
 		db.DPrintf(db.TEST, "Target kernel to run prewarm with %v bin: %v", bin, ji.warmSrvKID)
@@ -286,6 +289,10 @@ func (ji *StartLatencyJobInstance) Cleanup() {
 			ji.epcj.Stop()
 		}
 	}
+}
+
+func precompileUploadWasmProcs(ts *test.RealmTstate) error {
+	return imgrec_wasm.PrecompileAndUpload(ts.SigmaClnt)
 }
 
 // Write KVs to cache srv

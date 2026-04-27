@@ -82,6 +82,37 @@ func NewImgrecWASMJob(conf *ImgrecWASMJobConfig, sc *sigmaclnt.SigmaClnt) (*Imgr
 	return j, nil
 }
 
+// PrecompileAndUpload reads the raw imgrec WASM binary, precompiles it, and
+// uploads it to the remote precompiled-binary path for the given SigmaClnt's
+// build tag. Callers that need the binary present before spawning procs (e.g.
+// warm-up benchmarks) should call this before spawning.
+func PrecompileAndUpload(sc *sigmaclnt.SigmaClnt) error {
+	raw, err := readRawWASMBin(sc)
+	if err != nil {
+		db.DPrintf(db.ERROR, "ImgrecWASM PrecompileAndUpload read err: %v", err)
+		return err
+	}
+	wrt := wasmrt.NewWasmerRuntime(nil)
+	compiled, err := wrt.PrecompileModule(raw)
+	if err != nil {
+		db.DPrintf(db.ERROR, "ImgrecWASM PrecompileAndUpload precompile err: %v", err)
+		return err
+	}
+	pn := precompiledBinPath(sc)
+	sc.Remove(pn)
+	fw, err := sc.CreateWriter(pn, 0777, sp.OWRITE)
+	if err != nil {
+		db.DPrintf(db.ERROR, "ImgrecWASM PrecompileAndUpload CreateWriter err: %v", err)
+		return err
+	}
+	if _, err := io.Copy(fw, bytes.NewReader(compiled)); err != nil {
+		fw.Close()
+		db.DPrintf(db.ERROR, "ImgrecWASM PrecompileAndUpload upload err: %v", err)
+		return err
+	}
+	return fw.Close()
+}
+
 // Run uploads the precompiled WASM binary, spawns the proc, waits for
 // completion, and returns the result message (class_idx,score).
 func (j *ImgrecWASMJob) Run() (string, error) {
