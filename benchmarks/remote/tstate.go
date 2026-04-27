@@ -101,7 +101,7 @@ func (ts *Tstate) RunParallelClientBenchmark(benchName string, driverVMs []int, 
 		followerBenchCmd = getFollowerClientBenchCmd(ts.BCfg, ccfg)
 	}
 	start = time.Now()
-	done := make(chan error)
+	done := make(chan error, len(driverVMs))
 	for i := 0; i < len(driverVMs); i++ {
 		// Select the driver VM on which to run this client
 		driverVM := driverVMs[i]
@@ -115,17 +115,17 @@ func (ts *Tstate) RunParallelClientBenchmark(benchName string, driverVMs []int, 
 		}
 		// Start the benchmark client in a different goroutine
 		go func(i int, driverVM int, cmd string) {
-			err = ccfg.RunBenchmark(driverVM, cmd)
-			assert.Nil(ts.t, err, "Run benchmark client %v: %v", err)
+			err := ccfg.RunBenchmark(driverVM, cmd)
 			// Mark self as done
 			done <- err
 		}(i, driverVM, cmd)
 		// Sleep for a short delay before starting the next client
 		time.Sleep(clientDelay)
 	}
-	// Wait for clients to finish
+	// Wait for clients to finish, asserting each succeeded
 	for i := 0; i < len(driverVMs); i++ {
-		<-done
+		err := <-done
+		assert.Nil(ts.t, err, "Run benchmark client %v: %v", i, err)
 	}
 	db.DPrintf(db.REMOTE_BENCH, "Ran benchmark (%v)", time.Since(start))
 	// Collect the benchmark results
