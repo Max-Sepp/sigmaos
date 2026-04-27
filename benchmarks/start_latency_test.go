@@ -220,15 +220,21 @@ func (ji *StartLatencyJobInstance) RunJob(rs *benchmarks.Results, crash bool) bo
 		}
 		db.DPrintf(db.BENCH, "Cossim server started")
 	case "imgrec-py":
-		if _, err := ji.imgrecPyJob.Run(); !assert.Nil(ji.Ts.T, err, "Err run imgrec-py: %v", err) {
+		if msg, err := ji.imgrecPyJob.Run(); !assert.Nil(ji.Ts.T, err, "Err run imgrec-py: %v", err) {
 			return false
+		} else {
+			// Rough check that the benchmark succeeded
+			assert.True(ji.Ts.T, strings.Contains(msg, ","))
+			db.DPrintf(db.BENCH, "imgrec-py ran. Result: %v", msg)
 		}
-		db.DPrintf(db.BENCH, "imgrec-py ran")
 	case "imgrec-wasm":
-		if _, err := ji.imgrecWASMJob.Run(); !assert.Nil(ji.Ts.T, err, "Err run imgrec-wasm: %v", err) {
+		if msg, err := ji.imgrecWASMJob.Run(); !assert.Nil(ji.Ts.T, err, "Err run imgrec-wasm: %v", err) {
 			return false
+		} else {
+			// Rough check that the benchmark succeeded
+			assert.True(ji.Ts.T, strings.Contains(msg, ","))
+			db.DPrintf(db.BENCH, "imgrec-wasm ran. Result: %v", msg)
 		}
-		db.DPrintf(db.BENCH, "imgrec-wasm ran")
 	case "etcd":
 		// Start etcd
 		if err := ji.etcdJob.Start(chunk.ChunkdPath(ji.warmSrvKID)); !assert.Nil(ji.Ts.T, err, "Err start etcd: %v", err) {
