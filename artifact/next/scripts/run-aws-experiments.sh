@@ -40,15 +40,15 @@ if [ $# -gt 0 ]; then
     exit 1
 fi
 
-if [ $EXP != "all" ] && [ $EXP != "cossim" ] && [ $EXP != "cached" ]; then
+if [ $EXP != "all" ] && [ $EXP != "start-lat" ] && [ $EXP != "imgprocess" ]; then
   echo "Unkown experiment $EXP"
   usage
   exit 1
 fi
 
-VERSION=OSDI26
+VERSION=EUROSYS2027
 TAG=arielck
-BRANCH=master
+BRANCH=wasmd
 
 LOG_DIR=/tmp/sigmaos-experiment-logs
 
@@ -72,6 +72,6 @@ if [ $EXP == "all" ] || [ $EXP == "start-lat" ]; then
 #    rm -rf benchmarks/results/$VERSION/cos_sim_tail_latency_*
 #  fi
   echo "Generating StartLatency data..."
-  go clean -testcache; go test -v -timeout 0 sigmaos/benchmarks/remote --run TestStartLatency --parallelize --platform cloudlab --vpc $AWS_VPC --build-tag $TAG --no-shutdown-after-test --bench-version $VERSION --branch $BRANCH 2>&1 | tee $LOG_DIR/cache-scaler.out
+  go clean -testcache; go test -v -timeout 0 sigmaos/benchmarks/remote --run TestStartLatency --parallelize --platform aws --vpc $AWS_VPC --build-tag $TAG --no-shutdown-after-test --bench-version $VERSION --branch $BRANCH 2>&1 | tee $LOG_DIR/cache-scaler.out
   echo "Done generating StartLatency data..."
 fi

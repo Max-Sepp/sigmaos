@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION=OSDI26
+VERSION=EUROSYS2027
 
 ROOT_DIR=$(realpath $(dirname $0)/../../..)
 RES_OUT_DIR=$ROOT_DIR/benchmarks/results/$VERSION
@@ -37,6 +37,10 @@ echo "Generating start latency comparison..."
   --dir_path_vecdb_cosandbox $RES_OUT_DIR/start_latency_cossim_cosandbox \
   --dir_path_cached $RES_OUT_DIR/start_latency_cached \
   --dir_path_cached_cosandbox $RES_OUT_DIR/start_latency_cached_cosandbox \
+  --dir_path_imgrec_wasm $RES_OUT_DIR/start_latency_imgrec-wasm \
+  --dir_path_imgrec_wasm_cosandbox $RES_OUT_DIR/start_latency_imgrec-wasm_cosandbox \
+  --dir_path_imgrec_py $RES_OUT_DIR/start_latency_imgrec-py \
+  --dir_path_imgrec_py_cosandbox $RES_OUT_DIR/start_latency_imgrec-py_cosandbox \
   --output $GRAPH_OUT_DIR/start-latency.pdf
 echo "Done generating start latency comparison..."
 
@@ -122,6 +126,40 @@ echo "Generating memcached start latency breakdown graph..."
   --subtract_1_from_2 "GlobalScheduling" "DownloadCoSandbox" \
   --output $GRAPH_OUT_DIR/memcached-start-latency-breakdown-timeline.pdf
 echo "Done generating memcached start latency breakdown graph..."
+
+echo "Generating imgrec-wasm start latency breakdown graph..."
+./benchmarks/scripts/graph/start-latency-breakdown-timeline.py \
+  --paper \
+  --dir_path_1 benchmarks/results/$VERSION/start_latency_imgrec-wasm \
+  --proc_name_1 imgrec_precompiled.wasm \
+  --label_1 "Imgrec (WASM)" \
+  --omit_1 "GlobalScheduling" \
+  --relabel_1 "DownloadCoSandbox" "DownloadCoSandbox" \
+  --dir_path_2 benchmarks/results/$VERSION/start_latency_imgrec-wasm_cosandbox \
+  --proc_name_2 imgrec_precompiled.wasm \
+  --label_2 "Imgrec (WASM, co-sandbox)" \
+  --omit_2 "GlobalScheduling" \
+  --relabel_2 "DownloadCoSandbox" "DownloadCoSandbox" \
+  --subtract_1_from_2 "GlobalScheduling" "DownloadCoSandbox" \
+  --output $GRAPH_OUT_DIR/imgrec-wasm-start-latency-breakdown-timeline.pdf
+echo "Done generating imgrec-wasm start latency breakdown graph..."
+
+echo "Generating imgrec-py start latency breakdown graph..."
+./benchmarks/scripts/graph/start-latency-breakdown-timeline.py \
+  --paper \
+  --dir_path_1 benchmarks/results/$VERSION/start_latency_imgrec-py \
+  --proc_name_1 imgrec.py \
+  --label_1 "Imgrec (Python)" \
+  --omit_1 "GlobalScheduling" \
+  --relabel_1 "DownloadCoSandbox" "DownloadCoSandbox" \
+  --dir_path_2 benchmarks/results/$VERSION/start_latency_imgrec-py_cosandbox \
+  --proc_name_2 imgrec.py \
+  --label_2 "Imgrec (Python, co-sandbox)" \
+  --omit_2 "GlobalScheduling" \
+  --relabel_2 "DownloadCoSandbox" "DownloadCoSandbox" \
+  --subtract_1_from_2 "GlobalScheduling" "DownloadCoSandbox" \
+  --output $GRAPH_OUT_DIR/imgrec-py-start-latency-breakdown-timeline.pdf
+echo "Done generating imgrec-py start latency breakdown graph..."
 
 echo "Imgresize breakdown..."
 ./benchmarks/scripts/graph/imgresize-time-breakdown.py \
