@@ -51,11 +51,11 @@ def main():
         model_bytes = clnt.s3_get_object(model_bucket, model_key)
         clnt.log_spawn_latency("Paper.Initialization.DownloadState",
                                int((time.perf_counter() - transfer_start) * 1_000_000))
+    load_state_start = time.perf_counter()
     sess = ort.InferenceSession(model_bytes)
     clnt.log_spawn_latency("Paper.Initialization.AppLoadState",
-                           int((time.perf_counter() - infer_start) * 1_000_000))
+                           int((time.perf_counter() - load_state_start) * 1_000_000))
 
-    infer_start = time.perf_counter()
     tensor = preprocess(img_bytes)
 
     input_name  = sess.get_inputs()[0].name
