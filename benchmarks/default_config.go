@@ -176,6 +176,7 @@ var DefaultImgrecPyBenchConfig = &ImgrecPyBenchConfig{
 		Kid:          "~local",
 		UseCoSandbox: false,
 		ShmemMB:      proc.Tmem(0),
+		Mcpu:         proc.Tmcpu(1000),
 	},
 }
 
@@ -189,6 +190,7 @@ var DefaultImgrecWASMBenchConfig = &ImgrecWASMBenchConfig{
 		UseDelegated: false,
 		UseCoSandbox: false,
 		ShmemMB:      proc.Tmem(0),
+		Mcpu:         proc.Tmcpu(1000),
 	},
 }
 

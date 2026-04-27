@@ -12,16 +12,17 @@ import (
 const cosandboxName = "imgrec_boot"
 
 type ImgrecPyJobConfig struct {
-	ImgBucket    string    `json:"img_bucket"`
-	ImgKey       string    `json:"img_key"`
-	ModelBucket  string    `json:"model_bucket"`
-	ModelKey     string    `json:"model_key"`
-	Kid          string    `json:"kid"`
-	UseCoSandbox bool      `json:"use_co_sandbox"`
-	ShmemMB      proc.Tmem `json:"shmem_mb"`
+	ImgBucket    string     `json:"img_bucket"`
+	ImgKey       string     `json:"img_key"`
+	ModelBucket  string     `json:"model_bucket"`
+	ModelKey     string     `json:"model_key"`
+	Kid          string     `json:"kid"`
+	UseCoSandbox bool       `json:"use_co_sandbox"`
+	ShmemMB      proc.Tmem  `json:"shmem_mb"`
+	Mcpu         proc.Tmcpu `json:"mcpu"`
 }
 
-func NewImgrecPyJobConfig(imgBucket, imgKey, modelBucket, modelKey, kid string, useCoSandbox bool, shmemMB proc.Tmem) *ImgrecPyJobConfig {
+func NewImgrecPyJobConfig(imgBucket, imgKey, modelBucket, modelKey, kid string, useCoSandbox bool, shmemMB proc.Tmem, mcpu proc.Tmcpu) *ImgrecPyJobConfig {
 	return &ImgrecPyJobConfig{
 		ImgBucket:    imgBucket,
 		ImgKey:       imgKey,
@@ -30,6 +31,7 @@ func NewImgrecPyJobConfig(imgBucket, imgKey, modelBucket, modelKey, kid string, 
 		Kid:          kid,
 		UseCoSandbox: useCoSandbox,
 		ShmemMB:      shmemMB,
+		Mcpu:         mcpu,
 	}
 }
 
@@ -65,6 +67,9 @@ func (j *ImgrecPyJob) Run() (string, error) {
 	p.GetProcEnv().UseSPProxy = true
 	p.GetProcEnv().UseSPProxyProcClnt = true
 	p.SetProcContainerType(proc.ProcContainerType_PROC_CTR_PYTHON)
+	if j.conf.Mcpu > 0 {
+		p.SetMcpu(j.conf.Mcpu)
+	}
 	if j.conf.UseCoSandbox {
 		p.SetCoSandbox(j.coSandbox, j.bootInput)
 		p.SetRunCoSandbox(true)

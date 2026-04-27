@@ -1820,6 +1820,7 @@ func TestStartLatency(t *testing.T) {
 						Kid:          "~local",
 						UseCoSandbox: cosandbox,
 						ShmemMB:      imgrecPyShmemMB,
+						Mcpu:         proc.Tmcpu(4000),
 					},
 				}
 				imgrecWASMShmemMB := proc.Tmem(0)
@@ -1836,6 +1837,7 @@ func TestStartLatency(t *testing.T) {
 						UseDelegated: cosandbox,
 						UseCoSandbox: cosandbox,
 						ShmemMB:      imgrecWASMShmemMB,
+						Mcpu:         proc.Tmcpu(4000),
 					},
 				}
 				cmdFn := GetStartLatencyCmdConstructor(startLatencyCfg, cacheBenchCfg, cossimCfg, etcdCfg, memcachedCfg, imgrecPyCfg, imgrecWASMCfg, cosandbox, useGVisor)

@@ -21,17 +21,18 @@ const (
 )
 
 type ImgrecWASMJobConfig struct {
-	ImgBucket    string    `json:"img_bucket"`
-	ImgKey       string    `json:"img_key"`
-	ModelBucket  string    `json:"model_bucket"`
-	ModelKey     string    `json:"model_key"`
-	Kid          string    `json:"kid"`
-	UseDelegated bool      `json:"use_delegated"`
-	UseCoSandbox bool      `json:"use_co_sandbox"`
-	ShmemMB      proc.Tmem `json:"shmem_mb"`
+	ImgBucket    string     `json:"img_bucket"`
+	ImgKey       string     `json:"img_key"`
+	ModelBucket  string     `json:"model_bucket"`
+	ModelKey     string     `json:"model_key"`
+	Kid          string     `json:"kid"`
+	UseDelegated bool       `json:"use_delegated"`
+	UseCoSandbox bool       `json:"use_co_sandbox"`
+	ShmemMB      proc.Tmem  `json:"shmem_mb"`
+	Mcpu         proc.Tmcpu `json:"mcpu"`
 }
 
-func NewImgrecWASMJobConfig(imgBucket, imgKey, modelBucket, modelKey, kid string, useDelegated, useCoSandbox bool, shmemMB proc.Tmem) *ImgrecWASMJobConfig {
+func NewImgrecWASMJobConfig(imgBucket, imgKey, modelBucket, modelKey, kid string, useDelegated, useCoSandbox bool, shmemMB proc.Tmem, mcpu proc.Tmcpu) *ImgrecWASMJobConfig {
 	return &ImgrecWASMJobConfig{
 		ImgBucket:    imgBucket,
 		ImgKey:       imgKey,
@@ -41,6 +42,7 @@ func NewImgrecWASMJobConfig(imgBucket, imgKey, modelBucket, modelKey, kid string
 		UseDelegated: useDelegated,
 		UseCoSandbox: useCoSandbox,
 		ShmemMB:      shmemMB,
+		Mcpu:         mcpu,
 	}
 }
 
@@ -104,6 +106,9 @@ func (j *ImgrecWASMJob) Run() (string, error) {
 	})
 	p.GetProcEnv().UseSPProxy = true
 	p.SetProcContainerType(proc.ProcContainerType_PROC_CTR_WASM)
+	if j.conf.Mcpu > 0 {
+		p.SetMcpu(j.conf.Mcpu)
+	}
 	if j.conf.UseCoSandbox {
 		p.SetCoSandbox(j.coSandbox, j.bootInput)
 		p.SetRunCoSandbox(true)

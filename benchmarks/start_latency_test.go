@@ -111,6 +111,8 @@ func NewStartLatencyJob(ts *test.RealmTstate, cfg *benchmarks.StartLatencyBenchC
 		"etcd-shim-v" + sp.Version,
 		"memcached-v" + sp.Version,
 		"memcached-shim-v" + sp.Version,
+		"imgrec.py-v" + sp.Version,
+		"imgrec_precompiled.wasm-v" + sp.Version,
 	}
 	// Warm up the warm server with the proc binaries
 	for _, bin := range bins {
