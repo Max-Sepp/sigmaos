@@ -36,21 +36,15 @@ func projectRootPath() string {
 }
 
 func UploadCoSandboxRemote(sc *sigmaclnt.SigmaClnt, scriptName string) error {
-	// Compute WASM binary path name
 	pn := filepath.Join(
 		projectRootPath(),
 		"bin/wasm",
 		scriptName+".wasm",
 	)
 	db.DPrintf(db.ALWAYS, "Boot script path: %v", pn)
-	b, err := os.ReadFile(pn)
-	if err != nil {
-		db.DPrintf(db.ERROR, "Err read boot script local: %v", err)
-		return err
-	}
 	pnRemote := filepath.Join(sp.S3, sp.ANY, sc.ProcEnv().BuildTag, "wasm", scriptName+".wasm")
-	if _, err = sc.PutFile(pnRemote, 0777, sp.OWRITE, b); err != nil {
-		db.DPrintf(db.ERROR, "Err write boot script remote (%v): %v", pn, err)
+	if err := sc.UploadFile(pn, pnRemote); err != nil {
+		db.DPrintf(db.ERROR, "Err upload boot script (%v -> %v): %v", pn, pnRemote, err)
 		return err
 	}
 	return nil
