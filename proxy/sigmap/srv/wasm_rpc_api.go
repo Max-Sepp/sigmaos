@@ -106,6 +106,10 @@ func (wp *WASMRPCProxy) Log(msg string) error {
 	return nil
 }
 
+func (wp *WASMRPCProxy) GetRunCoSandbox() bool {
+	return wp.p.GetRunCoSandbox()
+}
+
 func (wp *WASMRPCProxy) LogSpawnLatency(label string, elapsedMicros uint64) error {
 	opStart := time.Now().Add(-time.Duration(elapsedMicros) * time.Microsecond)
 	perf.LogSpawnLatency(label, wp.p.GetPid(), wp.p.GetSpawnTime(), opStart)

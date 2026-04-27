@@ -34,6 +34,7 @@ type CoSandboxAPI interface {
 	Exit(status Tstatus, msg string) error
 	Log(msg string) error
 	LogSpawnLatency(label string, elapsedMicros uint64) error
+	GetRunCoSandbox() bool
 }
 
 type CoSandboxAPIImpl interface {

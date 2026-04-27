@@ -85,6 +85,8 @@ func (wrt *WasmerRuntime) RunModule(pid sp.Tpid, spawnTime time.Time, compiledMo
 			"exit":                wrt.newExitFn(store, &instance, &wasmBufPtr, pid),
 			"log":                 wrt.newLogFn(store, &instance, &wasmBufPtr, pid),
 			"log_spawn_latency":   wrt.newLogSpawnLatencyFn(store, &instance, &wasmBufPtr, pid),
+			"get_run_co_sandbox":  wrt.newGetRunCoSandboxFn(store, pid),
+			"get_time_us":         wrt.newGetTimeUsFn(store, pid),
 		},
 	)
 	start := time.Now()
@@ -373,6 +375,33 @@ func (wrt *WasmerRuntime) newLogSpawnLatencyFn(store *wasmer.Store, instance **w
 				return []wasmer.Value{}, err
 			}
 			return []wasmer.Value{}, nil
+		},
+	)
+}
+
+func (wrt *WasmerRuntime) newGetRunCoSandboxFn(store *wasmer.Store, pid sp.Tpid) *wasmer.Function {
+	return wasmer.NewFunction(
+		store,
+		wasmer.NewFunctionType(wasmer.NewValueTypes(), wasmer.NewValueTypes(wasmer.I64)),
+		func(args []wasmer.Value) ([]wasmer.Value, error) {
+			val := int64(0)
+			if wrt.apiImpl != nil && wrt.apiImpl.GetRunCoSandbox() {
+				val = 1
+			}
+			db.DPrintf(db.WASMRT, "[%v] GetRunCoSandbox: %v", pid, val)
+			return []wasmer.Value{wasmer.NewI64(val)}, nil
+		},
+	)
+}
+
+func (wrt *WasmerRuntime) newGetTimeUsFn(store *wasmer.Store, pid sp.Tpid) *wasmer.Function {
+	return wasmer.NewFunction(
+		store,
+		wasmer.NewFunctionType(wasmer.NewValueTypes(), wasmer.NewValueTypes(wasmer.I64)),
+		func(args []wasmer.Value) ([]wasmer.Value, error) {
+			us := time.Now().UnixMicro()
+			db.DPrintf(db.WASMRT, "[%v] GetTimeUs: %v", pid, us)
+			return []wasmer.Value{wasmer.NewI64(us)}, nil
 		},
 	)
 }

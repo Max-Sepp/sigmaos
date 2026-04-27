@@ -5,8 +5,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	imgrec_wasm "sigmaos/apps/imgrec/wasm"
 	imgrectestutil "sigmaos/apps/imgrec/testutil"
+	imgrec_wasm "sigmaos/apps/imgrec/wasm"
 	db "sigmaos/debug"
 	"sigmaos/proc"
 	sp "sigmaos/sigmap"
@@ -14,17 +14,17 @@ import (
 )
 
 const (
-	IMG_BUCKET = "9ps3"
-	IMG_KEY    = "img-save/8.jpg"
+	IMG_BUCKET   = "9ps3"
+	IMG_KEY      = "img-save/8.jpg"
 	MODEL_BUCKET = "9ps3"
-	MODEL_KEY  = "mobilenetv2-12.onnx"
-	KID        = "~local"
+	MODEL_KEY    = "mobilenetv2-12.onnx"
+	KID          = "~local"
 )
 
 func TestCompile(t *testing.T) {
 }
 
-func TestImgrec(t *testing.T) {
+func TestImgrecNoCS(t *testing.T) {
 	mrts, err1 := test.NewMultiRealmTstate(t, []sp.Trealm{test.REALM1})
 	if !assert.Nil(t, err1, "Error New Tstate: %v", err1) {
 		return
@@ -68,7 +68,7 @@ func TestImgrecWASMCoSandboxShmem(t *testing.T) {
 	imgrectestutil.AssertMatchesReference(t, msg, ref)
 }
 
-func TestImgrecWASMCoSandbox(t *testing.T) {
+func TestImgrecWASMCoSandboxVanilla(t *testing.T) {
 	mrts, err := test.NewMultiRealmTstate(t, []sp.Trealm{test.REALM1})
 	if !assert.Nil(t, err, "Error New Tstate: %v", err) {
 		return

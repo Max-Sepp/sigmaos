@@ -19,14 +19,13 @@ const MEAN: [f32; 3] = [0.485, 0.456, 0.406];
 const STD: [f32; 3] = [0.229, 0.224, 0.225];
 const INPUT_DIM: usize = 224;
 
-// Input buffer layout (6 u32 LE lengths, then 6 strings):
-//   [0..4]   img_bucket_len    (u32 LE)
-//   [4..8]   img_key_len       (u32 LE)
-//   [8..12]  model_bucket_len  (u32 LE)
-//   [12..16] model_key_len     (u32 LE)
-//   [16..20] kid_len           (u32 LE)
-//   [20..24] use_delegated_len (u32 LE)
-//   followed by: img_bucket, img_key, model_bucket, model_key, kid, use_delegated
+// Input buffer layout (5 u32 LE lengths, then 5 strings):
+//   [0..4]   img_bucket_len   (u32 LE)
+//   [4..8]   img_key_len      (u32 LE)
+//   [8..12]  model_bucket_len (u32 LE)
+//   [12..16] model_key_len    (u32 LE)
+//   [16..20] kid_len          (u32 LE)
+//   followed by: img_bucket, img_key, model_bucket, model_key, kid
 //
 // Output: exit msg "class_idx,score"
 #[export_name = "boot"]
@@ -39,10 +38,9 @@ pub fn boot(b: *mut c_char, buf_sz: usize) {
     let model_bucket_len = u32::from_le_bytes(buf[8..12].try_into().unwrap()) as usize;
     let model_key_len = u32::from_le_bytes(buf[12..16].try_into().unwrap()) as usize;
     let kid_len = u32::from_le_bytes(buf[16..20].try_into().unwrap()) as usize;
-    let use_delegated_len = u32::from_le_bytes(buf[20..24].try_into().unwrap()) as usize;
 
     // Parse strings — copy to owned before any send_rpc overwrites the buffer.
-    let mut off = 24;
+    let mut off = 20;
     let img_bucket = str::from_utf8(&buf[off..off + img_bucket_len])
         .unwrap()
         .to_string();
@@ -62,15 +60,11 @@ pub fn boot(b: *mut c_char, buf_sz: usize) {
     let kid = str::from_utf8(&buf[off..off + kid_len])
         .unwrap()
         .to_string();
-    off += kid_len;
-    let use_delegated = str::from_utf8(&buf[off..off + use_delegated_len])
-        .unwrap()
-        .to_string();
 
     let pn = "name/s3/".to_owned() + &kid;
 
-    let transfer_start = std::time::Instant::now();
-    let (model_bytes, img_bytes) = if use_delegated == "true" {
+    let transfer_start_us = sigmaos::get_time_us();
+    let (model_bytes, img_bytes) = if sigmaos::get_run_co_sandbox() {
         // Delegated path: boot script has already fetched model (rpcIdx=0) and
         // image (rpcIdx=1) into SPProxy's delegated RPC store. Use
         // recv_delegated_rpc which returns a single raw frame at buf_offs[0].
@@ -81,7 +75,7 @@ pub fn boot(b: *mut c_char, buf_sz: usize) {
         sigmaos::log_spawn_latency(
             buf,
             "Paper.Initialization.DownloadState",
-            transfer_start.elapsed().as_micros() as u64,
+            sigmaos::get_time_us() - transfer_start_us,
         );
         (model_bytes, img_bytes)
     } else {
@@ -119,12 +113,12 @@ pub fn boot(b: *mut c_char, buf_sz: usize) {
         sigmaos::log_spawn_latency(
             buf,
             "Paper.Initialization.TransferState",
-            transfer_start.elapsed().as_micros() as u64,
+            sigmaos::get_time_us() - transfer_start_us,
         );
         (model_bytes, img_bytes)
     };
 
-    let infer_start = std::time::Instant::now();
+    let infer_start_us = sigmaos::get_time_us();
     // Decode JPEG and resize to 224x224.
     let img = image::load_from_memory(&img_bytes)
         .unwrap()
@@ -160,7 +154,7 @@ pub fn boot(b: *mut c_char, buf_sz: usize) {
     sigmaos::log_spawn_latency(
         buf,
         "Paper.Initialization.AppLoadState",
-        infer_start.elapsed().as_micros() as u64,
+        sigmaos::get_time_us() - infer_start_us,
     );
 
     let (class_idx, &score) = scores
@@ -169,6 +163,6 @@ pub fn boot(b: *mut c_char, buf_sz: usize) {
         .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
         .unwrap();
 
-    let exit_msg = format!("{},{}", class_idx, score);
-    sigmaos::exit(buf, sigmaos::EXIT_STATUS_OK, &exit_msg);
+    let exit_usg = format!("{},{}", class_idx, score);
+    sigmaos::exit(buf, sigmaos::EXIT_STATUS_OK, &exit_usg);
 }

@@ -97,14 +97,10 @@ func (j *ImgrecWASMJob) Run() (string, error) {
 	}
 	wrt.Close()
 
-	useDelegatedStr := "false"
-	if j.conf.UseDelegated {
-		useDelegatedStr = "true"
-	}
 	p := proc.NewProc(PrecompiledProg, []string{
 		j.conf.ImgBucket, j.conf.ImgKey,
 		j.conf.ModelBucket, j.conf.ModelKey,
-		j.conf.Kid, useDelegatedStr,
+		j.conf.Kid,
 	})
 	p.GetProcEnv().UseSPProxy = true
 	p.SetProcContainerType(proc.ProcContainerType_PROC_CTR_WASM)

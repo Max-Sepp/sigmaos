@@ -109,6 +109,10 @@ func (impl *WASMProcAPIImpl) Log(msg string) error {
 	return nil
 }
 
+func (impl *WASMProcAPIImpl) GetRunCoSandbox() bool {
+	return impl.p.GetRunCoSandbox()
+}
+
 func (impl *WASMProcAPIImpl) LogSpawnLatency(label string, elapsedMicros uint64) error {
 	opStart := time.Now().Add(-time.Duration(elapsedMicros) * time.Microsecond)
 	perf.LogSpawnLatency(label, impl.p.GetPid(), impl.p.GetSpawnTime(), opStart)

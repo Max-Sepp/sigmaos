@@ -17,6 +17,8 @@ mod sigmaos_host {
         pub fn exit(status: u64, msg_len: u64);
         pub fn log(msg_len: u64);
         pub fn log_spawn_latency(label_len: u64, elapsed_micros: u64);
+        pub fn get_run_co_sandbox() -> u64;
+        pub fn get_time_us() -> u64;
     }
 }
 
@@ -113,6 +115,14 @@ pub fn log_spawn_latency(buf: &mut [u8], label: &str, elapsed_micros: u64) {
         buf[i] = c;
     }
     unsafe { sigmaos_host::log_spawn_latency(label_len, elapsed_micros) }
+}
+
+pub fn get_run_co_sandbox() -> bool {
+    unsafe { sigmaos_host::get_run_co_sandbox() != 0 }
+}
+
+pub fn get_time_us() -> u64 {
+    unsafe { sigmaos_host::get_time_us() }
 }
 
 pub fn exit(buf: &mut [u8], status: u64, msg: &str) {
