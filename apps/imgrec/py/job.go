@@ -34,7 +34,7 @@ func NewImgrecPyJobConfig(imgBucket, imgKey, modelBucket, modelKey, kid string, 
 }
 
 type ImgrecPyJob struct {
-	conf      *ImgrecPyJobConfig
+	conf *ImgrecPyJobConfig
 	*sigmaclnt.SigmaClnt
 	coSandbox []byte
 	bootInput []byte
@@ -72,6 +72,7 @@ func (j *ImgrecPyJob) Run() (string, error) {
 	if j.conf.ShmemMB > 0 {
 		p.SetShmemMB(j.conf.ShmemMB)
 	}
+	db.DPrintf(db.TEST, "Scale %v", p.GetPid())
 	if err := j.Spawn(p); err != nil {
 		db.DPrintf(db.ERROR, "ImgrecPy Spawn err: %v", err)
 		return "", err

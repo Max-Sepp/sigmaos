@@ -45,7 +45,7 @@ func NewImgrecWASMJobConfig(imgBucket, imgKey, modelBucket, modelKey, kid string
 }
 
 type ImgrecWASMJob struct {
-	conf             *ImgrecWASMJobConfig
+	conf *ImgrecWASMJobConfig
 	*sigmaclnt.SigmaClnt
 	coSandbox        []byte
 	bootInput        []byte
@@ -118,6 +118,7 @@ func (j *ImgrecWASMJob) Run() (string, error) {
 	if j.ProcEnv().BuildTag == sp.LOCAL_BUILD {
 		p.PrependSigmaPath(filepath.Dir(precompiledPath))
 	}
+	db.DPrintf(db.TEST, "Scale %v", p.GetPid())
 	if err := j.Spawn(p); err != nil {
 		db.DPrintf(db.ERROR, "ImgrecWASM Spawn err: %v", err)
 		return "", err
