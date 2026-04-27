@@ -65,7 +65,6 @@ def main():
     class_idx = int(np.argmax(scores))
     score     = float(scores[class_idx])
 
-    print(f"Predicted {class_idx},{score}")
     clnt.exited(sigmaos.STATUS_OK, f"{class_idx},{score}")
 
 
