@@ -21,20 +21,22 @@ var parallelArg bool
 var noShutdownArg bool
 var k8sArg bool
 var oneByOne bool
+var reloadGVisor bool
 
 type BenchConfig struct {
-	Platform   sp.Tplatform `json:"platform"`
-	VPC        string       `json:"vpc"`
-	Tag        string       `json:"tag"`
-	Branch     string       `json:"branch"`
-	Version    string       `json:"version"`
-	Debug      string       `json:"debug"`
-	Perf       string       `json:"perf"`
-	NoNetproxy bool         `json:"no_dialproxy"`
-	Overlays   bool         `json:"overlays"`
-	Parallel   bool         `json:"parallel"`
-	NoShutdown bool         `json:"no_shutdown"`
-	K8s        bool         `json:"k8s"`
+	Platform     sp.Tplatform `json:"platform"`
+	VPC          string       `json:"vpc"`
+	Tag          string       `json:"tag"`
+	Branch       string       `json:"branch"`
+	Version      string       `json:"version"`
+	Debug        string       `json:"debug"`
+	Perf         string       `json:"perf"`
+	NoNetproxy   bool         `json:"no_dialproxy"`
+	Overlays     bool         `json:"overlays"`
+	Parallel     bool         `json:"parallel"`
+	NoShutdown   bool         `json:"no_shutdown"`
+	K8s          bool         `json:"k8s"`
+	ReloadGVisor bool         `json:"reload_gvisor"`
 }
 
 // Return a new benchmark config, given the flag arguments used to run the

@@ -35,6 +35,7 @@ func init() {
 	flag.BoolVar(&parallelArg, "parallelize", false, "Run commands in parallel to speed up, e.g., cluster shutdown.")
 	flag.BoolVar(&oneByOne, "one-by-one", false, "Run one benchmark part, and then return")
 	flag.BoolVar(&noShutdownArg, "no-shutdown-after-test", false, "Avoid shutting down the cluster after running a benchmark (useful for debugging).")
+	flag.BoolVar(&reloadGVisor, "reload-gvisor", false, "Refresh gvisor container.")
 	flag.BoolVar(&k8sArg, "k8s", false, "Run the k8s version of the experiment.")
 	proc.SetSigmaDebugPid("remote-bench")
 }

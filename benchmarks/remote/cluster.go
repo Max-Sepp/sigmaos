@@ -63,6 +63,9 @@ func (ccfg *ClusterConfig) StartSigmaOSCluster() error {
 		args = append(args, "--usegvisor")
 		args = append(args, "--nodialproxy")
 	}
+	if ccfg.bcfg.ReloadGVisor {
+		args = append(args, "--reload-gvisor-ctr")
+	}
 	args = append(args, "--numfullnode", strconv.Itoa(ccfg.NumFullNodes))
 	args = append(args, "--numbeschednode", strconv.Itoa(ccfg.NumProcqOnlyNodes))
 	err := ccfg.lcfg.RunScriptRedirectOutputFile("./start-sigmaos.sh", CLUSTER_INIT_LOG, args...)

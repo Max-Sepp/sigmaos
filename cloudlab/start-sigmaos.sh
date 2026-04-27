@@ -1,7 +1,7 @@
 #!/bin/bash
 
 usage() {
-  echo "Usage: $0 [--branch BRANCH] [--reserveMcpu rmcpu] [--pull TAG] [--n N_VM] [--ncores NCORES] [--nodialproxy] [--usegvisor] [--turbo] [--numfullnode N] [--numbeschednode N]" 1>&2
+  echo "Usage: $0 [--branch BRANCH] [--reserveMcpu rmcpu] [--pull TAG] [--n N_VM] [--ncores NCORES] [--nodialproxy] [--usegvisor] [--turbo] [--numfullnode N] [--numbeschednode N] [--reload-gvisor-ctr]" 1>&2
 }
 
 VPC=""
@@ -13,6 +13,7 @@ NUM_FULL_NODE="0"
 NUM_BESCHED_NODE="0"
 DIALPROXY="--usedialproxy"
 GVISOR=""
+RELOAD_GVISOR="false"
 TOKEN=""
 TURBO=""
 RMCPU="0"
@@ -54,6 +55,10 @@ while [[ $# -gt 0 ]]; do
   --nodialproxy)
     shift
     DIALPROXY=""
+    ;;
+  --reload-gvisor-ctr)
+    shift
+    RELOAD_GVISOR="true"
     ;;
   --usegvisor)
     shift
@@ -191,8 +196,13 @@ for vm in $vms; do
 
   cd sigmaos
   sudo ./load-apparmor.sh
-  docker pull arielszekely/sigmauser:$TAG
-  sudo ./create-gvisor-bundle.sh --user_ctr arielszekely/sigmauser:${TAG}
+  if [ "${RELOAD_GVISOR}" = "true" ]; then
+    if docker pull arielszekely/sigmauser:$TAG | grep -q "Image is up to date"; then
+      echo "GVisor image already up-to-date"
+    else
+      sudo ./create-gvisor-bundle.sh --user_ctr arielszekely/sigmauser:${TAG}
+    fi
+  fi
 
   echo "$PWD $SIGMADEBUG"
   if [ "${vm}" = "${MAIN}" ]; then

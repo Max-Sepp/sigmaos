@@ -62,7 +62,7 @@ if [ $EXP == "all" ] || [ $EXP == "imgprocess" ]; then
 #    rm -rf benchmarks/results/$VERSION/cos_sim_tail_latency_*
 #  fi
   echo "Generating ImgProcess data..."
-  go clean -testcache; go test -v -timeout 0 sigmaos/benchmarks/remote --run TestImgProcess --parallelize --platform aws --vpc $AWS_VPC --build-tag $TAG --no-shutdown-after-test --bench-version $VERSION --branch $BRANCH 2>&1 | tee $LOG_DIR/cache-scaler.out
+  go clean -testcache; go test -v -timeout 0 sigmaos/benchmarks/remote --run TestImgProcess --parallelize --platform aws --vpc $AWS_VPC --build-tag $TAG --no-shutdown-after-test --bench-version $VERSION --branch $BRANCH 2>&1 | tee $LOG_DIR/imgprocess.out
   echo "Done generating ImgProcess data..."
 fi
 
@@ -72,6 +72,6 @@ if [ $EXP == "all" ] || [ $EXP == "start-lat" ]; then
 #    rm -rf benchmarks/results/$VERSION/cos_sim_tail_latency_*
 #  fi
   echo "Generating StartLatency data..."
-  go clean -testcache; go test -v -timeout 0 sigmaos/benchmarks/remote --run TestStartLatency --parallelize --platform aws --vpc $AWS_VPC --build-tag $TAG --no-shutdown-after-test --bench-version $VERSION --branch $BRANCH 2>&1 | tee $LOG_DIR/cache-scaler.out
+  go clean -testcache; go test -v -timeout 0 sigmaos/benchmarks/remote --run TestStartLatency --parallelize --platform aws --vpc $AWS_VPC --build-tag $TAG --no-shutdown-after-test --bench-version $VERSION --branch $BRANCH 2>&1 | tee $LOG_DIR/start-lat.out
   echo "Done generating StartLatency data..."
 fi
