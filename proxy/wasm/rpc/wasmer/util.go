@@ -41,7 +41,7 @@ func UploadCoSandboxRemote(sc *sigmaclnt.SigmaClnt, scriptName string) error {
 		"bin/wasm",
 		scriptName+".wasm",
 	)
-	db.DPrintf(db.ALWAYS, "Boot script path: %v", pn)
+	db.DPrintf(db.ALWAYS, "CoSandbox path: %v", pn)
 	pnRemote := filepath.Join(sp.S3, sp.ANY, sc.ProcEnv().BuildTag, "wasm", scriptName+".wasm")
 	if err := sc.UploadFile(pn, pnRemote); err != nil {
 		db.DPrintf(db.ERROR, "Err upload boot script (%v -> %v): %v", pn, pnRemote, err)
@@ -73,7 +73,7 @@ func ReadCoSandbox(sc *sigmaclnt.SigmaClnt, scriptName string) ([]byte, error) {
 			"bin/wasm",
 			scriptName+".wasm",
 		)
-		db.DPrintf(db.ALWAYS, "Boot script path: %v", pn)
+		db.DPrintf(db.ALWAYS, "CoSandbox path: %v", pn)
 		if b, err = os.ReadFile(pn); err != nil {
 			db.DPrintf(db.ERROR, "Err read boot script local: %v", err)
 			return nil, err
