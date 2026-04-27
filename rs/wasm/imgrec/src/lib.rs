@@ -74,7 +74,7 @@ pub fn boot(b: *mut c_char, buf_sz: usize) {
         let img_bytes: Vec<u8> = buf[buf_offs[0]..buf_offs[0] + buf_lens[0]].to_vec();
         sigmaos::log_spawn_latency(
             buf,
-            "Paper.Initialization.DownloadState",
+            "Paper.Initialization.TransferState",
             sigmaos::get_time_us() - transfer_start_us,
         );
         (model_bytes, img_bytes)
@@ -112,7 +112,7 @@ pub fn boot(b: *mut c_char, buf_sz: usize) {
         let img_bytes: Vec<u8> = buf[buf_offs[1]..buf_offs[1] + buf_lens[1]].to_vec();
         sigmaos::log_spawn_latency(
             buf,
-            "Paper.Initialization.TransferState",
+            "Paper.Initialization.DownloadState",
             sigmaos::get_time_us() - transfer_start_us,
         );
         (model_bytes, img_bytes)
