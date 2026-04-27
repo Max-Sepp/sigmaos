@@ -156,5 +156,5 @@ func precompiledBinPath(sc *sigmaclnt.SigmaClnt) sp.Tsigmapath {
 	if sc.ProcEnv().BuildTag == sp.LOCAL_BUILD {
 		return filepath.Join(sp.S3, sp.ANY, "9ps3", PrecompiledProg+"-v"+sp.Version)
 	}
-	return filepath.Join(sp.S3, sp.ANY, sc.ProcEnv().BuildTag, "bin", PrecompiledProg)
+	return filepath.Join(sp.S3, sp.ANY, sc.ProcEnv().BuildTag, "bin", PrecompiledProg+"-v"+sp.Version)
 }
