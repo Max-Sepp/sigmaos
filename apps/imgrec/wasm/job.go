@@ -144,7 +144,12 @@ func readRawWASMBin(sc *sigmaclnt.SigmaClnt) ([]byte, error) {
 		return os.ReadFile(filepath.Join(projectRoot, "bin/wasm/imgrec.wasm"))
 	}
 	pn := filepath.Join(sp.S3, sp.ANY, sc.ProcEnv().BuildTag, "wasm", "imgrec.wasm")
-	return sc.GetFile(pn)
+	rdr, err := sc.OpenReader(pn)
+	if err != nil {
+		return nil, err
+	}
+	defer rdr.Close()
+	return io.ReadAll(rdr)
 }
 
 func precompiledBinPath(sc *sigmaclnt.SigmaClnt) sp.Tsigmapath {

@@ -2,6 +2,7 @@ package wasmer
 
 import (
 	"encoding/binary"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -51,9 +52,14 @@ func UploadCoSandboxRemote(sc *sigmaclnt.SigmaClnt, scriptName string) error {
 }
 
 func ReadCoSandboxRemote(sc *sigmaclnt.SigmaClnt, scriptName string) ([]byte, error) {
-	// Else, read it out of S3
 	pn := filepath.Join(sp.S3, sp.ANY, sc.ProcEnv().BuildTag, "wasm", scriptName+".wasm")
-	b, err := sc.GetFile(pn)
+	rdr, err := sc.OpenReader(pn)
+	if err != nil {
+		db.DPrintf(db.ERROR, "Err open boot script remote (%v): %v", pn, err)
+		return nil, err
+	}
+	defer rdr.Close()
+	b, err := io.ReadAll(rdr)
 	if err != nil {
 		db.DPrintf(db.ERROR, "Err read boot script remote (%v): %v", pn, err)
 		return nil, err
