@@ -10,6 +10,7 @@ both image and model); otherwise fetches directly by bucket/key.
 
 import sys
 import io
+import time
 import numpy as np
 from PIL import Image
 import onnxruntime as ort
@@ -37,21 +38,29 @@ def main():
         sys.exit(1)
     img_bucket, img_key, model_bucket, model_key, _kid = sys.argv[1:]
 
+    transfer_start = time.perf_counter()
     if clnt.get_run_co_sandbox():
         # Zero-copy path: memoryviews backed by shmem, valid for proc lifetime.
         # PIL/BytesIO accept memoryview directly; ORT requires bytes (one copy).
         img_bytes   = clnt.s3_delegated_get_object_view(1)
         model_bytes = bytes(clnt.s3_delegated_get_object_view(0))
+        clnt.log_spawn_latency("Paper.Initialization.DownloadState",
+                               int((time.perf_counter() - transfer_start) * 1_000_000))
     else:
         img_bytes   = clnt.s3_get_object(img_bucket, img_key)
         model_bytes = clnt.s3_get_object(model_bucket, model_key)
+        clnt.log_spawn_latency("Paper.Initialization.TransferState",
+                               int((time.perf_counter() - transfer_start) * 1_000_000))
 
+    infer_start = time.perf_counter()
     tensor = preprocess(img_bytes)
 
     sess = ort.InferenceSession(model_bytes)
     input_name  = sess.get_inputs()[0].name
     output_name = sess.get_outputs()[0].name
     scores = sess.run([output_name], {input_name: tensor})[0][0]
+    clnt.log_spawn_latency("Paper.Initialization.AppLoadState",
+                           int((time.perf_counter() - infer_start) * 1_000_000))
 
     class_idx = int(np.argmax(scores))
     score     = float(scores[class_idx])

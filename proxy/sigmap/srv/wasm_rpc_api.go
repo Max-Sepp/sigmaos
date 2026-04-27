@@ -2,6 +2,7 @@ package srv
 
 import (
 	"sync"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 
@@ -14,6 +15,7 @@ import (
 	sessp "sigmaos/session/proto"
 	sigmaclnt "sigmaos/sigmaclnt"
 	sp "sigmaos/sigmap"
+	"sigmaos/util/perf"
 )
 
 type WASMRPCProxy struct {
@@ -101,6 +103,12 @@ func (wp *WASMRPCProxy) Forward(rpcIdx uint64, newRPCIdx uint64, pn string, nOut
 
 func (wp *WASMRPCProxy) Log(msg string) error {
 	db.DPrintf(db.SPPROXYSRV, "[%v] WASM log: %v", wp.p.GetPid(), msg)
+	return nil
+}
+
+func (wp *WASMRPCProxy) LogSpawnLatency(label string, elapsedMicros uint64) error {
+	opStart := time.Now().Add(-time.Duration(elapsedMicros) * time.Microsecond)
+	perf.LogSpawnLatency(label, wp.p.GetPid(), wp.p.GetSpawnTime(), opStart)
 	return nil
 }
 

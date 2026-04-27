@@ -16,6 +16,7 @@ mod sigmaos_host {
         pub fn forward_rpc(rpc_idx: u64, new_rpc_idx: u64, pn_len: u64, n_outiov: u64);
         pub fn exit(status: u64, msg_len: u64);
         pub fn log(msg_len: u64);
+        pub fn log_spawn_latency(label_len: u64, elapsed_micros: u64);
     }
 }
 
@@ -104,6 +105,14 @@ pub fn log(buf: &mut [u8], msg: &str) {
         idx += 1;
     }
     unsafe { sigmaos_host::log(msg_len) }
+}
+
+pub fn log_spawn_latency(buf: &mut [u8], label: &str, elapsed_micros: u64) {
+    let label_len = label.len() as u64;
+    for (i, c) in label.bytes().enumerate() {
+        buf[i] = c;
+    }
+    unsafe { sigmaos_host::log_spawn_latency(label_len, elapsed_micros) }
 }
 
 pub fn exit(buf: &mut [u8], status: u64, msg: &str) {

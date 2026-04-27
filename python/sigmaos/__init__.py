@@ -79,6 +79,11 @@ _lib.sigmaos_ux_delegated_get_file_view.restype = ctypes.c_void_p
 _lib.sigmaos_ux_delegated_get_file_view.argtypes = [ctypes.c_void_p, ctypes.c_uint64,
                                                      ctypes.POINTER(ctypes.c_size_t)]
 
+# sigmaos_log_spawn_latency
+_lib.sigmaos_log_spawn_latency.restype = None
+_lib.sigmaos_log_spawn_latency.argtypes = [ctypes.c_void_p, ctypes.c_char_p,
+                                            ctypes.c_uint64]
+
 # sigmaos_last_error
 _lib.sigmaos_last_error.restype = ctypes.c_char_p
 _lib.sigmaos_last_error.argtypes = []
@@ -202,6 +207,10 @@ class SigmaosClnt:
                                        data, len(data))
         if rc != 0:
             raise RuntimeError(f"sigmaos_ux_put_file({path!r}) failed: {_last_error()}")
+
+    def log_spawn_latency(self, label: str, elapsed_micros: int) -> None:
+        _lib.sigmaos_log_spawn_latency(self._clnt, label.encode("utf-8"),
+                                       elapsed_micros)
 
     def put_file(self, pn: str, data: bytes,
                  perm: int = 0o777, mode: int = 0) -> int:

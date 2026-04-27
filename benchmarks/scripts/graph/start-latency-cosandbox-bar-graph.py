@@ -56,11 +56,12 @@ def find_proc_pid(dir_path, proc_name, start=True):
 def parse_timing_line(line):
     """
     Parse a log line to extract phase, operation name, sinceSpawn, and op timing.
-    Expected format: [proc_pid] Setup.OperationName or Initialization.OperationName ... sinceSpawn:123ms ... op:456ms
+    Expected format: [proc_pid] [Paper.]Setup.OperationName or [Paper.]Initialization.OperationName ... sinceSpawn:123ms ... op:456ms
     Returns tuple of (phase, op_name, since_spawn_ms, op_time_ms) or None if parsing fails
     """
-    # Extract the phase (Setup or Initialization) and operation name
-    op_match = re.search(r'\] (Setup|Initialization)\.(\S+)', line)
+    # Extract the phase (Setup or Initialization) and operation name.
+    # Labels may optionally be prefixed with "Paper." (e.g. "Paper.Initialization.TransferState").
+    op_match = re.search(r'\] (?:Paper\.)?(Setup|Initialization)\.(\S+)', line)
     if not op_match:
         return None
 
@@ -101,7 +102,7 @@ def parse_timing_line(line):
 def find_setup_init_lines(dir_path, proc_pid):
     """
     Search all log files in dir_path/sigmaos-node-logs for lines matching
-    "[proc_pid] Setup\\.*" or "[proc_pid] Initialization\\.*"
+    "[proc_pid] [Paper.]Setup\\.*" or "[proc_pid] [Paper.]Initialization\\.*"
     Returns two dicts: setup_timings and init_timings, each mapping operation names
     to (sinceSpawn, op_time) tuples. If duplicates exist, keeps the last occurrence.
     """
@@ -117,9 +118,10 @@ def find_setup_init_lines(dir_path, proc_pid):
         print(f"Error: No log files found in {log_dir}", file=sys.stderr)
         return {}, {}
 
-    # Patterns to match
-    setup_pattern = re.compile(rf"\[{re.escape(proc_pid)}\] Setup\..*")
-    init_pattern = re.compile(rf"\[{re.escape(proc_pid)}\] Initialization\..*")
+    # Patterns to match — the Paper. prefix is optional
+    escaped_pid = re.escape(proc_pid)
+    setup_pattern = re.compile(rf"\[{escaped_pid}\] (?:Paper\.)?Setup\..*")
+    init_pattern = re.compile(rf"\[{escaped_pid}\] (?:Paper\.)?Initialization\..*")
 
     # Use separate dicts for Setup and Initialization timings
     setup_timings = {}
@@ -218,6 +220,26 @@ def main():
         help="Path to memcached with cosandbox benchmark output directory"
     )
     parser.add_argument(
+        "--dir_path_imgrec_wasm",
+        required=True,
+        help="Path to imgrec-wasm benchmark output directory"
+    )
+    parser.add_argument(
+        "--dir_path_imgrec_wasm_cosandbox",
+        required=True,
+        help="Path to imgrec-wasm with cosandbox benchmark output directory"
+    )
+    parser.add_argument(
+        "--dir_path_imgrec_py",
+        required=True,
+        help="Path to imgrec-py benchmark output directory"
+    )
+    parser.add_argument(
+        "--dir_path_imgrec_py_cosandbox",
+        required=True,
+        help="Path to imgrec-py with cosandbox benchmark output directory"
+    )
+    parser.add_argument(
         "--output",
         default="start-latency-cosandbox-comparison.png",
         help="Output filename for the graph (default: start-latency-cosandbox-comparison.png)"
@@ -242,7 +264,15 @@ def main():
         'memcached-shim': {
             'without_cosandbox': get_last_init_time(args.dir_path_memcached, 'memcached-shim'),
             'with_cosandbox': get_last_init_time(args.dir_path_memcached_cosandbox, 'memcached-shim')
-        }
+        },
+        'imgrec_precompiled.wasm': {
+            'without_cosandbox': get_last_init_time(args.dir_path_imgrec_wasm, 'imgrec_precompiled.wasm'),
+            'with_cosandbox': get_last_init_time(args.dir_path_imgrec_wasm_cosandbox, 'imgrec_precompiled.wasm')
+        },
+        'imgrec.py': {
+            'without_cosandbox': get_last_init_time(args.dir_path_imgrec_py, 'imgrec.py'),
+            'with_cosandbox': get_last_init_time(args.dir_path_imgrec_py_cosandbox, 'imgrec.py')
+        },
     }
 
     # Check if we have any data
@@ -251,8 +281,9 @@ def main():
         sys.exit(1)
 
     # Prepare data for plotting
-    procs = ['etcd-shim', 'cossim-srv-cpp', 'cached-srv-cpp', 'memcached-shim']
-    proc_labels = ['Etcd', 'VecDB', 'Cached', 'Memcached']
+    procs = ['etcd-shim', 'cossim-srv-cpp', 'cached-srv-cpp', 'memcached-shim',
+             'imgrec_precompiled.wasm', 'imgrec.py']
+    proc_labels = ['Etcd', 'VecDB', 'Cached', 'Memcached', 'Imgrec\n(WASM)', 'Imgrec\n(Python)']
 
     without_cosandbox = [data[proc]['without_cosandbox'] if data[proc]['without_cosandbox'] is not None else 0 for proc in procs]
     with_cosandbox = [data[proc]['with_cosandbox'] if data[proc]['with_cosandbox'] is not None else 0 for proc in procs]
@@ -261,7 +292,7 @@ def main():
     x = np.arange(len(proc_labels))
     width = 0.35
 
-    fig, ax = plt.subplots(figsize=(6.4, 2.4))
+    fig, ax = plt.subplots(figsize=(9.0, 2.4))
     bars1 = ax.bar(x - width/2, without_cosandbox, width, label='Without co-sandbox', color='steelblue')
     bars2 = ax.bar(x + width/2, with_cosandbox, width, label='With co-sandbox', color='coral')
 
@@ -299,7 +330,7 @@ def main():
     for i, proc in enumerate(procs):
         without = data[proc]['without_cosandbox']
         with_init = data[proc]['with_cosandbox']
-        print(f"{proc_labels[i]:15} | Without: {without:.2f}ms | With: {with_init:.2f}ms | Diff: {(without - with_init):.2f}ms ({((without - with_init) / without * 100):.1f}%)" if without and with_init else f"{proc_labels[i]:15} | Data missing")
+        print(f"{proc_labels[i]:20} | Without: {without:.2f}ms | With: {with_init:.2f}ms | Diff: {(without - with_init):.2f}ms ({((without - with_init) / without * 100):.1f}%)" if without and with_init else f"{proc_labels[i]:20} | Data missing")
 
 
 if __name__ == "__main__":

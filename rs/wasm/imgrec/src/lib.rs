@@ -69,6 +69,7 @@ pub fn boot(b: *mut c_char, buf_sz: usize) {
 
     let pn = "name/s3/".to_owned() + &kid;
 
+    let transfer_start = std::time::Instant::now();
     let (model_bytes, img_bytes) = if use_delegated == "true" {
         // Delegated path: boot script has already fetched model (rpcIdx=0) and
         // image (rpcIdx=1) into SPProxy's delegated RPC store. Use
@@ -77,6 +78,11 @@ pub fn boot(b: *mut c_char, buf_sz: usize) {
         let model_bytes: Vec<u8> = buf[buf_offs[0]..buf_offs[0] + buf_lens[0]].to_vec();
         let (buf_offs, buf_lens) = sigmaos::recv_delegated_rpc(buf, 1);
         let img_bytes: Vec<u8> = buf[buf_offs[0]..buf_offs[0] + buf_lens[0]].to_vec();
+        sigmaos::log_spawn_latency(
+            buf,
+            "Paper.Initialization.DownloadState",
+            transfer_start.elapsed().as_micros() as u64,
+        );
         (model_bytes, img_bytes)
     } else {
         // Direct path: fetch model then image via S3 RPC.
@@ -110,9 +116,15 @@ pub fn boot(b: *mut c_char, buf_sz: usize) {
         );
         let (buf_offs, buf_lens) = sigmaos::recv_rpc(buf, 1, true);
         let img_bytes: Vec<u8> = buf[buf_offs[1]..buf_offs[1] + buf_lens[1]].to_vec();
+        sigmaos::log_spawn_latency(
+            buf,
+            "Paper.Initialization.TransferState",
+            transfer_start.elapsed().as_micros() as u64,
+        );
         (model_bytes, img_bytes)
     };
 
+    let infer_start = std::time::Instant::now();
     // Decode JPEG and resize to 224x224.
     let img = image::load_from_memory(&img_bytes)
         .unwrap()
@@ -145,6 +157,11 @@ pub fn boot(b: *mut c_char, buf_sz: usize) {
     let outputs = model.run(tvec!(input.into())).unwrap();
     let scores = outputs[0].to_array_view::<f32>().unwrap();
     let scores = scores.as_slice().unwrap();
+    sigmaos::log_spawn_latency(
+        buf,
+        "Paper.Initialization.AppLoadState",
+        infer_start.elapsed().as_micros() as u64,
+    );
 
     let (class_idx, &score) = scores
         .iter()

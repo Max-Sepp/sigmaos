@@ -82,8 +82,9 @@ func (wrt *WasmerRuntime) RunModule(pid sp.Tpid, spawnTime time.Time, compiledMo
 			"recv_rpc":           wrt.newRecvRPCFn(store, &instance, &wasmBufPtr, pid),
 			"recv_delegated_rpc": wrt.newRecvDelegatedRPCFn(store, &instance, &wasmBufPtr, pid),
 			"forward_rpc":        wrt.newForwardRPCFn(store, &instance, &wasmBufPtr, pid),
-			"exit":               wrt.newExitFn(store, &instance, &wasmBufPtr, pid),
-			"log":                wrt.newLogFn(store, &instance, &wasmBufPtr, pid),
+			"exit":                wrt.newExitFn(store, &instance, &wasmBufPtr, pid),
+			"log":                 wrt.newLogFn(store, &instance, &wasmBufPtr, pid),
+			"log_spawn_latency":   wrt.newLogSpawnLatencyFn(store, &instance, &wasmBufPtr, pid),
 		},
 	)
 	start := time.Now()
@@ -345,6 +346,30 @@ func (wrt *WasmerRuntime) newLogFn(store *wasmer.Store, instance **wasmer.Instan
 			msg := string(buf[0:msgLen])
 			if err := wrt.apiImpl.Log(msg); err != nil {
 				db.DPrintf(db.WASMRT_ERR, "[%v] Err Log: %v", pid, err)
+				return []wasmer.Value{}, err
+			}
+			return []wasmer.Value{}, nil
+		},
+	)
+}
+
+func (wrt *WasmerRuntime) newLogSpawnLatencyFn(store *wasmer.Store, instance **wasmer.Instance, wasmBufPtr *int32, pid sp.Tpid) *wasmer.Function {
+	return wasmer.NewFunction(
+		store,
+		wasmer.NewFunctionType(wasmer.NewValueTypes(wasmer.I64, wasmer.I64), wasmer.NewValueTypes()),
+		func(args []wasmer.Value) ([]wasmer.Value, error) {
+			labelLen := uint64(args[0].I64())
+			elapsedMicros := uint64(args[1].I64())
+			mem, err := (*instance).Exports.GetMemory("memory")
+			if err != nil {
+				db.DPrintf(db.ERROR, "[%v] Err get WASM instance memory: %v", pid, err)
+				db.DPrintf(db.WASMRT_ERR, "[%v] Err get WASM instance memory: %v", pid, err)
+				return []wasmer.Value{}, err
+			}
+			buf := (*mem).Data()[*wasmBufPtr : *wasmBufPtr+SHARED_BUF_SZ]
+			label := string(buf[0:labelLen])
+			if err := wrt.apiImpl.LogSpawnLatency(label, elapsedMicros); err != nil {
+				db.DPrintf(db.WASMRT_ERR, "[%v] Err LogSpawnLatency: %v", pid, err)
 				return []wasmer.Value{}, err
 			}
 			return []wasmer.Value{}, nil

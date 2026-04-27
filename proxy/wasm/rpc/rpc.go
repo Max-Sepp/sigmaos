@@ -33,6 +33,7 @@ type CoSandboxAPI interface {
 	Forward(rpcIdx uint64, newRPCIdx uint64, pn string, nOutIOV uint64) error
 	Exit(status Tstatus, msg string) error
 	Log(msg string) error
+	LogSpawnLatency(label string, elapsedMicros uint64) error
 }
 
 type CoSandboxAPIImpl interface {

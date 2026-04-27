@@ -2,6 +2,7 @@ package srv
 
 import (
 	"sync"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 
@@ -15,6 +16,7 @@ import (
 	sessp "sigmaos/session/proto"
 	"sigmaos/sigmaclnt"
 	sp "sigmaos/sigmap"
+	"sigmaos/util/perf"
 )
 
 // WASMProcAPIImpl implements CoSandboxAPIImpl for wasmd-run procs.
@@ -104,6 +106,12 @@ func (impl *WASMProcAPIImpl) Forward(rpcIdx uint64, newRPCIdx uint64, pn string,
 
 func (impl *WASMProcAPIImpl) Log(msg string) error {
 	db.DPrintf(db.WASMD, "[%v] WASM log: %v", impl.p.GetPid(), msg)
+	return nil
+}
+
+func (impl *WASMProcAPIImpl) LogSpawnLatency(label string, elapsedMicros uint64) error {
+	opStart := time.Now().Add(-time.Duration(elapsedMicros) * time.Microsecond)
+	perf.LogSpawnLatency(label, impl.p.GetPid(), impl.p.GetSpawnTime(), opStart)
 	return nil
 }
 

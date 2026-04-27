@@ -4,7 +4,9 @@
 #include <proxy/sigmap/python/sigmaos_c.h>
 #include <proxy/sigmap/sigmap.h>
 #include <proxy/ux/clnt.h>
+#include <util/perf/perf.h>
 
+#include <chrono>
 #include <cstring>
 #include <map>
 #include <memory>
@@ -256,6 +258,20 @@ const char* sigmaos_ux_delegated_get_file_view(SigmaosClnt clnt,
   const char* ptr = dbuf->data();
   state(clnt)->data_bufs[rpc_idx] = std::move(dbuf);
   return ptr;
+}
+
+void sigmaos_log_spawn_latency(SigmaosClnt clnt, const char* label,
+                               uint64_t elapsed_micros) {
+  auto now_us = std::chrono::duration_cast<std::chrono::microseconds>(
+                    std::chrono::high_resolution_clock::now().time_since_epoch())
+                    .count();
+  int64_t op_start_us = now_us - static_cast<int64_t>(elapsed_micros);
+  google::protobuf::Timestamp op_start;
+  op_start.set_seconds(op_start_us / 1000000);
+  op_start.set_nanos(static_cast<int32_t>((op_start_us % 1000000) * 1000));
+  auto* sp = state(clnt)->sp.get();
+  LogSpawnLatency(sp->ProcEnv()->GetPID(), sp->ProcEnv()->GetSpawnTime(),
+                  op_start, std::string(label));
 }
 
 const char* sigmaos_last_error() { return tl_last_error.c_str(); }

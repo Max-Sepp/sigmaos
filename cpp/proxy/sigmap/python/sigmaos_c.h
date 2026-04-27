@@ -78,6 +78,12 @@ const char* sigmaos_ux_delegated_get_file_view(SigmaosClnt clnt,
                                                uint64_t rpc_idx,
                                                size_t* out_len);
 
+// Logs a spawn-latency phase. label is the phase name (e.g.
+// "Paper.Initialization.TransferState"); elapsed_micros is the duration of the
+// phase measured by the proc using a monotonic clock.
+void sigmaos_log_spawn_latency(SigmaosClnt clnt, const char* label,
+                               uint64_t elapsed_micros);
+
 // Returns a thread-local string describing the last error, or "" if none.
 const char* sigmaos_last_error();
 
