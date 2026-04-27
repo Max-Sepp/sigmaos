@@ -118,12 +118,17 @@ pub fn boot(b: *mut c_char, buf_sz: usize) {
         (model_bytes, img_bytes)
     };
 
-    let infer_start_us = sigmaos::get_time_us();
+    let load_state_start_us = sigmaos::get_time_us();
     // Decode JPEG and resize to 224x224.
     let img = image::load_from_memory(&img_bytes)
         .unwrap()
         .resize_exact(INPUT_DIM as u32, INPUT_DIM as u32, FilterType::Triangle)
         .to_rgb8();
+    sigmaos::log_spawn_latency(
+        buf,
+        "Paper.Initialization.AppLoadState",
+        sigmaos::get_time_us() - load_state_start_us,
+    );
 
     // Build NCHW float tensor with ImageNet normalization.
     let n_pixels = INPUT_DIM * INPUT_DIM;
@@ -151,11 +156,6 @@ pub fn boot(b: *mut c_char, buf_sz: usize) {
     let outputs = model.run(tvec!(input.into())).unwrap();
     let scores = outputs[0].to_array_view::<f32>().unwrap();
     let scores = scores.as_slice().unwrap();
-    sigmaos::log_spawn_latency(
-        buf,
-        "Paper.Initialization.AppLoadState",
-        sigmaos::get_time_us() - infer_start_us,
-    );
 
     let (class_idx, &score) = scores
         .iter()
