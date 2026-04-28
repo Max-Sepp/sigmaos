@@ -166,6 +166,8 @@ if [[ $COMPILE == "--compile" ]]; then
       sigmaclnt/procclnt \
       proxy/ux/srv \
       proxy/s3/srv \
+      proxy/wasm \
+      proxy/sqs \
       proxy/cpp \
       boot/clnt \
       ft/procgroupmgr \
@@ -179,6 +181,8 @@ if [[ $COMPILE == "--compile" ]]; then
       apps/imgresize \
       apps/hotel \
       apps/socialnetwork \
+      apps/imgrec/py \
+      apps/imgrec/wasm \
       benchmarks \
       benchmarks/remote \
       example \
