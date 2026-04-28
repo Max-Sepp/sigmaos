@@ -1819,6 +1819,7 @@ func TestStartLatency(t *testing.T) {
 						ModelKey:     "mobilenetv2-12.onnx",
 						Kid:          "~local",
 						UseCoSandbox: cosandbox,
+						AsyncFetch:   true,
 						ShmemMB:      imgrecPyShmemMB,
 						Mcpu:         proc.Tmcpu(4000),
 					},

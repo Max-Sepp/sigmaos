@@ -2,8 +2,9 @@
 """
 SigmaOS image-recognition proc (Python).
 
-Args: img_bucket img_key model_bucket model_key kid
+Args: img_bucket img_key model_bucket model_key kid async_fetch
 
+async_fetch: "1" to fetch image and model concurrently, "0" for sequential.
 If GetRunCoSandbox is true, fetches via delegated S3 RPCs (rpc_idx 0 for
 both image and model); otherwise fetches directly by bucket/key.
 """
@@ -32,23 +33,36 @@ def main():
     clnt = sigmaos.SigmaosClnt()
     clnt.started()
 
-    if len(sys.argv) != 6:
-        print(f"usage: {sys.argv[0]} img_bucket img_key model_bucket model_key kid",
+    if len(sys.argv) != 7:
+        print(f"usage: {sys.argv[0]} img_bucket img_key model_bucket model_key kid async_fetch",
               file=sys.stderr)
         sys.exit(1)
-    img_bucket, img_key, model_bucket, model_key, _kid = sys.argv[1:]
+    img_bucket, img_key, model_bucket, model_key, _kid, async_fetch = sys.argv[1:]
+    use_async = async_fetch == "1"
 
     transfer_start = time.perf_counter()
     if clnt.get_run_co_sandbox():
         # Zero-copy path: memoryviews backed by shmem, valid for proc lifetime.
         # PIL/BytesIO accept memoryview directly; ORT requires bytes (one copy).
-        img_bytes   = clnt.s3_delegated_get_object_view(1)
-        model_bytes = bytes(clnt.s3_delegated_get_object_view(0))
+        if use_async:
+            fut_img   = clnt.s3_delegated_get_object_view(1, async_=True)
+            fut_model = clnt.s3_delegated_get_object_view(0, async_=True)
+            img_bytes   = fut_img.result()
+            model_bytes = bytes(fut_model.result())
+        else:
+            img_bytes   = clnt.s3_delegated_get_object_view(1)
+            model_bytes = bytes(clnt.s3_delegated_get_object_view(0))
         clnt.log_spawn_latency("Paper.Initialization.TransferState",
                                int((time.perf_counter() - transfer_start) * 1_000_000))
     else:
-        img_bytes   = clnt.s3_get_object(img_bucket, img_key)
-        model_bytes = clnt.s3_get_object(model_bucket, model_key)
+        if use_async:
+            fut_img   = clnt.s3_get_object(img_bucket, img_key,    async_=True)
+            fut_model = clnt.s3_get_object(model_bucket, model_key, async_=True)
+            img_bytes   = fut_img.result()
+            model_bytes = fut_model.result()
+        else:
+            img_bytes   = clnt.s3_get_object(img_bucket, img_key)
+            model_bytes = clnt.s3_get_object(model_bucket, model_key)
         clnt.log_spawn_latency("Paper.Initialization.DownloadState",
                                int((time.perf_counter() - transfer_start) * 1_000_000))
     load_state_start = time.perf_counter()

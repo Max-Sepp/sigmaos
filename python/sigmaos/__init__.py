@@ -1,7 +1,9 @@
 import ctypes
+import concurrent.futures as _cf
 import os
 
 _lib = ctypes.CDLL("/usr/local/lib/libsigmaos_py.so")
+_executor = _cf.ThreadPoolExecutor()
 
 # sigmaos_new_clnt / sigmaos_free_clnt
 _lib.sigmaos_new_clnt.restype = ctypes.c_void_p
@@ -122,7 +124,9 @@ class SigmaosClnt:
         if rc != 0:
             raise RuntimeError(f"sigmaos_exited failed: {_last_error()}")
 
-    def get_file(self, pn: str) -> bytes:
+    def get_file(self, pn: str, async_: bool = False):
+        if async_:
+            return _executor.submit(self.get_file, pn)
         out_len = ctypes.c_size_t(0)
         ptr = _lib.sigmaos_get_file(self._clnt, pn.encode("utf-8"),
                                     ctypes.byref(out_len))
@@ -133,7 +137,10 @@ class SigmaosClnt:
         finally:
             _lib.sigmaos_free_buf(ptr)
 
-    def s3_get_object(self, bucket: str, key: str, cache: bool = False) -> bytes:
+    def s3_get_object(self, bucket: str, key: str, cache: bool = False,
+                      async_: bool = False):
+        if async_:
+            return _executor.submit(self.s3_get_object, bucket, key, cache)
         out_len = ctypes.c_size_t(0)
         ptr = _lib.sigmaos_s3_get_object(self._clnt, bucket.encode("utf-8"),
                                           key.encode("utf-8"), int(cache),
@@ -145,7 +152,9 @@ class SigmaosClnt:
         finally:
             _lib.sigmaos_free_buf(ptr)
 
-    def s3_delegated_get_object_view(self, rpc_idx: int) -> memoryview:
+    def s3_delegated_get_object_view(self, rpc_idx: int, async_: bool = False):
+        if async_:
+            return _executor.submit(self.s3_delegated_get_object_view, rpc_idx)
         out_len = ctypes.c_size_t(0)
         ptr = _lib.sigmaos_s3_delegated_get_object_view(self._clnt, rpc_idx,
                                                          ctypes.byref(out_len))
@@ -154,7 +163,9 @@ class SigmaosClnt:
         arr = (ctypes.c_char * out_len.value).from_address(ptr)
         return memoryview(arr)
 
-    def s3_delegated_get_object(self, rpc_idx: int) -> bytes:
+    def s3_delegated_get_object(self, rpc_idx: int, async_: bool = False):
+        if async_:
+            return _executor.submit(self.s3_delegated_get_object, rpc_idx)
         out_len = ctypes.c_size_t(0)
         ptr = _lib.sigmaos_s3_delegated_get_object(self._clnt, rpc_idx,
                                                     ctypes.byref(out_len))
@@ -171,7 +182,9 @@ class SigmaosClnt:
         if rc != 0:
             raise RuntimeError(f"sigmaos_s3_put_object({bucket!r}, {key!r}) failed: {_last_error()}")
 
-    def ux_get_file(self, path: str) -> bytes:
+    def ux_get_file(self, path: str, async_: bool = False):
+        if async_:
+            return _executor.submit(self.ux_get_file, path)
         out_len = ctypes.c_size_t(0)
         ptr = _lib.sigmaos_ux_get_file(self._clnt, path.encode("utf-8"),
                                         ctypes.byref(out_len))
@@ -182,7 +195,9 @@ class SigmaosClnt:
         finally:
             _lib.sigmaos_free_buf(ptr)
 
-    def ux_delegated_get_file_view(self, rpc_idx: int) -> memoryview:
+    def ux_delegated_get_file_view(self, rpc_idx: int, async_: bool = False):
+        if async_:
+            return _executor.submit(self.ux_delegated_get_file_view, rpc_idx)
         out_len = ctypes.c_size_t(0)
         ptr = _lib.sigmaos_ux_delegated_get_file_view(self._clnt, rpc_idx,
                                                        ctypes.byref(out_len))
@@ -191,7 +206,9 @@ class SigmaosClnt:
         arr = (ctypes.c_char * out_len.value).from_address(ptr)
         return memoryview(arr)
 
-    def ux_delegated_get_file(self, rpc_idx: int) -> bytes:
+    def ux_delegated_get_file(self, rpc_idx: int, async_: bool = False):
+        if async_:
+            return _executor.submit(self.ux_delegated_get_file, rpc_idx)
         out_len = ctypes.c_size_t(0)
         ptr = _lib.sigmaos_ux_delegated_get_file(self._clnt, rpc_idx,
                                                   ctypes.byref(out_len))

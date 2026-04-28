@@ -18,11 +18,12 @@ type ImgrecPyJobConfig struct {
 	ModelKey     string     `json:"model_key"`
 	Kid          string     `json:"kid"`
 	UseCoSandbox bool       `json:"use_co_sandbox"`
+	AsyncFetch   bool       `json:"async_fetch"`
 	ShmemMB      proc.Tmem  `json:"shmem_mb"`
 	Mcpu         proc.Tmcpu `json:"mcpu"`
 }
 
-func NewImgrecPyJobConfig(imgBucket, imgKey, modelBucket, modelKey, kid string, useCoSandbox bool, shmemMB proc.Tmem, mcpu proc.Tmcpu) *ImgrecPyJobConfig {
+func NewImgrecPyJobConfig(imgBucket, imgKey, modelBucket, modelKey, kid string, useCoSandbox bool, asyncFetch bool, shmemMB proc.Tmem, mcpu proc.Tmcpu) *ImgrecPyJobConfig {
 	return &ImgrecPyJobConfig{
 		ImgBucket:    imgBucket,
 		ImgKey:       imgKey,
@@ -30,6 +31,7 @@ func NewImgrecPyJobConfig(imgBucket, imgKey, modelBucket, modelKey, kid string, 
 		ModelKey:     modelKey,
 		Kid:          kid,
 		UseCoSandbox: useCoSandbox,
+		AsyncFetch:   asyncFetch,
 		ShmemMB:      shmemMB,
 		Mcpu:         mcpu,
 	}
@@ -59,10 +61,15 @@ func NewImgrecPyJob(conf *ImgrecPyJobConfig, sc *sigmaclnt.SigmaClnt) (*ImgrecPy
 // Run spawns an imgrec.py proc, waits for it to complete, and returns the
 // result message (class_idx,score).
 func (j *ImgrecPyJob) Run() (string, error) {
+	asyncFetchStr := "0"
+	if j.conf.AsyncFetch {
+		asyncFetchStr = "1"
+	}
 	p := proc.NewProc("imgrec.py", []string{
 		j.conf.ImgBucket, j.conf.ImgKey,
 		j.conf.ModelBucket, j.conf.ModelKey,
 		j.conf.Kid,
+		asyncFetchStr,
 	})
 	p.GetProcEnv().UseSPProxy = true
 	p.GetProcEnv().UseSPProxyProcClnt = true
