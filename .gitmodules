@@ -1,0 +1,3 @@
+[submodule "apps/serverless-benchmarks"]
+	path = apps/serverless-benchmarks
+	url = git@github.com:ArielSzekely/serverless-benchmarks.git
