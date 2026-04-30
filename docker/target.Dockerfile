@@ -13,8 +13,7 @@ RUN apt update && \
   libc6-dbg \
   libabsl-dev \
   curl \
-  golang \
-  python3
+  golang
 
 # Install wasmer go pkg
 RUN mkdir t && \
@@ -51,9 +50,13 @@ RUN curl -fsSL https://gvisor.dev/archive.key | gpg --dearmor -o /usr/share/keyr
 RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/gvisor-archive-keyring.gpg] https://storage.googleapis.com/gvisor/releases release main" | tee /etc/apt/sources.list.d/gvisor.list > /dev/null
 RUN apt-get update && apt-get install -y runsc
 
-# Install some python libs in user container
-RUN apt update && apt install -y python3-pip
-RUN pip3 install --break-system-packages \
+# Install Python 3.13 and python libs in user container
+RUN apt update && apt install -y software-properties-common
+RUN add-apt-repository ppa:deadsnakes/ppa && apt update && \
+    apt install -y python3.13 python3.13-dev
+RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.13
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.13 1
+RUN pip3.13 install --break-system-packages \
     pillow \
     torch \
     numpy \
