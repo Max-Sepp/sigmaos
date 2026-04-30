@@ -8,6 +8,7 @@ import (
 	"image/color"
 	"image/jpeg"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -60,6 +61,20 @@ func sebsRun(t *testing.T, benchmark, eventJSON string) map[string]any {
 		return nil
 	}
 	return result
+}
+
+func TestMain(m *testing.M) {
+	if _, err := os.Stat(SEBS_DATA_DIR); os.IsNotExist(err) {
+		scriptPath := filepath.Join("..", "..", "scripts", "download-sebs-data.py")
+		cmd := exec.Command("python3", scriptPath, "--data-dir", SEBS_DATA_DIR)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to download sebs data: %v\n", err)
+			os.Exit(1)
+		}
+	}
+	os.Exit(m.Run())
 }
 
 func TestCompile(t *testing.T) {
