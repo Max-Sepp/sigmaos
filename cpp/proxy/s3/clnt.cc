@@ -11,8 +11,8 @@ Clnt::Clnt(std::shared_ptr<sigmaos::proxy::sigmap::Clnt> sp_clnt,
     : _sp_clnt(sp_clnt) {
   auto chan =
       std::make_shared<sigmaos::rpc::spchannel::Channel>(svc_pn, sp_clnt);
-  _rpcc = std::make_shared<sigmaos::rpc::Clnt>(chan, sp_clnt->GetSPProxyChannel(),
-                                               sp_clnt->GetShmemSegment());
+  _rpcc = std::make_shared<sigmaos::rpc::Clnt>(
+      chan, sp_clnt->GetSPProxyChannel(), sp_clnt->GetShmemSegment());
 }
 
 std::expected<std::shared_ptr<sigmaos::proxy::buf::DataBuf>,
@@ -83,7 +83,7 @@ std::expected<int, sigmaos::serr::Error> Clnt::PutObject(std::string bucket,
   req.set_allocated_blob(&blob);
   auto res = _rpcc->RPC("S3RpcAPI.PutObject", req, rep);
   {
-    auto _ = req.release_blob()->mutable_iov()->ReleaseLast();
+    auto _ = req.release_blob();
   }
   if (!res.has_value()) {
     log(S3CLNT_ERR, "Err PutObject: {}", res.error().String());
