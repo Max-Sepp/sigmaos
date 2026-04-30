@@ -21,9 +21,10 @@ import (
 )
 
 const (
-	SEBS_BUCKET = "9ps3"
-	SEBS_KID    = "~local"
-	INPUT_BASE  = "serverless-benchmarks-input"
+	SEBS_BUCKET   = "9ps3"
+	SEBS_KID      = "~local"
+	INPUT_BASE    = "serverless-benchmarks-input"
+	SEBS_DATA_DIR = "/tmp/sebs-data"
 )
 
 func sebsS3Clnt(t *testing.T, rts *test.RealmTstate) *s3clnt.S3Clnt {
@@ -172,7 +173,7 @@ func TestSebsThumbnailer(t *testing.T) {
 }
 
 func TestSebsVideoProcessing(t *testing.T) {
-	dataDir := os.Getenv("SEBS_DATA_DIR")
+	dataDir := SEBS_DATA_DIR
 	videoPath := filepath.Join(dataDir, "220.video-processing", "city.mp4")
 	if dataDir == "" || !fileExists(videoPath) {
 		t.Skipf("TestSebsVideoProcessing: set SEBS_DATA_DIR with city.mp4 to enable (missing: %v)", videoPath)
@@ -234,7 +235,7 @@ func TestSebsCompression(t *testing.T) {
 }
 
 func TestSebsImageRecognition(t *testing.T) {
-	dataDir := os.Getenv("SEBS_DATA_DIR")
+	dataDir := SEBS_DATA_DIR
 	modelPath := filepath.Join(dataDir, "411.image-recognition", "model", "resnet50-19c8e357.pth")
 	imgPath := filepath.Join(dataDir, "411.image-recognition", "fake-resnet", "800px-Porsche_991_silver_IAA.jpg")
 	if dataDir == "" || !fileExists(modelPath) || !fileExists(imgPath) {
