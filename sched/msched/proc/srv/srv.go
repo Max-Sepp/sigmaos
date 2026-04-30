@@ -28,11 +28,11 @@ import (
 	wasmclnt "sigmaos/proxy/wasm/clnt"
 	wasmrpc "sigmaos/proxy/wasm/rpc"
 	wasmsrv "sigmaos/proxy/wasm/srv"
+	pycontainer "sigmaos/python/container"
 	chunkclnt "sigmaos/sched/msched/proc/chunk/clnt"
 	chunksrv "sigmaos/sched/msched/proc/chunk/srv"
 	"sigmaos/sched/msched/proc/proto"
 	"sigmaos/sched/msched/proc/srv/binsrv"
-	pycontainer "sigmaos/python/container"
 	"sigmaos/scontainer"
 	"sigmaos/sigmaclnt"
 	sp "sigmaos/sigmap"
@@ -253,6 +253,40 @@ func shrinkMountTable() error {
 		if errno != 0 {
 			db.DFatalf("Error umount2 %v: %v", mnt, errno)
 			return errno
+		}
+	}
+	return nil
+}
+
+func (ps *ProcSrv) downloadAddedProcBins(uproc *proc.Proc, downloadProcBin bool) error {
+	ch := make(chan error)
+	nDownloads := len(uproc.GetAddedBins())
+	if downloadProcBin {
+		nDownloads += 1
+		go func() {
+			// Pre-download the proc binary
+			if err := ps.downloadFullBinary(uproc.GetVersionedProgram(), uproc.GetPid(), uproc.GetRealm(), uproc.GetSecrets()["s3"], uproc.GetSigmaPath(), uproc.GetNamedEndpoint()); err != nil {
+				db.DPrintf(db.ERROR, "Error download full binary for gVisor container")
+				ch <- err
+			}
+			ch <- nil
+		}()
+	}
+	for _, prog := range uproc.GetAddedBins() {
+		go func(prog string) {
+			db.DPrintf(db.PROCD, "[%v] Downloading added bin %v", uproc.GetPid(), prog)
+			if err := ps.downloadFullBinary(prog, uproc.GetPid(), uproc.GetRealm(), uproc.GetSecrets()["s3"], uproc.GetSigmaPath(), uproc.GetNamedEndpoint()); err != nil {
+				db.DPrintf(db.ERROR, "Error download full binary for gVisor container")
+				ch <- err
+			}
+			ch <- nil
+		}(prog)
+	}
+	for i := 0; i < nDownloads; i++ {
+		err := <-ch
+		if err != nil {
+			db.DPrintf(db.ERROR, "Err download bin: %v", err)
+			return err
 		}
 	}
 	return nil
@@ -484,7 +518,6 @@ func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 		}
 	} else {
 		if !ps.gvisor {
-
 			if uproc.GetProcContainerType() == proc.ProcContainerType_PROC_CTR_WASM {
 				db.DPrintf(db.PROCD, "[%v] Run WASM proc via wasmd", uproc.GetPid())
 				ctr, err = wasmclnt.StartWASMContainer(uproc, ps.pe.GetInnerContainerIP(), ps.pe.GetOuterContainerIP(), ps.pe.GetPID())
@@ -493,6 +526,13 @@ func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 					return err
 				}
 			} else if uproc.GetProcContainerType() == proc.ProcContainerType_PROC_CTR_PYTHON {
+				start := time.Now()
+				if err := ps.downloadAddedProcBins(uproc, true); err != nil {
+					db.DPrintf(db.PROCD_ERR, "[%v] Download Python proc added bins err: %v", uproc.GetPid(), err)
+					return err
+				}
+				perf.LogSpawnLatency("Setup.BinaryDownload", uproc.GetPid(), uproc.GetSpawnTime(), start)
+				perf.LogSpawnLatency("Paper.Setup.BinaryDownload", uproc.GetPid(), uproc.GetSpawnTime(), start)
 				db.DPrintf(db.PROCD, "[%v] Run Python proc", uproc.GetPid())
 				ctr, err = pycontainer.StartPythonContainer(uproc)
 				if err != nil {
@@ -507,31 +547,9 @@ func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 			}
 		} else {
 			start := time.Now()
-			ch := make(chan error)
-			go func() {
-				// Pre-download the proc binary
-				if err := ps.downloadFullBinary(uproc.GetVersionedProgram(), uproc.GetPid(), uproc.GetRealm(), uproc.GetSecrets()["s3"], uproc.GetSigmaPath(), uproc.GetNamedEndpoint()); err != nil {
-					db.DPrintf(db.ERROR, "Error download full binary for gVisor container")
-					ch <- err
-				}
-				ch <- nil
-			}()
-			for _, prog := range uproc.GetAddedBins() {
-				go func(prog string) {
-					db.DPrintf(db.PROCD, "[%v] Downloading added bin %v", uproc.GetPid(), prog)
-					if err := ps.downloadFullBinary(prog, uproc.GetPid(), uproc.GetRealm(), uproc.GetSecrets()["s3"], uproc.GetSigmaPath(), uproc.GetNamedEndpoint()); err != nil {
-						db.DPrintf(db.ERROR, "Error download full binary for gVisor container")
-						ch <- err
-					}
-					ch <- nil
-				}(prog)
-			}
-			for i := 0; i < 1+len(uproc.GetAddedBins()); i++ {
-				err := <-ch
-				if err != nil {
-					db.DPrintf(db.ERROR, "Err download bin: %v", err)
-					return err
-				}
+			if err := ps.downloadAddedProcBins(uproc, true); err != nil {
+				db.DPrintf(db.PROCD_ERR, "[%v] Download Python proc added bins err: %v", uproc.GetPid(), err)
+				return err
 			}
 			perf.LogSpawnLatency("Setup.BinaryDownload", uproc.GetPid(), uproc.GetSpawnTime(), start)
 			perf.LogSpawnLatency("Paper.Setup.BinaryDownload", uproc.GetPid(), uproc.GetSpawnTime(), start)

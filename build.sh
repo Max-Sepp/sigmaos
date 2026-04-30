@@ -315,7 +315,7 @@ if [ "${NO_DOCKER}" != "true" ]; then
 fi
 
 cp $ROOT/apps/imgrec/py/imgrec.py  $USRBIN/imgrec.py-v1.0
-cp $ROOT/apps/sebs/python/sebs-runner.py  $USRBIN/imgrec.py-v1.0
+cp $ROOT/apps/sebs/python/sebs-runner.py  $USRBIN/sebs-runner.py-v1.0
 
 # Now, prepare to build final containers which will actually run.
 targets="sigmauser-remote sigmaos-remote"

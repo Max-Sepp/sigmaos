@@ -59,7 +59,7 @@ def main():
 
 def _run(clnt, args):
     bundle_name = f"{args.benchmark}-bundle.tar.gz"
-    bundle_path = os.path.join(os.getcwd(), bundle_name)
+    bundle_path = os.path.join(os.getcwd(), "bin", "user", bundle_name)
 
     pkgroot = f"/tmp/sebs-{uuid.uuid4()}"
     os.makedirs(pkgroot, exist_ok=True)
