@@ -489,6 +489,22 @@ func (p *Proc) GetShmemMB() Tmem {
 	return p.ProcEnvProto.GetShmemMB()
 }
 
+func (p *Proc) SetCoSandboxBufMB(mb Tmem) {
+	p.CosandboxBufMBInt = uint64(mb)
+}
+
+func (p *Proc) GetCoSandboxBufMB() Tmem {
+	return Tmem(p.CosandboxBufMBInt)
+}
+
+func (p *Proc) SetWasmBufMB(mb Tmem) {
+	p.WasmBufMBInt = uint64(mb)
+}
+
+func (p *Proc) GetWasmBufMB() Tmem {
+	return Tmem(p.WasmBufMBInt)
+}
+
 func (p *Proc) SetMeasurePSS(measure bool, delayMS int) {
 	p.MeasurePSS = measure
 	p.MeasurePSSDelayMS = uint64(delayMS)

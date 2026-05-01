@@ -385,7 +385,11 @@ func (ps *procState) createSigmaClnt(spps *SPProxySrv) {
 		ps.wasmScriptStart = time.Now()
 		go func() {
 			// Run the module
-			status, msg, err := ps.wrt.RunModule(ps.p.GetPid(), ps.p.GetSpawnTime(), ps.p.GetCoSandbox(), ps.p.GetCoSandboxInput())
+			bufSz := wasmrt.DEFAULT_WASM_BUF_SZ
+			if mb := ps.p.GetCoSandboxBufMB(); mb > 0 {
+				bufSz = int(mb) * int(sp.MBYTE)
+			}
+			status, msg, err := ps.wrt.RunModule(ps.p.GetPid(), ps.p.GetSpawnTime(), ps.p.GetCoSandbox(), ps.p.GetCoSandboxInput(), bufSz)
 			// Mark the script as done
 			ps.coSandboxDone(status, msg, err)
 		}()

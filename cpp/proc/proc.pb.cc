@@ -155,6 +155,7 @@ PROTOBUF_CONSTEXPR ProcProto::ProcProto(
   , /*decltype(_impl_.runaftercosandbox_)*/false
   , /*decltype(_impl_.measurepss_)*/false
   , /*decltype(_impl_.measurepssdelayms_)*/uint64_t{0u}
+  , /*decltype(_impl_.cosandboxbufmbint_)*/uint64_t{0u}
   , /*decltype(_impl_._cached_size_)*/{}} {}
 struct ProcProtoDefaultTypeInternal {
   PROTOBUF_CONSTEXPR ProcProtoDefaultTypeInternal()
@@ -287,6 +288,7 @@ const uint32_t TableStruct_proc_2fproc_2eproto::offsets[] PROTOBUF_SECTION_VARIA
   PROTOBUF_FIELD_OFFSET(::ProcProto, _impl_.cosandboxresourceres_),
   PROTOBUF_FIELD_OFFSET(::ProcProto, _impl_.measurepss_),
   PROTOBUF_FIELD_OFFSET(::ProcProto, _impl_.measurepssdelayms_),
+  PROTOBUF_FIELD_OFFSET(::ProcProto, _impl_.cosandboxbufmbint_),
 };
 static const ::_pbi::MigrationSchema schemas[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
   { 0, -1, -1, sizeof(::ProcSeqno)},
@@ -343,7 +345,7 @@ const char descriptor_table_protodef_proc_2fproc_2eproto[] PROTOBUF_SECTION_VARI
   "\n\017SecretsMapEntry\022\013\n\003key\030\001 \001(\t\022\033\n\005value\030"
   "\002 \001(\0132\014.SecretProto:\0028\001\032G\n\024CachedEndpoin"
   "tsEntry\022\013\n\003key\030\001 \001(\t\022\036\n\005value\030\002 \001(\0132\017.Te"
-  "ndpointProto:\0028\001\"\261\003\n\tProcProto\022#\n\014procEn"
+  "ndpointProto:\0028\001\"\314\003\n\tProcProto\022#\n\014procEn"
   "vProto\030\001 \001(\0132\r.ProcEnvProto\022\014\n\004args\030\002 \003("
   "\t\022\021\n\taddedBins\030\003 \003(\t\022 \n\003env\030\004 \003(\0132\023.Proc"
   "Proto.EnvEntry\022\023\n\004blob\030\005 \001(\0132\005.Blob\022\026\n\016c"
@@ -353,10 +355,11 @@ const char descriptor_table_protodef_proc_2fproc_2eproto[] PROTOBUF_SECTION_VARI
   "ResourceReservationProto\0227\n\024coSandboxRes"
   "ourceRes\030\013 \001(\0132\031.ResourceReservationProt"
   "o\022\022\n\nmeasurePSS\030\014 \001(\010\022\031\n\021measurePSSDelay"
-  "MS\030\r \001(\004\032*\n\010EnvEntry\022\013\n\003key\030\001 \001(\t\022\r\n\005val"
-  "ue\030\002 \001(\t:\0028\001*P\n\021ProcContainerType\022\023\n\017PRO"
-  "C_CTR_NATIVE\020\000\022\021\n\rPROC_CTR_WASM\020\001\022\023\n\017PRO"
-  "C_CTR_PYTHON\020\002B\016Z\014sigmaos/procb\006proto3"
+  "MS\030\r \001(\004\022\031\n\021cosandboxBufMBInt\030\016 \001(\004\032*\n\010E"
+  "nvEntry\022\013\n\003key\030\001 \001(\t\022\r\n\005value\030\002 \001(\t:\0028\001*"
+  "P\n\021ProcContainerType\022\023\n\017PROC_CTR_NATIVE\020"
+  "\000\022\021\n\rPROC_CTR_WASM\020\001\022\023\n\017PROC_CTR_PYTHON\020"
+  "\002B\016Z\014sigmaos/procb\006proto3"
   ;
 static const ::_pbi::DescriptorTable* const descriptor_table_proc_2fproc_2eproto_deps[3] = {
   &::descriptor_table_google_2fprotobuf_2ftimestamp_2eproto,
@@ -365,7 +368,7 @@ static const ::_pbi::DescriptorTable* const descriptor_table_proc_2fproc_2eproto
 };
 static ::_pbi::once_flag descriptor_table_proc_2fproc_2eproto_once;
 const ::_pbi::DescriptorTable descriptor_table_proc_2fproc_2eproto = {
-    false, false, 1838, descriptor_table_protodef_proc_2fproc_2eproto,
+    false, false, 1865, descriptor_table_protodef_proc_2fproc_2eproto,
     "proc/proc.proto",
     &descriptor_table_proc_2fproc_2eproto_once, descriptor_table_proc_2fproc_2eproto_deps, 3, 8,
     schemas, file_default_instances, TableStruct_proc_2fproc_2eproto::offsets,
@@ -2679,6 +2682,7 @@ ProcProto::ProcProto(const ProcProto& from)
     , decltype(_impl_.runaftercosandbox_){}
     , decltype(_impl_.measurepss_){}
     , decltype(_impl_.measurepssdelayms_){}
+    , decltype(_impl_.cosandboxbufmbint_){}
     , /*decltype(_impl_._cached_size_)*/{}};
 
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
@@ -2704,8 +2708,8 @@ ProcProto::ProcProto(const ProcProto& from)
     _this->_impl_.cosandboxresourceres_ = new ::ResourceReservationProto(*from._impl_.cosandboxresourceres_);
   }
   ::memcpy(&_impl_.queueableresourcepoolid_, &from._impl_.queueableresourcepoolid_,
-    static_cast<size_t>(reinterpret_cast<char*>(&_impl_.measurepssdelayms_) -
-    reinterpret_cast<char*>(&_impl_.queueableresourcepoolid_)) + sizeof(_impl_.measurepssdelayms_));
+    static_cast<size_t>(reinterpret_cast<char*>(&_impl_.cosandboxbufmbint_) -
+    reinterpret_cast<char*>(&_impl_.queueableresourcepoolid_)) + sizeof(_impl_.cosandboxbufmbint_));
   // @@protoc_insertion_point(copy_constructor:ProcProto)
 }
 
@@ -2727,6 +2731,7 @@ inline void ProcProto::SharedCtor(
     , decltype(_impl_.runaftercosandbox_){false}
     , decltype(_impl_.measurepss_){false}
     , decltype(_impl_.measurepssdelayms_){uint64_t{0u}}
+    , decltype(_impl_.cosandboxbufmbint_){uint64_t{0u}}
     , /*decltype(_impl_._cached_size_)*/{}
   };
   _impl_.cosandboxinput_.InitDefault();
@@ -2793,8 +2798,8 @@ void ProcProto::Clear() {
   }
   _impl_.cosandboxresourceres_ = nullptr;
   ::memset(&_impl_.queueableresourcepoolid_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&_impl_.measurepssdelayms_) -
-      reinterpret_cast<char*>(&_impl_.queueableresourcepoolid_)) + sizeof(_impl_.measurepssdelayms_));
+      reinterpret_cast<char*>(&_impl_.cosandboxbufmbint_) -
+      reinterpret_cast<char*>(&_impl_.queueableresourcepoolid_)) + sizeof(_impl_.cosandboxbufmbint_));
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
@@ -2924,6 +2929,14 @@ const char* ProcProto::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx
       case 13:
         if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 104)) {
           _impl_.measurepssdelayms_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else
+          goto handle_unusual;
+        continue;
+      // uint64 cosandboxBufMBInt = 14;
+      case 14:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 112)) {
+          _impl_.cosandboxbufmbint_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
           CHK_(ptr);
         } else
           goto handle_unusual;
@@ -3071,6 +3084,12 @@ uint8_t* ProcProto::_InternalSerialize(
     target = ::_pbi::WireFormatLite::WriteUInt64ToArray(13, this->_internal_measurepssdelayms(), target);
   }
 
+  // uint64 cosandboxBufMBInt = 14;
+  if (this->_internal_cosandboxbufmbint() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(14, this->_internal_cosandboxbufmbint(), target);
+  }
+
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
@@ -3172,6 +3191,11 @@ size_t ProcProto::ByteSizeLong() const {
     total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(this->_internal_measurepssdelayms());
   }
 
+  // uint64 cosandboxBufMBInt = 14;
+  if (this->_internal_cosandboxbufmbint() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(this->_internal_cosandboxbufmbint());
+  }
+
   return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
 }
 
@@ -3227,6 +3251,9 @@ void ProcProto::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROT
   if (from._internal_measurepssdelayms() != 0) {
     _this->_internal_set_measurepssdelayms(from._internal_measurepssdelayms());
   }
+  if (from._internal_cosandboxbufmbint() != 0) {
+    _this->_internal_set_cosandboxbufmbint(from._internal_cosandboxbufmbint());
+  }
   _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
 
@@ -3254,8 +3281,8 @@ void ProcProto::InternalSwap(ProcProto* other) {
       &other->_impl_.cosandboxinput_, rhs_arena
   );
   ::PROTOBUF_NAMESPACE_ID::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(ProcProto, _impl_.measurepssdelayms_)
-      + sizeof(ProcProto::_impl_.measurepssdelayms_)
+      PROTOBUF_FIELD_OFFSET(ProcProto, _impl_.cosandboxbufmbint_)
+      + sizeof(ProcProto::_impl_.cosandboxbufmbint_)
       - PROTOBUF_FIELD_OFFSET(ProcProto, _impl_.procenvproto_)>(
           reinterpret_cast<char*>(&_impl_.procenvproto_),
           reinterpret_cast<char*>(&other->_impl_.procenvproto_));

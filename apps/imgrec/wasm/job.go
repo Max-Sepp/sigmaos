@@ -144,6 +144,7 @@ func (j *ImgrecWASMJob) Run() (string, error) {
 		p.SetCoSandbox(j.coSandbox, j.bootInput)
 		p.SetRunCoSandbox(true)
 	}
+	p.SetWasmBufMB(200)
 	if j.conf.ShmemMB > 0 {
 		p.SetShmemMB(j.conf.ShmemMB)
 	}

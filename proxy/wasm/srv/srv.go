@@ -175,7 +175,11 @@ func (ws *WASMSrv) runWASMProc(p *proc.Proc) (uint64, string, error) {
 		return 0, err.Error(), err
 	}
 
-	status, msg, runErr := wrt.RunModule(p.GetPid(), p.GetSpawnTime(), compiledModule, inputBytes)
+	bufSz := wasmrt.DEFAULT_WASM_BUF_SZ
+	if mb := p.GetWasmBufMB(); mb > 0 {
+		bufSz = int(mb) * int(sp.MBYTE)
+	}
+	status, msg, runErr := wrt.RunModule(p.GetPid(), p.GetSpawnTime(), compiledModule, inputBytes, bufSz)
 	db.DPrintf(db.WASMD, "[%v] Ran WASM proc, exit status:%v msg:%v err:%v", p.GetPid(), status, msg, runErr)
 
 	exitStatus := proc.NewStatusInfo(proc.StatusOK, msg, msg)

@@ -14,15 +14,14 @@ import (
 )
 
 const (
-	SHARED_BUF_SZ = 20 * sp.MBYTE
-
-// SHARED_BUF_SZ = 655360
+	DEFAULT_WASM_BUF_SZ = 20 * sp.MBYTE
 )
 
 type WasmerRuntime struct {
 	apiImpl         wasmrpc.CoSandboxAPIImpl
 	recvDelegatedFn func(uint64) ([]byte, error) // nil in spproxy path
 	precompStore    *wasmer.Store                 // Store used for WASM script precompilation
+	bufSz           int32                         // shared buffer size for current RunModule call
 }
 
 func NewWasmerRuntime(apiImpl wasmrpc.CoSandboxAPIImpl) *WasmerRuntime {
@@ -60,7 +59,8 @@ func (wrt *WasmerRuntime) PrecompileModule(wasmBytes []byte) ([]byte, error) {
 	return compiledModule, nil
 }
 
-func (wrt *WasmerRuntime) RunModule(pid sp.Tpid, spawnTime time.Time, compiledModule []byte, inputBytes []byte) (wasmrpc.Tstatus, string, error) {
+func (wrt *WasmerRuntime) RunModule(pid sp.Tpid, spawnTime time.Time, compiledModule []byte, inputBytes []byte, bufSz int) (wasmrpc.Tstatus, string, error) {
+	wrt.bufSz = int32(bufSz)
 	engine := wasmer.NewEngine()
 	store := wasmer.NewStore(engine)
 	module, err := wasmer.DeserializeModule(store, compiledModule)
@@ -106,7 +106,7 @@ func (wrt *WasmerRuntime) RunModule(pid sp.Tpid, spawnTime time.Time, compiledMo
 		db.DPrintf(db.WASMRT_ERR, "[%v] Err get WASM module allocate fn: %v", pid, err)
 		return wasmrpc.EXIT_ERR, sp.NOT_SET, err
 	}
-	memPtr, err := allocFn(SHARED_BUF_SZ)
+	memPtr, err := allocFn(wrt.bufSz)
 	if err != nil {
 		db.DPrintf(db.ERROR, "[%v] Err allocate shared buffer with WASM module: %v", pid, err)
 		db.DPrintf(db.WASMRT_ERR, "[%v] Err allocate shared buffer with WASM module: %v", pid, err)
@@ -121,7 +121,7 @@ func (wrt *WasmerRuntime) RunModule(pid sp.Tpid, spawnTime time.Time, compiledMo
 		return wasmrpc.EXIT_ERR, sp.NOT_SET, err
 	}
 	// Create a Go buffer from the allocated WASM shared buffer
-	buf = mem.Data()[wasmBufPtr : wasmBufPtr+SHARED_BUF_SZ]
+	buf = mem.Data()[wasmBufPtr : wasmBufPtr+wrt.bufSz]
 	// Copy the input bytes to the buffer
 	copy(buf, inputBytes)
 	// Get a function pointer to the "boot" function exposed by the module
@@ -134,7 +134,7 @@ func (wrt *WasmerRuntime) RunModule(pid sp.Tpid, spawnTime time.Time, compiledMo
 	start = time.Now()
 	// Call the boot function and inform it of the size & address of the shared
 	// buffer.
-	if _, err := boot(wasmBufPtr, SHARED_BUF_SZ); err != nil {
+	if _, err := boot(wasmBufPtr, wrt.bufSz); err != nil {
 		db.DPrintf(db.ERROR, "[%v] Err run WASM function: %v", pid, err)
 		db.DPrintf(db.WASMRT_ERR, "[%v] Err run WASM function: %v", pid, err)
 		return wasmrpc.EXIT_ERR, sp.NOT_SET, err
@@ -163,7 +163,7 @@ func (wrt *WasmerRuntime) newRecvDelegatedRPCFn(store *wasmer.Store, instance **
 				db.DPrintf(db.ERROR, "[%v] Err get WASM instance memory: %v", pid, err)
 				return []wasmer.Value{}, err
 			}
-			buf := (*mem).Data()[*wasmBufPtr : *wasmBufPtr+SHARED_BUF_SZ]
+			buf := (*mem).Data()[*wasmBufPtr : *wasmBufPtr+wrt.bufSz]
 			frameLen := uint64(len(data) + 8)
 			binary.LittleEndian.PutUint64(buf[0:8], frameLen)
 			copy(buf[8:], data)
@@ -192,7 +192,7 @@ func (wrt *WasmerRuntime) newSendRPCFn(store *wasmer.Store, instance **wasmer.In
 				return []wasmer.Value{}, err
 			}
 			// Create a Go buffer from the allocated WASM shared buffer
-			buf := (*mem).Data()[*wasmBufPtr : *wasmBufPtr+SHARED_BUF_SZ]
+			buf := (*mem).Data()[*wasmBufPtr : *wasmBufPtr+wrt.bufSz]
 			db.DPrintf(db.WASMRT, "pnLen:%v methodLen:%v rpcLen:%v buf:%p bufStart:%p", pnLen, methodLen, rpcLen, buf, &buf[0])
 			// Get the RPC destination pathname from the shared buffer
 			pn := string(buf[idx : idx+pnLen])
@@ -240,7 +240,7 @@ func (wrt *WasmerRuntime) newRecvRPCFn(store *wasmer.Store, instance **wasmer.In
 			// Only copy the data back to WASM if the module asks for it
 			if getData {
 				// Create a Go buffer from the allocated WASM shared buffer
-				buf := (*mem).Data()[*wasmBufPtr : *wasmBufPtr+SHARED_BUF_SZ]
+				buf := (*mem).Data()[*wasmBufPtr : *wasmBufPtr+wrt.bufSz]
 				//			return outiov.GetFrame(1).GetBuf(), nil
 				bufIdx := 0
 				// Skip index 0, which is the RPC stack wrapper
@@ -252,8 +252,8 @@ func (wrt *WasmerRuntime) newRecvRPCFn(store *wasmer.Store, instance **wasmer.In
 						db.DFatalf("Err encode buf len: %v", err)
 					}
 					copy(buf[bufIdx:bufIdx+8], b.Bytes())
-					if uint64(bufIdx)+frameLen > SHARED_BUF_SZ {
-						db.DFatalf("Err copy too much data to WASM reply buffer: %v > %v", uint64(bufIdx)+frameLen, SHARED_BUF_SZ)
+					if uint64(bufIdx)+frameLen > uint64(wrt.bufSz) {
+						db.DFatalf("Err copy too much data to WASM reply buffer: %v > %v", uint64(bufIdx)+frameLen, wrt.bufSz)
 					}
 					// Copy the reply to the shared buffer
 					copy(buf[bufIdx+8:], frame.GetBuf())
@@ -285,7 +285,7 @@ func (wrt *WasmerRuntime) newForwardRPCFn(store *wasmer.Store, instance **wasmer
 				return []wasmer.Value{}, err
 			}
 			// Create a Go buffer from the allocated WASM shared buffer
-			buf := (*mem).Data()[*wasmBufPtr : *wasmBufPtr+SHARED_BUF_SZ]
+			buf := (*mem).Data()[*wasmBufPtr : *wasmBufPtr+wrt.bufSz]
 			db.DPrintf(db.WASMRT, "rpcIdx: %v pnLen:%v buf:%p bufStart:%p", rpcIdx, pnLen, buf, &buf[0])
 			// Get the RPC destination pathname from the shared buffer
 			pn := string(buf[0:pnLen])
@@ -316,7 +316,7 @@ func (wrt *WasmerRuntime) newExitFn(store *wasmer.Store, instance **wasmer.Insta
 				return []wasmer.Value{}, err
 			}
 			// Create a Go buffer from the allocated WASM shared buffer
-			buf := (*mem).Data()[*wasmBufPtr : *wasmBufPtr+SHARED_BUF_SZ]
+			buf := (*mem).Data()[*wasmBufPtr : *wasmBufPtr+wrt.bufSz]
 			db.DPrintf(db.WASMRT, "exit status: %v msgLen:%v buf:%p bufStart:%p", status, msgLen, buf, &buf[0])
 			// Get the RPC destination pathname from the shared buffer
 			msg := string(buf[0:msgLen])
@@ -344,7 +344,7 @@ func (wrt *WasmerRuntime) newLogFn(store *wasmer.Store, instance **wasmer.Instan
 				db.DPrintf(db.WASMRT_ERR, "[%v] Err get WASM instance memory: %v", pid, err)
 				return []wasmer.Value{}, err
 			}
-			buf := (*mem).Data()[*wasmBufPtr : *wasmBufPtr+SHARED_BUF_SZ]
+			buf := (*mem).Data()[*wasmBufPtr : *wasmBufPtr+wrt.bufSz]
 			msg := string(buf[0:msgLen])
 			if err := wrt.apiImpl.Log(msg); err != nil {
 				db.DPrintf(db.WASMRT_ERR, "[%v] Err Log: %v", pid, err)
@@ -368,7 +368,7 @@ func (wrt *WasmerRuntime) newLogSpawnLatencyFn(store *wasmer.Store, instance **w
 				db.DPrintf(db.WASMRT_ERR, "[%v] Err get WASM instance memory: %v", pid, err)
 				return []wasmer.Value{}, err
 			}
-			buf := (*mem).Data()[*wasmBufPtr : *wasmBufPtr+SHARED_BUF_SZ]
+			buf := (*mem).Data()[*wasmBufPtr : *wasmBufPtr+wrt.bufSz]
 			label := string(buf[0:labelLen])
 			if err := wrt.apiImpl.LogSpawnLatency(label, elapsedMicros); err != nil {
 				db.DPrintf(db.WASMRT_ERR, "[%v] Err LogSpawnLatency: %v", pid, err)

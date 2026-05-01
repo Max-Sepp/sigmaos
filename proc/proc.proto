@@ -74,4 +74,6 @@ message ProcProto {
   ResourceReservationProto coSandboxResourceRes = 11;
   bool measurePSS = 12;
   uint64 measurePSSDelayMS = 13;
+  uint64 cosandboxBufMBInt = 14;
+  uint64 wasmBufMBInt = 15;
 }
