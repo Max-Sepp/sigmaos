@@ -136,6 +136,7 @@ func (j *SebsWASMJob) Run() (string, error) {
 	if j.conf.ShmemMB > 0 {
 		p.SetShmemMB(j.conf.ShmemMB)
 	}
+	db.DPrintf(db.TEST, "Scale %v", p.GetPid())
 	db.DPrintf(db.TEST, "SebsWASMJob %v %v", j.conf.Benchmark, p.GetPid())
 	if err := j.Spawn(p); err != nil {
 		db.DPrintf(db.ERROR, "SebsWASMJob Spawn err: %v", err)
