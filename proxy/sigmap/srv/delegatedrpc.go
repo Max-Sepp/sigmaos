@@ -10,7 +10,7 @@ import (
 )
 
 func (spp *SPProxySrv) runDelegatedRPC(sc *sigmaclnt.SigmaClnt, p *proc.Proc, rpcIdx uint64, pn string, iniov *sessp.IoVec, outIOVSize uint64) {
-	db.DPrintf(db.SPPROXYSRV, "[%v] Get RPCChannel for delegated RPC(%v): %v", p.GetPid(), rpcIdx, pn)
+	db.DPrintf(db.SPPROXYSRV, "[%v] Get RPCChannel for delegated RPC(%v):%v outIOVSize:%v", p.GetPid(), rpcIdx, pn, outIOVSize)
 	rpcchan, err := spp.psm.GetRPCChannel(sc, p.GetPid(), rpcIdx, pn)
 	if err != nil {
 		// TODO: handle error gracefully
@@ -26,7 +26,7 @@ func (spp *SPProxySrv) runDelegatedRPC(sc *sigmaclnt.SigmaClnt, p *proc.Proc, rp
 	outiov := sessp.NewUnallocatedIoVec(int(outIOVSize), shmAlloc)
 	start := time.Now()
 	if err := rpcchan.SendReceive(iniov, outiov); err != nil {
-		db.DPrintf(db.SPPROXYSRV_ERR, "Err execute delegated RPC (%v): %v", pn, err)
+		db.DPrintf(db.SPPROXYSRV_ERR, "[%v] Err execute delegated RPC (%v) (%v): %v", p.GetPid(), rpcIdx, pn, err)
 		// TODO: remove fatal
 		db.DFatalf("Err execute delegated RPC (%v): %v", pn, err)
 	}

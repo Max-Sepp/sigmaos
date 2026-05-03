@@ -1396,6 +1396,7 @@ class ProcProto final :
     kMeasurePSSFieldNumber = 12,
     kMeasurePSSDelayMSFieldNumber = 13,
     kCosandboxBufMBIntFieldNumber = 14,
+    kWasmBufMBIntFieldNumber = 15,
   };
   // repeated string args = 2;
   int args_size() const;
@@ -1602,6 +1603,15 @@ class ProcProto final :
   void _internal_set_cosandboxbufmbint(uint64_t value);
   public:
 
+  // uint64 wasmBufMBInt = 15;
+  void clear_wasmbufmbint();
+  uint64_t wasmbufmbint() const;
+  void set_wasmbufmbint(uint64_t value);
+  private:
+  uint64_t _internal_wasmbufmbint() const;
+  void _internal_set_wasmbufmbint(uint64_t value);
+  public:
+
   // @@protoc_insertion_point(class_scope:ProcProto)
  private:
   class _Internal;
@@ -1628,6 +1638,7 @@ class ProcProto final :
     bool measurepss_;
     uint64_t measurepssdelayms_;
     uint64_t cosandboxbufmbint_;
+    uint64_t wasmbufmbint_;
     mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   };
   union { Impl_ _impl_; };
@@ -4024,6 +4035,26 @@ inline void ProcProto::_internal_set_cosandboxbufmbint(uint64_t value) {
 inline void ProcProto::set_cosandboxbufmbint(uint64_t value) {
   _internal_set_cosandboxbufmbint(value);
   // @@protoc_insertion_point(field_set:ProcProto.cosandboxBufMBInt)
+}
+
+// uint64 wasmBufMBInt = 15;
+inline void ProcProto::clear_wasmbufmbint() {
+  _impl_.wasmbufmbint_ = uint64_t{0u};
+}
+inline uint64_t ProcProto::_internal_wasmbufmbint() const {
+  return _impl_.wasmbufmbint_;
+}
+inline uint64_t ProcProto::wasmbufmbint() const {
+  // @@protoc_insertion_point(field_get:ProcProto.wasmBufMBInt)
+  return _internal_wasmbufmbint();
+}
+inline void ProcProto::_internal_set_wasmbufmbint(uint64_t value) {
+  
+  _impl_.wasmbufmbint_ = value;
+}
+inline void ProcProto::set_wasmbufmbint(uint64_t value) {
+  _internal_set_wasmbufmbint(value);
+  // @@protoc_insertion_point(field_set:ProcProto.wasmBufMBInt)
 }
 
 #ifdef __GNUC__

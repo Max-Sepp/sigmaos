@@ -109,7 +109,7 @@ func (ra *S3RpcAPI) GetObject(ctx fs.CtxI, req proto.S3Req, rep *proto.S3Rep) er
 			Iov: [][]byte{b},
 		}
 	}
-	db.DPrintf(db.S3, "GetObject RPC success: bucket:%v key:%v cache:%v", req.Bucket, req.Key, req.Cache)
+	db.DPrintf(db.S3, "GetObject RPC success: bucket:%v key:%v cache:%v nbyte (%v)", req.Bucket, req.Key, req.Cache, len(rep.Blob.Iov[0]))
 	db.DPrintf(db.ALWAYS, "S3 Get e2e nbyte %v: %v", len(rep.Blob.Iov[0]), time.Since(start))
 	return nil
 }

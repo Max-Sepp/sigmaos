@@ -62,6 +62,8 @@ func (psm *ProcStateMgr) AllocProcState(pe *proc.ProcEnv, p *proc.Proc) *procSta
 }
 
 func (psm *ProcStateMgr) DelProcState(p *proc.Proc) {
+	db.DPrintf(db.SPPROXYSRV, "[%v] DelProcState", p.GetPid())
+
 	psm.mu.Lock()
 	defer psm.mu.Unlock()
 
@@ -72,7 +74,7 @@ func (psm *ProcStateMgr) DelProcState(p *proc.Proc) {
 
 			// Wait for the boot script to complete, then destroy the proc state if
 			// it hasn't been destroyed already (need to re-check because we released
-			// the lock.
+			// the lock).
 			psm.mu.Lock()
 			defer psm.mu.Unlock()
 
@@ -215,7 +217,7 @@ type procState struct {
 	spps                     *SPProxySrv
 	sigmaClntCreationStarted bool
 	done                     bool // done creating the proc state?
-	coSandboxCompleted      bool
+	coSandboxCompleted       bool
 	pe                       *proc.ProcEnv
 	p                        *proc.Proc
 	rpcReps                  *RPCState

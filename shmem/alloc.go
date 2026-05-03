@@ -30,4 +30,5 @@ func (a *Allocator) Alloc(b *[]byte, sz int) {
 	startOff := int(endOff) - sz
 	// Set the buffer to point into the shared memory segment
 	*b = shmemBuf[startOff:endOff]
+	db.DPrintf(db.SHMEM, "Shmem Alloc 0x%p sz %v", *b, sz)
 }

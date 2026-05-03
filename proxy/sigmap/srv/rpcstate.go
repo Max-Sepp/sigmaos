@@ -71,12 +71,14 @@ func (rpcs *RPCState) GetRPCChannel(sc *sigmaclnt.SigmaClnt, rpcIdx uint64, pn s
 				if err != nil {
 					db.DPrintf(db.SPPROXYSRV_ERR, "Err create mounted RPC channel to run delRPCs (%v -> %v): %v", pn, ep, err)
 				}
+				db.DPrintf(db.SPPROXYSRV, "[%v] delRPC(%v) done create channel EP cached pn:%v err:%v", sc.ProcEnv().GetPID(), rpcIdx, pn, err)
 			} else {
 				db.DPrintf(db.SPPROXYSRV, "[%v] delRPC(%v) create channel no EP pn:%v", sc.ProcEnv().GetPID(), rpcIdx, pn)
 				ch, err = sprpcchan.NewSPChannel(sc.FsLib, pn, false)
 				if err != nil {
 					db.DPrintf(db.SPPROXYSRV_ERR, "Err create unmounted RPC channel to run delRPCs (%v): %v", pn, err)
 				}
+				db.DPrintf(db.SPPROXYSRV, "[%v] delRPC(%v) done create channel no EP pn:%v err:%v", sc.ProcEnv().GetPID(), rpcIdx, pn, err)
 			}
 
 			// Lock the mutex again to register channel creation completion

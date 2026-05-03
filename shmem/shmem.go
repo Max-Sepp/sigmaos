@@ -103,7 +103,7 @@ func NewSegment(idStr string, size proc.Tmem, create bool) (*Segment, error) {
 		return nil, fmt.Errorf("err mmap: %v", err)
 	}
 	sms.buf = buf
-	db.DPrintf(db.SHMEM, "Create shmem buffer [%v] at 0x%p", sms.idStr, &sms.buf[0])
+	db.DPrintf(db.SHMEM, "Create shmem buffer [%v] at 0x%p sz:%v", sms.idStr, &sms.buf[0], size)
 	return sms, nil
 }
 

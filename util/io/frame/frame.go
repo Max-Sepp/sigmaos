@@ -34,11 +34,11 @@ func ReadFrameInto(rd io.Reader, frame *sessp.Tframe) error {
 	// Only read the first nbyte bytes
 	frame.TruncateBuf(nbyte)
 	n, e := io.ReadFull(rd, frame.GetBuf())
-	if n != nbyte {
-		return io.ErrShortBuffer
-	}
 	if e != nil {
 		return e
+	}
+	if n != nbyte {
+		return io.ErrShortBuffer
 	}
 	return nil
 }
