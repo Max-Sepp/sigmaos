@@ -67,7 +67,7 @@ func NewSebsStartLatencyJob(ts *test.RealmTstate, cfg *benchmarks.SebsBenchConfi
 	// Prewarm the warm server with the SeBS proc binaries.
 	bins := []string{
 		"sebs-runner.py-v" + sp.Version,
-		cfg.Benchmark + "-bundle.tar.gz-v" + sp.Version,
+		cfg.Benchmark + "-bundle.tar.gz",
 	}
 	for _, bin := range bins {
 		db.DPrintf(db.TEST, "Prewarming kernel %v with bin %v", ji.warmSrvKID, bin)
