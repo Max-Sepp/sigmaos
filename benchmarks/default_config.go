@@ -197,3 +197,52 @@ var DefaultImgrecWASMBenchConfig = &ImgrecWASMBenchConfig{
 var DefaultStartLatencyBenchConfig = &StartLatencyBenchConfig{
 	App: "etcd",
 }
+
+const (
+	sebsBucket    = "9ps3"
+	sebsInputBase = "serverless-benchmarks-input"
+	sebsKid       = "~local"
+	sebsMcpu      = proc.Tmcpu(4000)
+)
+
+var DefaultSebsThumbnailerBenchConfig = &SebsBenchConfig{
+	Benchmark:    "210.thumbnailer",
+	Event:        `{"bucket":{"bucket":"9ps3","input":"serverless-benchmarks-input/210.thumbnailer/input/0","output":"serverless-benchmarks-input/210.thumbnailer/output/0"},"object":{"key":"test.jpg","width":200,"height":200}}`,
+	Kid:          sebsKid,
+	ShmemMB:      proc.Tmem(128),
+	Mcpu:         sebsMcpu,
+	UseCoSandbox: false,
+	AsyncFetch:   true,
+}
+
+var DefaultSebsVideoProcessingBenchConfig = &SebsBenchConfig{
+	Benchmark:    "220.video-processing",
+	Event:        `{"bucket":{"bucket":"9ps3","input":"serverless-benchmarks-input/220.video-processing/input/0","output":"serverless-benchmarks-input/220.video-processing/output/0"},"object":{"key":"city.mp4","op":"watermark","duration":1}}`,
+	Kid:          sebsKid,
+	ShmemMB:      proc.Tmem(128),
+	Mcpu:         sebsMcpu,
+	UseCoSandbox: false,
+	AsyncFetch:   true,
+}
+
+var DefaultSebsImageRecognitionBenchConfig = &SebsBenchConfig{
+	Benchmark:    "411.image-recognition",
+	Event:        `{"bucket":{"bucket":"9ps3","model":"serverless-benchmarks-input/411.image-recognition/input/0","input":"serverless-benchmarks-input/411.image-recognition/input/1"},"object":{"model":"resnet50-19c8e357.pth","input":"800px-Porsche_991_silver_IAA.jpg"}}`,
+	Kid:          sebsKid,
+	ShmemMB:      proc.Tmem(256),
+	Mcpu:         sebsMcpu,
+	UseCoSandbox: false,
+	AsyncFetch:   true,
+}
+
+var DefaultSebsDnaVisualisationBenchConfig = &SebsBenchConfig{
+	Benchmark:    "504.dna-visualisation",
+	Event:        `{"bucket":{"bucket":"9ps3","input":"serverless-benchmarks-input/504.dna-visualisation/input/0","output":"serverless-benchmarks-input/504.dna-visualisation/output/0"},"object":{"key":"test.fasta"}}`,
+	Kid:          sebsKid,
+	ShmemMB:      proc.Tmem(128),
+	Mcpu:         sebsMcpu,
+	UseCoSandbox: false,
+	AsyncFetch:   true,
+}
+
+var DefaultSebsBenchConfig = DefaultSebsThumbnailerBenchConfig

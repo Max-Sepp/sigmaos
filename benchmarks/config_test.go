@@ -20,6 +20,7 @@ var MemcachedBenchConfig *benchmarks.MemcachedBenchConfig
 var ImgrecPyBenchConfig *benchmarks.ImgrecPyBenchConfig
 var ImgrecWASMBenchConfig *benchmarks.ImgrecWASMBenchConfig
 var StartLatencyBenchConfig *benchmarks.StartLatencyBenchConfig
+var SebsBenchConfig *benchmarks.SebsBenchConfig
 
 var cossimBenchCfgStr string
 var cacheBenchCfgStr string
@@ -30,6 +31,7 @@ var memcachedBenchCfgStr string
 var imgrecPyBenchCfgStr string
 var imgrecWASMBenchCfgStr string
 var startLatencyBenchCfgStr string
+var sebsBenchCfgStr string
 
 func init() {
 	flag.StringVar(&cossimBenchCfgStr, "cossim_bench_cfg", sp.NOT_SET, "JSON string for CosSimBenchConfig")
@@ -41,6 +43,7 @@ func init() {
 	flag.StringVar(&imgrecPyBenchCfgStr, "imgrec_py_bench_cfg", sp.NOT_SET, "JSON string for ImgrecPyBenchConfig")
 	flag.StringVar(&imgrecWASMBenchCfgStr, "imgrec_wasm_bench_cfg", sp.NOT_SET, "JSON string for ImgrecWASMBenchConfig")
 	flag.StringVar(&startLatencyBenchCfgStr, "start_latency_bench_cfg", sp.NOT_SET, "JSON string for StartLatencyBenchConfig")
+	flag.StringVar(&sebsBenchCfgStr, "sebs_bench_cfg", sp.NOT_SET, "JSON string for SebsBenchConfig")
 }
 
 func TestMain(m *testing.M) {
@@ -154,6 +157,18 @@ func TestMain(m *testing.M) {
 		db.DPrintf(db.ALWAYS, "Loaded StartLatencyBenchConfig")
 	}
 
+	// Parse SebsBenchConfig
+	if sebsBenchCfgStr == sp.NOT_SET {
+		SebsBenchConfig = benchmarks.DefaultSebsBenchConfig
+		db.DPrintf(db.ALWAYS, "Using default SebsBenchConfig")
+	} else {
+		err := json.Unmarshal([]byte(sebsBenchCfgStr), &SebsBenchConfig)
+		if err != nil {
+			db.DFatalf("Error unmarshaling sebs_bench_cfg: %v", err)
+		}
+		db.DPrintf(db.ALWAYS, "Loaded SebsBenchConfig")
+	}
+
 	CosSimBenchConfig.JobCfg.CacheCfg = CacheBenchConfig.JobCfg
 	HotelBenchConfig.JobCfg.CacheCfg = CacheBenchConfig.JobCfg
 	HotelBenchConfig.CosSimBenchCfg = CosSimBenchConfig
@@ -213,6 +228,12 @@ func TestMain(m *testing.M) {
 		db.DFatalf("Error marshaling StartLatencyBenchConfig: %v", err)
 	}
 	db.DPrintf(db.ALWAYS, "StartLatencyBenchConfig:\n%s", string(startLatencyJSON))
+
+	sebsJSON, err := json.MarshalIndent(SebsBenchConfig, "", "  ")
+	if err != nil {
+		db.DFatalf("Error marshaling SebsBenchConfig: %v", err)
+	}
+	db.DPrintf(db.ALWAYS, "SebsBenchConfig:\n%s", string(sebsJSON))
 
 	os.Exit(m.Run())
 }

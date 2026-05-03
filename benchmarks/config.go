@@ -13,6 +13,7 @@ import (
 	imgrec_wasm "sigmaos/apps/imgrec/wasm"
 	"sigmaos/apps/imgresize"
 	"sigmaos/apps/memcached"
+	"sigmaos/proc"
 )
 
 type CosSimBenchConfig struct {
@@ -210,6 +211,29 @@ func (cfg *StartLatencyBenchConfig) String() string {
 }
 
 func (cfg *StartLatencyBenchConfig) Marshal() (string, error) {
+	b, err := json.Marshal(cfg)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
+type SebsBenchConfig struct {
+	Benchmark    string     `json:"benchmark"`
+	Event        string     `json:"event"`
+	Kid          string     `json:"kid"`
+	ShmemMB      proc.Tmem  `json:"shmem_mb"`
+	Mcpu         proc.Tmcpu `json:"mcpu"`
+	UseCoSandbox bool       `json:"use_co_sandbox"`
+	AsyncFetch   bool       `json:"async_fetch"`
+}
+
+func (cfg *SebsBenchConfig) String() string {
+	return fmt.Sprintf("&{ Benchmark:%v Kid:%v ShmemMB:%v Mcpu:%v UseCoSandbox:%v AsyncFetch:%v }",
+		cfg.Benchmark, cfg.Kid, cfg.ShmemMB, cfg.Mcpu, cfg.UseCoSandbox, cfg.AsyncFetch)
+}
+
+func (cfg *SebsBenchConfig) Marshal() (string, error) {
 	b, err := json.Marshal(cfg)
 	if err != nil {
 		return "", err

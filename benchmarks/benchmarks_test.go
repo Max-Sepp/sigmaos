@@ -1922,3 +1922,30 @@ func TestStartLatency(t *testing.T) {
 	//	printResultSummary(rs)
 	mrts.Shutdown()
 }
+
+func TestSebsStartLatency(t *testing.T) {
+	mrts, err := test.NewMultiRealmTstate(t, []sp.Trealm{REALM1})
+	if !assert.Nil(t, err, "Error New Tstate: %v", err) {
+		return
+	}
+	defer mrts.Shutdown()
+
+	ts1 := mrts.GetRealm(REALM1)
+
+	p := newRealmPerf(ts1)
+	defer p.Done()
+
+	rs := benchmarks.NewResults(1, benchmarks.E2E)
+	jobs, ji := newSebsStartLatencyJobs(ts1, SebsBenchConfig)
+	go func() {
+		for _, j := range jobs {
+			<-j.ready
+			j.ready <- true
+		}
+	}()
+	monitorCPUUtil(ts1, p)
+	db.DPrintf(db.TEST, "Run SeBS start latency job: benchmark=%v cosandbox=%v", SebsBenchConfig.Benchmark, SebsBenchConfig.UseCoSandbox)
+	runOps(ts1, ji, runSebsStartLatency, rs)
+	db.DPrintf(db.TEST, "Done SeBS start latency job")
+	mrts.Shutdown()
+}

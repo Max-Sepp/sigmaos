@@ -287,6 +287,18 @@ func newCachedScalerJobs(ts *test.RealmTstate, jobName string, cacheCfg *benchma
 
 // ========== Start Latency Helpers ==========
 
+func newSebsStartLatencyJobs(ts *test.RealmTstate, cfg *benchmarks.SebsBenchConfig) ([]*SebsStartLatencyJobInstance, []interface{}) {
+	n := 1
+	ws := make([]*SebsStartLatencyJobInstance, 0, n)
+	is := make([]interface{}, 0, n)
+	for i := 0; i < n; i++ {
+		j := NewSebsStartLatencyJob(ts, cfg)
+		ws = append(ws, j)
+		is = append(is, j)
+	}
+	return ws, is
+}
+
 func newStartLatencyJobs(ts *test.RealmTstate, cfg *benchmarks.StartLatencyBenchConfig, cacheCfg *benchmarks.CacheBenchConfig, cossimCfg *benchmarks.CosSimBenchConfig, etcdCfg *benchmarks.EtcdBenchConfig, memcachedCfg *benchmarks.MemcachedBenchConfig, imgrecPyCfg *benchmarks.ImgrecPyBenchConfig, imgrecWASMCfg *benchmarks.ImgrecWASMBenchConfig) ([]*StartLatencyJobInstance, []interface{}) {
 	// n is ntrials, which is always 1.
 	n := 1

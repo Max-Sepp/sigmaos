@@ -1847,3 +1847,57 @@ func TestStartLatency(t *testing.T) {
 		}
 	}
 }
+
+func TestSebsStartLatency(t *testing.T) {
+	var (
+		benchNameBase string = "sebs_start_latency"
+		driverVM      int    = 8
+	)
+	// Cluster configuration parameters
+	const (
+		numCoresPerNode   uint = 4
+		numProcqOnlyNodes int  = 0
+		turboBoost        bool = false
+	)
+	var (
+		numNodes     int = 6
+		numFullNodes int = numNodes
+	)
+	type benchSpec struct {
+		defaultCfg *benchmarks.SebsBenchConfig
+		useGVisor  bool
+	}
+	// All benchmarks run without gVisor.
+	benchSpecs := []benchSpec{
+		{benchmarks.DefaultSebsThumbnailerBenchConfig, false},
+		{benchmarks.DefaultSebsVideoProcessingBenchConfig, false},
+		{benchmarks.DefaultSebsImageRecognitionBenchConfig, false},
+		{benchmarks.DefaultSebsDnaVisualisationBenchConfig, false},
+	}
+	withCoSandbox := []bool{false, true}
+
+	ts, err := NewTstate(t)
+	if !assert.Nil(ts.t, err, "Creating test state: %v", err) {
+		return
+	}
+	if !assert.False(ts.t, ts.BCfg.K8s, "K8s version of benchmark does not exist") {
+		return
+	}
+	if ts.BCfg.Overlays {
+		benchNameBase += "_overlays"
+	}
+	db.DPrintf(db.ALWAYS, "Benchmark configuration:\n%v", ts)
+	for _, spec := range benchSpecs {
+		for _, cosandbox := range withCoSandbox {
+			benchName := benchNameBase + "_" + spec.defaultCfg.Benchmark
+			if cosandbox {
+				benchName += "_cosandbox"
+			}
+			cfg := *spec.defaultCfg
+			cfg.UseCoSandbox = cosandbox
+			cfg.AsyncFetch = !cosandbox
+			cmdFn := GetSebsStartLatencyCmdConstructor(&cfg, spec.useGVisor)
+			ts.RunStandardBenchmark(benchName, driverVM, cmdFn, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost, spec.useGVisor)
+		}
+	}
+}

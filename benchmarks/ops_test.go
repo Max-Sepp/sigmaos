@@ -307,3 +307,18 @@ func runStartLatency(ts *test.RealmTstate, i interface{}) (time.Duration, float6
 	db.DPrintf(db.BENCH, "Done start latency measurement for app: %v", ji.cfg.App)
 	return time.Since(start), 1.0
 }
+
+func runSebsStartLatency(ts *test.RealmTstate, i interface{}) (time.Duration, float64) {
+	ji := i.(*SebsStartLatencyJobInstance)
+	ji.ready <- true
+	<-ji.ready
+	start := time.Now()
+	db.DPrintf(db.BENCH, "SeBS start latency measurement: benchmark=%v cosandbox=%v", ji.cfg.Benchmark, ji.cfg.UseCoSandbox)
+	success := ji.RunJob(nil, false)
+	if !success {
+		db.DPrintf(db.BENCH, "SeBS start latency job failed: benchmark=%v", ji.cfg.Benchmark)
+		return time.Since(start), 0.0
+	}
+	db.DPrintf(db.BENCH, "Done SeBS start latency measurement: benchmark=%v", ji.cfg.Benchmark)
+	return time.Since(start), 1.0
+}

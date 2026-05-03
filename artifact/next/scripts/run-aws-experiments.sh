@@ -40,7 +40,7 @@ if [ $# -gt 0 ]; then
     exit 1
 fi
 
-if [ $EXP != "all" ] && [ $EXP != "start-lat" ] && [ $EXP != "imgprocess" ]; then
+if [ $EXP != "all" ] && [ $EXP != "start-lat" ] && [ $EXP != "sebs" ] && [ $EXP != "imgprocess" ]; then
   echo "Unkown experiment $EXP"
   usage
   exit 1
@@ -74,4 +74,14 @@ if [ $EXP == "all" ] || [ $EXP == "start-lat" ]; then
   echo "Generating StartLatency data..."
   go clean -testcache; go test -v -timeout 0 sigmaos/benchmarks/remote --run TestStartLatency --parallelize --platform aws --vpc $AWS_VPC --build-tag $TAG --no-shutdown-after-test --bench-version $VERSION --branch $BRANCH 2>&1 | tee $LOG_DIR/start-lat.out
   echo "Done generating StartLatency data..."
+fi
+
+if [ $EXP == "all" ] || [ $EXP == "sebs" ]; then
+#  if [ $RERUN == "true" ]; then
+#    echo "Clearing any cached CosSim data..."
+#    rm -rf benchmarks/results/$VERSION/cos_sim_tail_latency_*
+#  fi
+  echo "Generating SeBS StartLatency data..."
+  go clean -testcache; go test -v -timeout 0 sigmaos/benchmarks/remote --run TestSebsStartLatency --parallelize --platform aws --vpc $AWS_VPC --build-tag $TAG --no-shutdown-after-test --bench-version $VERSION --branch $BRANCH 2>&1 | tee $LOG_DIR/start-lat.out
+  echo "Done generating SeBS StartLatency data..."
 fi

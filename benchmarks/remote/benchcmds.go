@@ -840,3 +840,39 @@ func GetStartLatencyCmdConstructor(startLatencyCfg *benchmarks.StartLatencyBench
 		)
 	}
 }
+
+func GetSebsStartLatencyCmdConstructor(sebsCfg *benchmarks.SebsBenchConfig, useGVisor bool) GetBenchCmdFn {
+	return func(bcfg *BenchConfig, ccfg *ClusterConfig) string {
+		const (
+			debugSelectors string = "\"TEST;BENCH;SPAWN_LAT;PROXY_RPC_LAT;\""
+			perfSelectors  string = "\"TEST_TPT;BENCH_TPT;\""
+		)
+		dialproxy := ""
+		if bcfg.NoNetproxy || useGVisor {
+			dialproxy = "--nodialproxy"
+		}
+		overlays := ""
+		if bcfg.Overlays {
+			overlays = "--overlays"
+		}
+		sebsCfgJSON, err := sebsCfg.Marshal()
+		if err != nil {
+			db.DFatalf("Err marshal sebs bench config: %v", err)
+		}
+		return fmt.Sprintf("export SIGMADEBUG=%s; export SIGMAPERF=%s; go clean -testcache; "+
+			"ulimit -n 100000; "+
+			"./set-cores.sh --set 1 --start 2 --end 39 > /dev/null 2>&1 ; "+
+			"go test -v sigmaos/benchmarks -timeout 0 --no-shutdown %s %s --etcdIP %s --tag %s "+
+			"--run TestSebsStartLatency "+
+			"--sebs_bench_cfg='%s' "+
+			"> /tmp/bench.out 2>&1 ;",
+			debugSelectors,
+			perfSelectors,
+			dialproxy,
+			overlays,
+			ccfg.LeaderNodeIP,
+			bcfg.Tag,
+			sebsCfgJSON,
+		)
+	}
+}
