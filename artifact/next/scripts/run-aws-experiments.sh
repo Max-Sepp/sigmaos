@@ -48,7 +48,7 @@ fi
 
 VERSION=EUROSYS2027
 TAG=arielck
-BRANCH=wasmd
+BRANCH=serverless-bench
 
 LOG_DIR=/tmp/sigmaos-experiment-logs
 
