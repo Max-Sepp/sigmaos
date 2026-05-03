@@ -90,7 +90,8 @@ echo "Generating vecdb start latency breakdown simplified graph..."
   --omit_2 "GlobalScheduling" \
   --subtract_1_from_2 "GlobalScheduling" "DownloadCoSandbox" \
   --simplified \
-  --output $GRAPH_OUT_DIR/vecdb-start-latency-breakdown-timeline-simplified.pdf
+  --output $GRAPH_OUT_DIR/vecdb-start-latency-breakdown-timeline-simplified.pdf \
+  | tee $GRAPH_OUT_DIR/vecdb-start-latency-breakdown-timeline.txt
 echo "Done generating vecdb start latency breakdown simplified graph..."
 
 echo "Generating cached start latency breakdown graph..."
@@ -120,7 +121,8 @@ echo "Generating cached start latency breakdown graph..."
   --relabel_3 "DownloadCoSandbox" "DownloadCoSandbox" \
   --omit_3 "GlobalScheduling" \
   --subtract_1_from_3 "GlobalScheduling" "DownloadCoSandbox" \
-  --output $GRAPH_OUT_DIR/cached-start-latency-breakdown-timeline.pdf
+  --output $GRAPH_OUT_DIR/cached-start-latency-breakdown-timeline.pdf \
+  | tee $GRAPH_OUT_DIR/cached-start-latency-breakdown-timeline.txt
 echo "Done generating cached start latency breakdown graph..."
 
 echo "Generating memcached start latency breakdown graph..."
@@ -137,7 +139,8 @@ echo "Generating memcached start latency breakdown graph..."
   --omit_2 "GlobalScheduling" \
   --relabel_2 "DownloadCoSandbox" "DownloadCoSandbox" \
   --subtract_1_from_2 "GlobalScheduling" "DownloadCoSandbox" \
-  --output $GRAPH_OUT_DIR/memcached-start-latency-breakdown-timeline.pdf
+  --output $GRAPH_OUT_DIR/memcached-start-latency-breakdown-timeline.pdf \
+  | tee $GRAPH_OUT_DIR/memcached-start-latency-breakdown-timeline.txt
 echo "Done generating memcached start latency breakdown graph..."
 
 echo "Generating imgrec-wasm start latency breakdown graph..."
@@ -154,7 +157,8 @@ echo "Generating imgrec-wasm start latency breakdown graph..."
   --omit_2 "GlobalScheduling" \
   --relabel_2 "DownloadCoSandbox" "DownloadCoSandbox" \
   --subtract_1_from_2 "GlobalScheduling" "DownloadCoSandbox" \
-  --output $GRAPH_OUT_DIR/imgrec-wasm-start-latency-breakdown-timeline.pdf
+  --output $GRAPH_OUT_DIR/imgrec-wasm-start-latency-breakdown-timeline.pdf \
+  | tee $GRAPH_OUT_DIR/imgrec-wasm-start-latency-breakdown-timeline.txt
 echo "Done generating imgrec-wasm start latency breakdown graph..."
 
 echo "Generating imgrec-py start latency breakdown graph..."
@@ -171,8 +175,81 @@ echo "Generating imgrec-py start latency breakdown graph..."
   --omit_2 "GlobalScheduling" \
   --relabel_2 "DownloadCoSandbox" "DownloadCoSandbox" \
   --subtract_1_from_2 "GlobalScheduling" "DownloadCoSandbox" \
-  --output $GRAPH_OUT_DIR/imgrec-py-start-latency-breakdown-timeline.pdf
+  --output $GRAPH_OUT_DIR/imgrec-py-start-latency-breakdown-timeline.pdf \
+  | tee $GRAPH_OUT_DIR/imgrec-py-start-latency-breakdown-timeline.txt
 echo "Done generating imgrec-py start latency breakdown graph..."
+
+echo "Generating SeBS thumbnailer start latency breakdown graph..."
+./benchmarks/scripts/graph/start-latency-breakdown-timeline.py \
+  --paper \
+  --dir_path_1 $RES_OUT_DIR/sebs_start_latency_210.thumbnailer \
+  --proc_name_1 sebs-runner.py \
+  --label_1 "Thumbnailer" \
+  --omit_1 "GlobalScheduling" \
+  --relabel_1 "DownloadCoSandbox" "DownloadCoSandbox" \
+  --dir_path_2 $RES_OUT_DIR/sebs_start_latency_210.thumbnailer_cosandbox \
+  --proc_name_2 sebs-runner.py \
+  --label_2 "Thumbnailer (co-sandbox)" \
+  --omit_2 "GlobalScheduling" \
+  --relabel_2 "DownloadCoSandbox" "DownloadCoSandbox" \
+  --subtract_1_from_2 "GlobalScheduling" "DownloadCoSandbox" \
+  --output $GRAPH_OUT_DIR/sebs-thumbnailer-start-latency-breakdown-timeline.pdf \
+  | tee $GRAPH_OUT_DIR/sebs-thumbnailer-start-latency-breakdown-timeline.txt
+echo "Done generating SeBS thumbnailer start latency breakdown graph..."
+
+echo "Generating SeBS video-processing start latency breakdown graph..."
+./benchmarks/scripts/graph/start-latency-breakdown-timeline.py \
+  --paper \
+  --dir_path_1 $RES_OUT_DIR/sebs_start_latency_220.video-processing \
+  --proc_name_1 sebs-runner.py \
+  --label_1 "Video Processing" \
+  --omit_1 "GlobalScheduling" \
+  --relabel_1 "DownloadCoSandbox" "DownloadCoSandbox" \
+  --dir_path_2 $RES_OUT_DIR/sebs_start_latency_220.video-processing_cosandbox \
+  --proc_name_2 sebs-runner.py \
+  --label_2 "Video Processing (co-sandbox)" \
+  --omit_2 "GlobalScheduling" \
+  --relabel_2 "DownloadCoSandbox" "DownloadCoSandbox" \
+  --subtract_1_from_2 "GlobalScheduling" "DownloadCoSandbox" \
+  --output $GRAPH_OUT_DIR/sebs-video-processing-start-latency-breakdown-timeline.pdf \
+  | tee $GRAPH_OUT_DIR/sebs-video-processing-start-latency-breakdown-timeline.txt
+echo "Done generating SeBS video-processing start latency breakdown graph..."
+
+echo "Generating SeBS image-recognition start latency breakdown graph..."
+./benchmarks/scripts/graph/start-latency-breakdown-timeline.py \
+  --paper \
+  --dir_path_1 $RES_OUT_DIR/sebs_start_latency_411.image-recognition \
+  --proc_name_1 sebs-runner.py \
+  --label_1 "Image Recognition" \
+  --omit_1 "GlobalScheduling" \
+  --relabel_1 "DownloadCoSandbox" "DownloadCoSandbox" \
+  --dir_path_2 $RES_OUT_DIR/sebs_start_latency_411.image-recognition_cosandbox \
+  --proc_name_2 sebs-runner.py \
+  --label_2 "Image Recognition (co-sandbox)" \
+  --omit_2 "GlobalScheduling" \
+  --relabel_2 "DownloadCoSandbox" "DownloadCoSandbox" \
+  --subtract_1_from_2 "GlobalScheduling" "DownloadCoSandbox" \
+  --output $GRAPH_OUT_DIR/sebs-image-recognition-start-latency-breakdown-timeline.pdf \
+  | tee $GRAPH_OUT_DIR/sebs-image-recognition-start-latency-breakdown-timeline.txt
+echo "Done generating SeBS image-recognition start latency breakdown graph..."
+
+echo "Generating SeBS dna-visualisation start latency breakdown graph..."
+./benchmarks/scripts/graph/start-latency-breakdown-timeline.py \
+  --paper \
+  --dir_path_1 $RES_OUT_DIR/sebs_start_latency_504.dna-visualisation \
+  --proc_name_1 sebs-runner.py \
+  --label_1 "DNA Visualisation" \
+  --omit_1 "GlobalScheduling" \
+  --relabel_1 "DownloadCoSandbox" "DownloadCoSandbox" \
+  --dir_path_2 $RES_OUT_DIR/sebs_start_latency_504.dna-visualisation_cosandbox \
+  --proc_name_2 sebs-runner.py \
+  --label_2 "DNA Visualisation (co-sandbox)" \
+  --omit_2 "GlobalScheduling" \
+  --relabel_2 "DownloadCoSandbox" "DownloadCoSandbox" \
+  --subtract_1_from_2 "GlobalScheduling" "DownloadCoSandbox" \
+  --output $GRAPH_OUT_DIR/sebs-dna-visualisation-start-latency-breakdown-timeline.pdf \
+  | tee $GRAPH_OUT_DIR/sebs-dna-visualisation-start-latency-breakdown-timeline.txt
+echo "Done generating SeBS dna-visualisation start latency breakdown graph..."
 
 echo "Imgresize breakdown..."
 ./benchmarks/scripts/graph/imgresize-time-breakdown.py \
