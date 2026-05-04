@@ -252,6 +252,7 @@ ssh -i key-$VPC.pem $LOGIN@$VM <<'ENDSSH'
   # For DeathStarBench
   sudo apt install -y docker-compose luarocks libssl-dev zlib1g-dev
   sudo luarocks install luasocket
+  sudo rm -f /etc/apt/sources.list.d/kubernetes.list
 
   sudo swapoff -a
   sudo sed -i '/\tswap\t/ s/^/#/' /etc/fstab

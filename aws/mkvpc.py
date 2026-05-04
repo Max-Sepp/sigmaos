@@ -10,6 +10,7 @@ parser.add_argument('--vpc', metavar='vpc-id', help='Create only vm instance')
 parser.add_argument('name', help='name for this VPC/instance')
 parser.add_argument('--instance_type', type=str, default='t3.small')
 parser.add_argument('--storage', type=int, default=40)
+parser.add_argument('--ami', type=str, default='ami-09d56f8956ab235b3')
 args = vars(parser.parse_args())
 
 #
@@ -62,15 +63,14 @@ def setup_keypair(vpc, ec2):
     os.chmod(n, 0o400)
     return kpn
 
-def setup_instance(ec2, vpc, sg, sn, kpn, storage, instance_type):
+def setup_instance(ec2, vpc, sg, sn, kpn, storage, instance_type, ami=None):
     script=''
     with open('vm-packages', 'r') as fin:
       script = fin.read()
 
     instance = instance_type
-        
-    vm = ec2.create_instances(
-        ImageId='ami-09d56f8956ab235b3',
+
+    kwargs = dict(
         InstanceType=instance,
         BlockDeviceMappings=[
             {
@@ -92,6 +92,9 @@ def setup_instance(ec2, vpc, sg, sn, kpn, storage, instance_type):
         KeyName=kpn,
         UserData=script,
     )
+    if ami:
+        kwargs['ImageId'] = ami
+    vm = ec2.create_instances(**kwargs)
     for i in vm:
         i.create_tags(Tags=[{"Key": "Name", "Value": "%s" % args['name']}])
     ec2Client = boto3.client('ec2')
@@ -121,7 +124,7 @@ def main():
         sn = setup_net(ec2, vpc)
         sg = setup_sec_public(ec2, vpc, "public2")
         kpn = setup_keypair(vpc, ec2)
-        setup_instance(ec2, vpc, sg, sn, kpn, args['storage'], args['instance_type'])
+        setup_instance(ec2, vpc, sg, sn, kpn, args['storage'], args['instance_type'], args['ami'])
     else:
         try:
             vpc = ec2.Vpc(args['vpc'])
@@ -131,7 +134,7 @@ def main():
         sn = find_sn(vpc)
         sg = find_sg(vpc)
         kpn = kpname(vpc)
-        setup_instance(ec2, vpc, sg, sn, kpn, args['storage'], args['instance_type'])
+        setup_instance(ec2, vpc, sg, sn, kpn, args['storage'], args['instance_type'], args['ami'])
 
 if __name__ == "__main__":
     main()
