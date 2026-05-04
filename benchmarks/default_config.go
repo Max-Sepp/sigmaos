@@ -207,7 +207,7 @@ const (
 
 var DefaultSebsThumbnailerBenchConfig = &SebsBenchConfig{
 	Benchmark:    "210.thumbnailer",
-	Event:        `{"bucket":{"bucket":"9ps3","input":"img-save/1.jpg","output":"serverless-benchmarks-input/210.thumbnailer/output/0"},"object":{"key":"test.jpg","width":200,"height":200}}`,
+	Event:        `{"bucket":{"bucket":"9ps3","input":"img-save","output":"serverless-benchmarks-input/210.thumbnailer/output/0"},"object":{"key":"test.jpg","width":200,"height":200}}`,
 	Kid:          sebsKid,
 	ShmemMB:      proc.Tmem(128),
 	Mcpu:         sebsMcpu,
