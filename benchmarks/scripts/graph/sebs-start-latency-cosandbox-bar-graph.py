@@ -183,7 +183,14 @@ SEBS_BENCHMARKS = [
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Create bar graph comparing SeBS proc startup times: compressed, uncompressed, and co-sandbox"
+        description="Create bar graph comparing SeBS proc startup times with/without co-sandbox. "
+                    "Pass --show-uncompressed to include a third bar for uncompressed bundles."
+    )
+    parser.add_argument(
+        "--show-uncompressed",
+        action="store_true",
+        default=False,
+        help="Include uncompressed-bundle bars alongside compressed and co-sandbox bars"
     )
     for key, _ in SEBS_BENCHMARKS:
         parser.add_argument(
@@ -193,8 +200,9 @@ def main():
         )
         parser.add_argument(
             f"--dir_path_{key}_uncompressed",
-            required=True,
-            help=f"Path to {key} benchmark output directory (plain, uncompressed)"
+            default=None,
+            help=f"Path to {key} benchmark output directory (plain, uncompressed); "
+                 f"required when --show-uncompressed is set"
         )
         parser.add_argument(
             f"--dir_path_{key}_cosandbox",
@@ -209,36 +217,53 @@ def main():
 
     args = parser.parse_args()
 
+    if args.show_uncompressed:
+        for key, _ in SEBS_BENCHMARKS:
+            if getattr(args, f"dir_path_{key}_uncompressed") is None:
+                parser.error(f"--dir_path_{key}_uncompressed is required when --show-uncompressed is set")
+
     # Collect timing data for each benchmark.
     data = {}
     for key, label in SEBS_BENCHMARKS:
         plain_dir = getattr(args, f"dir_path_{key}")
-        uncompressed_dir = getattr(args, f"dir_path_{key}_uncompressed")
         cosandbox_dir = getattr(args, f"dir_path_{key}_cosandbox")
-        data[key] = {
+        entry = {
             'label': label,
             'compressed':     get_last_init_time(plain_dir, SEBS_PROC_NAME),
-            'uncompressed':   get_last_init_time(uncompressed_dir, SEBS_PROC_NAME),
             'with_cosandbox': get_last_init_time(cosandbox_dir, SEBS_PROC_NAME),
         }
+        if args.show_uncompressed:
+            uncompressed_dir = getattr(args, f"dir_path_{key}_uncompressed")
+            entry['uncompressed'] = get_last_init_time(uncompressed_dir, SEBS_PROC_NAME)
+        data[key] = entry
 
-    if all(v['compressed'] is None and v['uncompressed'] is None and v['with_cosandbox'] is None for v in data.values()):
+    if all(v['compressed'] is None and v['with_cosandbox'] is None for v in data.values()):
         print("Error: No data found for any SeBS benchmark", file=sys.stderr)
         sys.exit(1)
 
     keys = [k for k, _ in SEBS_BENCHMARKS]
-    proc_labels = [data[k]['label'] for k in keys]
-    compressed     = [data[k]['compressed']     or 0 for k in keys]
-    uncompressed   = [data[k]['uncompressed']   or 0 for k in keys]
+    proc_labels   = [data[k]['label']         for k in keys]
+    compressed    = [data[k]['compressed']     or 0 for k in keys]
     with_cosandbox = [data[k]['with_cosandbox'] or 0 for k in keys]
 
     x = np.arange(len(proc_labels))
-    width = 0.25
 
-    fig, ax = plt.subplots(figsize=(9.0, 2.4))
-    bars1 = ax.bar(x - width, compressed,     width, label='Compressed',     color='steelblue')
-    bars2 = ax.bar(x,         uncompressed,   width, label='Uncompressed',   color='seagreen')
-    bars3 = ax.bar(x + width, with_cosandbox, width, label='With co-sandbox', color='coral')
+    if args.show_uncompressed:
+        uncompressed = [data[k]['uncompressed'] or 0 for k in keys]
+        width = 0.25
+        fig, ax = plt.subplots(figsize=(9.0, 2.4))
+        bars1 = ax.bar(x - width, compressed,     width, label='Compressed',      color='steelblue')
+        bars2 = ax.bar(x,         uncompressed,   width, label='Uncompressed',    color='seagreen')
+        bars3 = ax.bar(x + width, with_cosandbox, width, label='With co-sandbox', color='coral')
+        all_bars = [bars1, bars2, bars3]
+        y_max = max(max(compressed), max(uncompressed), max(with_cosandbox))
+    else:
+        width = 0.35
+        fig, ax = plt.subplots(figsize=(8.0, 2.4))
+        bars1 = ax.bar(x - width/2, compressed,     width, label='Without co-sandbox', color='steelblue')
+        bars3 = ax.bar(x + width/2, with_cosandbox, width, label='With co-sandbox',    color='coral')
+        all_bars = [bars1, bars3]
+        y_max = max(max(compressed), max(with_cosandbox))
 
     ax.set_xlabel('Benchmark', fontsize=12)
     ax.set_ylabel('Start time (ms)', fontsize=12)
@@ -255,11 +280,9 @@ def main():
                         f'{height:.0f}ms',
                         ha='center', va='bottom', fontsize=9)
 
-    add_value_labels(bars1)
-    add_value_labels(bars2)
-    add_value_labels(bars3)
+    for bars in all_bars:
+        add_value_labels(bars)
 
-    y_max = max(max(compressed), max(uncompressed), max(with_cosandbox))
     ax.set_ylim(0, y_max * 1.15)
 
     plt.tight_layout()
@@ -270,7 +293,7 @@ def main():
     print("=" * 100)
     for key, label in SEBS_BENCHMARKS:
         c  = data[key]['compressed']
-        u  = data[key]['uncompressed']
+        u  = data[key].get('uncompressed')
         cs = data[key]['with_cosandbox']
         parts = []
         if c is not None:
