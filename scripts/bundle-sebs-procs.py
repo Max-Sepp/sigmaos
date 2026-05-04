@@ -24,7 +24,6 @@ import shutil
 import stat
 import subprocess
 import sys
-import tarfile
 import tempfile
 
 import boto3
@@ -160,15 +159,13 @@ def bundle_benchmark(bench_id, sebs_dir, storage_py, data_dir, tag, s3):
         tar_name = f"{bench_id}-bundle.tar"
         tar_path = os.path.join(tempfile.gettempdir(), tar_name)
         print(f"[{bench_id}] creating {tar_path} ...")
-        with tarfile.open(tar_path, "w:") as tar:
-            tar.add(work_dir, arcname=".")
+        subprocess.run(["tar", "-cf", tar_path, "-C", work_dir, "."], check=True)
 
         # Compressed tarball
         tarball_name = f"{bench_id}-bundle.tar.gz"
         tarball_path = os.path.join(tempfile.gettempdir(), tarball_name)
         print(f"[{bench_id}] creating {tarball_path} ...")
-        with tarfile.open(tarball_path, "w:gz") as tar:
-            tar.add(work_dir, arcname=".")
+        subprocess.run(["tar", "-czf", tarball_path, "-C", work_dir, "."], check=True)
 
         tar_size_mb = os.path.getsize(tar_path) / (1024 * 1024)
         gz_size_mb = os.path.getsize(tarball_path) / (1024 * 1024)

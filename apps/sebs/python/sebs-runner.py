@@ -17,8 +17,8 @@ import argparse
 import importlib
 import json
 import os
+import subprocess
 import sys
-import tarfile
 import time
 import uuid
 
@@ -70,9 +70,7 @@ def _run(clnt, args):
     os.makedirs(pkgroot, exist_ok=True)
 
     untar_start = time.perf_counter()
-    tar_mode = "r:" if args.uncompressed else "r:gz"
-    with tarfile.open(bundle_path, mode=tar_mode) as tar:
-        tar.extractall(pkgroot)
+    subprocess.run(["tar", "-xf", bundle_path, "-C", pkgroot], check=True)
     clnt.log_spawn_latency("Paper.Setup.Untar",
                            int((time.perf_counter() - untar_start) * 1_000_000))
 

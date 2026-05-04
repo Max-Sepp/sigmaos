@@ -46,14 +46,18 @@ echo "Done generating start latency comparison..."
 
 echo "Generating sebs start latency comparison..."
 ./benchmarks/scripts/graph/sebs-start-latency-cosandbox-bar-graph.py \
-    --dir_path_thumbnailer       $RES_OUT_DIR/sebs_start_latency_210.thumbnailer \
-    --dir_path_thumbnailer_cosandbox $RES_OUT_DIR/sebs_start_latency_210.thumbnailer_cosandbox \
-    --dir_path_video_processing  $RES_OUT_DIR/sebs_start_latency_220.video-processing \
-    --dir_path_video_processing_cosandbox $RES_OUT_DIR/sebs_start_latency_220.video-processing_cosandbox \
-    --dir_path_image_recognition $RES_OUT_DIR/sebs_start_latency_411.image-recognition \
-    --dir_path_image_recognition_cosandbox $RES_OUT_DIR/sebs_start_latency_411.image-recognition_cosandbox \
-    --dir_path_dna_visualisation $RES_OUT_DIR/sebs_start_latency_504.dna-visualisation \
-    --dir_path_dna_visualisation_cosandbox $RES_OUT_DIR/sebs_start_latency_504.dna-visualisation_cosandbox \
+    --dir_path_thumbnailer              $RES_OUT_DIR/sebs_start_latency_210.thumbnailer \
+    --dir_path_thumbnailer_uncompressed $RES_OUT_DIR/sebs_start_latency_210.thumbnailer_uncompressed \
+    --dir_path_thumbnailer_cosandbox    $RES_OUT_DIR/sebs_start_latency_210.thumbnailer_cosandbox \
+    --dir_path_video_processing              $RES_OUT_DIR/sebs_start_latency_220.video-processing \
+    --dir_path_video_processing_uncompressed $RES_OUT_DIR/sebs_start_latency_220.video-processing_uncompressed \
+    --dir_path_video_processing_cosandbox    $RES_OUT_DIR/sebs_start_latency_220.video-processing_cosandbox \
+    --dir_path_image_recognition              $RES_OUT_DIR/sebs_start_latency_411.image-recognition \
+    --dir_path_image_recognition_uncompressed $RES_OUT_DIR/sebs_start_latency_411.image-recognition_uncompressed \
+    --dir_path_image_recognition_cosandbox    $RES_OUT_DIR/sebs_start_latency_411.image-recognition_cosandbox \
+    --dir_path_dna_visualisation              $RES_OUT_DIR/sebs_start_latency_504.dna-visualisation \
+    --dir_path_dna_visualisation_uncompressed $RES_OUT_DIR/sebs_start_latency_504.dna-visualisation_uncompressed \
+    --dir_path_dna_visualisation_cosandbox    $RES_OUT_DIR/sebs_start_latency_504.dna-visualisation_cosandbox \
     --output $GRAPH_OUT_DIR/sebs-start-latency.pdf
 echo "Done generating sebs start latency comparison..."
 

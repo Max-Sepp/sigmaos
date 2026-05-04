@@ -183,13 +183,18 @@ SEBS_BENCHMARKS = [
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Create bar graph comparing SeBS proc startup times with/without co-sandbox"
+        description="Create bar graph comparing SeBS proc startup times: compressed, uncompressed, and co-sandbox"
     )
     for key, _ in SEBS_BENCHMARKS:
         parser.add_argument(
             f"--dir_path_{key}",
             required=True,
-            help=f"Path to {key} benchmark output directory (plain Python)"
+            help=f"Path to {key} benchmark output directory (plain, compressed)"
+        )
+        parser.add_argument(
+            f"--dir_path_{key}_uncompressed",
+            required=True,
+            help=f"Path to {key} benchmark output directory (plain, uncompressed)"
         )
         parser.add_argument(
             f"--dir_path_{key}_cosandbox",
@@ -208,28 +213,32 @@ def main():
     data = {}
     for key, label in SEBS_BENCHMARKS:
         plain_dir = getattr(args, f"dir_path_{key}")
+        uncompressed_dir = getattr(args, f"dir_path_{key}_uncompressed")
         cosandbox_dir = getattr(args, f"dir_path_{key}_cosandbox")
         data[key] = {
             'label': label,
-            'without_cosandbox': get_last_init_time(plain_dir, SEBS_PROC_NAME),
+            'compressed':     get_last_init_time(plain_dir, SEBS_PROC_NAME),
+            'uncompressed':   get_last_init_time(uncompressed_dir, SEBS_PROC_NAME),
             'with_cosandbox': get_last_init_time(cosandbox_dir, SEBS_PROC_NAME),
         }
 
-    if all(v['without_cosandbox'] is None and v['with_cosandbox'] is None for v in data.values()):
+    if all(v['compressed'] is None and v['uncompressed'] is None and v['with_cosandbox'] is None for v in data.values()):
         print("Error: No data found for any SeBS benchmark", file=sys.stderr)
         sys.exit(1)
 
     keys = [k for k, _ in SEBS_BENCHMARKS]
     proc_labels = [data[k]['label'] for k in keys]
-    without_cosandbox = [data[k]['without_cosandbox'] or 0 for k in keys]
+    compressed     = [data[k]['compressed']     or 0 for k in keys]
+    uncompressed   = [data[k]['uncompressed']   or 0 for k in keys]
     with_cosandbox = [data[k]['with_cosandbox'] or 0 for k in keys]
 
     x = np.arange(len(proc_labels))
-    width = 0.35
+    width = 0.25
 
-    fig, ax = plt.subplots(figsize=(8.0, 2.4))
-    bars1 = ax.bar(x - width/2, without_cosandbox, width, label='Without co-sandbox', color='steelblue')
-    bars2 = ax.bar(x + width/2, with_cosandbox, width, label='With co-sandbox', color='coral')
+    fig, ax = plt.subplots(figsize=(9.0, 2.4))
+    bars1 = ax.bar(x - width, compressed,     width, label='Compressed',     color='steelblue')
+    bars2 = ax.bar(x,         uncompressed,   width, label='Uncompressed',   color='seagreen')
+    bars3 = ax.bar(x + width, with_cosandbox, width, label='With co-sandbox', color='coral')
 
     ax.set_xlabel('Benchmark', fontsize=12)
     ax.set_ylabel('Start time (ms)', fontsize=12)
@@ -248,8 +257,9 @@ def main():
 
     add_value_labels(bars1)
     add_value_labels(bars2)
+    add_value_labels(bars3)
 
-    y_max = max(max(without_cosandbox), max(with_cosandbox))
+    y_max = max(max(compressed), max(uncompressed), max(with_cosandbox))
     ax.set_ylim(0, y_max * 1.15)
 
     plt.tight_layout()
@@ -257,14 +267,28 @@ def main():
     print(f"Graph saved to {args.output}")
 
     print("\nSummary:")
-    print("=" * 80)
+    print("=" * 100)
     for key, label in SEBS_BENCHMARKS:
-        without = data[key]['without_cosandbox']
-        with_init = data[key]['with_cosandbox']
-        if without and with_init:
-            diff = without - with_init
-            pct = diff / without * 100
-            print(f"{label:20} | Without: {without:.2f}ms | With: {with_init:.2f}ms | Diff: {diff:.2f}ms ({pct:.1f}%)")
+        c  = data[key]['compressed']
+        u  = data[key]['uncompressed']
+        cs = data[key]['with_cosandbox']
+        parts = []
+        if c is not None:
+            parts.append(f"Compressed: {c:.2f}ms")
+        if u is not None:
+            parts.append(f"Uncompressed: {u:.2f}ms")
+            if c is not None:
+                diff = c - u
+                pct = diff / c * 100
+                parts.append(f"Uncomp saving: {diff:.2f}ms ({pct:.1f}%)")
+        if cs is not None:
+            parts.append(f"Co-sandbox: {cs:.2f}ms")
+            if c is not None:
+                diff = c - cs
+                pct = diff / c * 100
+                parts.append(f"CoSandbox saving: {diff:.2f}ms ({pct:.1f}%)")
+        if parts:
+            print(f"{label:20} | " + " | ".join(parts))
         else:
             print(f"{label:20} | Data missing")
 
