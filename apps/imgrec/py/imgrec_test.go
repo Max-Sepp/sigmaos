@@ -37,7 +37,7 @@ func TestImgrecPy(t *testing.T) {
 		return
 	}
 
-	msg, err := job.Run()
+	msg, err := job.Run(sp.NOT_SET)
 	assert.Nil(t, err, "Run: %v", err)
 	db.DPrintf(db.TEST, "imgrec pred: %v", msg)
 	imgrectestutil.AssertMatchesReference(t, msg, ref)
@@ -59,7 +59,7 @@ func TestImgrecPyAsync(t *testing.T) {
 		return
 	}
 
-	msg, err := job.Run()
+	msg, err := job.Run(sp.NOT_SET)
 	assert.Nil(t, err, "Run: %v", err)
 	db.DPrintf(db.TEST, "imgrec pred: %v", msg)
 	imgrectestutil.AssertMatchesReference(t, msg, ref)
@@ -81,7 +81,7 @@ func TestImgrecPyCoSandbox(t *testing.T) {
 		return
 	}
 
-	msg, err := job.Run()
+	msg, err := job.Run(sp.NOT_SET)
 	assert.Nil(t, err, "Run: %v", err)
 	db.DPrintf(db.TEST, "imgrec pred: %v", msg)
 	imgrectestutil.AssertMatchesReference(t, msg, ref)
@@ -103,7 +103,7 @@ func TestImgrecPyShmem(t *testing.T) {
 		return
 	}
 
-	msg, err := job.Run()
+	msg, err := job.Run(sp.NOT_SET)
 	assert.Nil(t, err, "Run: %v", err)
 	db.DPrintf(db.TEST, "imgrec pred: %v", msg)
 	imgrectestutil.AssertMatchesReference(t, msg, ref)

@@ -9,6 +9,7 @@ import (
 	"sigmaos/proc"
 	wasmrt "sigmaos/proxy/wasm/rpc/wasmer"
 	"sigmaos/sigmaclnt"
+	sp "sigmaos/sigmap"
 )
 
 // S3Object is a (bucket, key) pair identifying an S3 object to pre-fetch.
@@ -114,7 +115,7 @@ func NewSebsWASMJob(conf *SebsWASMJobConfig, sc *sigmaclnt.SigmaClnt) (*SebsWASM
 	return &SebsWASMJob{conf: conf, SigmaClnt: sc, precompiledWASM: b}, nil
 }
 
-func (j *SebsWASMJob) Run() (string, error) {
+func (j *SebsWASMJob) Run(sigmaPath string) (string, error) {
 	bootInput := j.buildBootInput()
 	delegatedMap, err := j.buildDelegatedMap()
 	if err != nil {
@@ -135,6 +136,9 @@ func (j *SebsWASMJob) Run() (string, error) {
 	}
 	if j.conf.ShmemMB > 0 {
 		p.SetShmemMB(j.conf.ShmemMB)
+	}
+	if sigmaPath != sp.NOT_SET {
+		p.PrependSigmaPath(sigmaPath)
 	}
 	db.DPrintf(db.TEST, "Scale %v", p.GetPid())
 	db.DPrintf(db.TEST, "SebsWASMJob %v %v", j.conf.Benchmark, p.GetPid())

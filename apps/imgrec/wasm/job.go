@@ -115,7 +115,7 @@ func PrecompileAndUpload(sc *sigmaclnt.SigmaClnt) error {
 
 // Run uploads the precompiled WASM binary, spawns the proc, waits for
 // completion, and returns the result message (class_idx,score).
-func (j *ImgrecWASMJob) Run() (string, error) {
+func (j *ImgrecWASMJob) Run(sigmaPath string) (string, error) {
 	precompiledPath := precompiledBinPath(j.SigmaClnt)
 	j.Remove(precompiledPath)
 	wrt, err := j.CreateWriter(precompiledPath, 0777, sp.OWRITE)
@@ -150,6 +150,9 @@ func (j *ImgrecWASMJob) Run() (string, error) {
 	}
 	if j.ProcEnv().BuildTag == sp.LOCAL_BUILD {
 		p.PrependSigmaPath(filepath.Dir(precompiledPath))
+	}
+	if sigmaPath != sp.NOT_SET {
+		p.PrependSigmaPath(sigmaPath)
 	}
 	db.DPrintf(db.TEST, "Scale %v", p.GetPid())
 	if err := j.Spawn(p); err != nil {

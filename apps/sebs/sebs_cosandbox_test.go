@@ -21,7 +21,7 @@ func sebsCoSandboxRun(t *testing.T, mrts *test.MultiRealmTstate, conf *sebs.Sebs
 	if !assert.Nil(t, err, "NewSebsWASMJob: %v", err) {
 		return nil
 	}
-	msg, err := job.Run()
+	msg, err := job.Run(sp.NOT_SET)
 	if !assert.Nil(t, err, "Run: %v", err) {
 		return nil
 	}

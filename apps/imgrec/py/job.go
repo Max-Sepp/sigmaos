@@ -7,6 +7,7 @@ import (
 	"sigmaos/proc"
 	wasmrt "sigmaos/proxy/wasm/rpc/wasmer"
 	"sigmaos/sigmaclnt"
+	sp "sigmaos/sigmap"
 )
 
 const cosandboxName = "imgrec_boot"
@@ -60,7 +61,7 @@ func NewImgrecPyJob(conf *ImgrecPyJobConfig, sc *sigmaclnt.SigmaClnt) (*ImgrecPy
 
 // Run spawns an imgrec.py proc, waits for it to complete, and returns the
 // result message (class_idx,score).
-func (j *ImgrecPyJob) Run() (string, error) {
+func (j *ImgrecPyJob) Run(sigmaPath string) (string, error) {
 	asyncFetchStr := "0"
 	if j.conf.AsyncFetch {
 		asyncFetchStr = "1"
@@ -83,6 +84,9 @@ func (j *ImgrecPyJob) Run() (string, error) {
 	}
 	if j.conf.ShmemMB > 0 {
 		p.SetShmemMB(j.conf.ShmemMB)
+	}
+	if sigmaPath != sp.NOT_SET {
+		p.PrependSigmaPath(sigmaPath)
 	}
 	db.DPrintf(db.TEST, "Scale %v", p.GetPid())
 	if err := j.Spawn(p); err != nil {

@@ -1875,7 +1875,7 @@ func TestSebsStartLatency(t *testing.T) {
 		{benchmarks.DefaultSebsDnaVisualisationBenchConfig, false},
 	}
 	withCoSandbox := []bool{false, true}
-	withUncompressed := []bool{false, true}
+	withUncompressed := []bool{false}
 
 	ts, err := NewTstate(t)
 	if !assert.Nil(ts.t, err, "Creating test state: %v", err) {

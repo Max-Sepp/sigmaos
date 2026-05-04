@@ -52,7 +52,7 @@ func sebsRun(t *testing.T, benchmark, eventJSON string) map[string]any {
 	if !assert.Nil(t, err, "NewSebsJob: %v", err) {
 		return nil
 	}
-	msg, err := job.Run()
+	msg, err := job.Run(sp.NOT_SET)
 	if !assert.Nil(t, err, "Run: %v", err) {
 		return nil
 	}
@@ -127,7 +127,7 @@ func TestSebsUploader(t *testing.T) {
 	if !assert.Nil(t, err, "NewSebsJob: %v", err) {
 		return
 	}
-	msg, err := job.Run()
+	msg, err := job.Run(sp.NOT_SET)
 	if !assert.Nil(t, err, "Run: %v", err) {
 		return
 	}
@@ -176,7 +176,7 @@ func TestSebsThumbnailer(t *testing.T) {
 	if !assert.Nil(t, err, "NewSebsJob: %v", err) {
 		return
 	}
-	msg, err := job.Run()
+	msg, err := job.Run(sp.NOT_SET)
 	if !assert.Nil(t, err, "Run: %v", err) {
 		return
 	}
@@ -233,7 +233,7 @@ func TestSebsVideoProcessing(t *testing.T) {
 	if !assert.Nil(t, err, "NewSebsJob: %v", err) {
 		return
 	}
-	msg, err := job.Run()
+	msg, err := job.Run(sp.NOT_SET)
 	if !assert.Nil(t, err, "Run: %v", err) {
 		return
 	}
@@ -304,7 +304,7 @@ func TestSebsImageRecognition(t *testing.T) {
 	if !assert.Nil(t, err, "NewSebsJob: %v", err) {
 		return
 	}
-	msg, err := job.Run()
+	msg, err := job.Run(sp.NOT_SET)
 	if !assert.Nil(t, err, "Run: %v", err) {
 		return
 	}
@@ -379,7 +379,7 @@ func TestSebsDnaVisualisation(t *testing.T) {
 	if !assert.Nil(t, err, "NewSebsJob: %v", err) {
 		return
 	}
-	msg, err := job.Run()
+	msg, err := job.Run(sp.NOT_SET)
 	if !assert.Nil(t, err, "Run: %v", err) {
 		return
 	}

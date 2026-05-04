@@ -11,6 +11,7 @@ import (
 	db "sigmaos/debug"
 	"sigmaos/proc"
 	mschedclnt "sigmaos/sched/msched/clnt"
+	"sigmaos/sched/msched/proc/chunk"
 	sp "sigmaos/sigmap"
 	"sigmaos/test"
 )
@@ -120,9 +121,9 @@ func (ji *SebsStartLatencyJobInstance) RunJob(rs *benchmarks.Results, crash bool
 	var msg string
 	var err error
 	if ji.cfg.UseCoSandbox {
-		msg, err = ji.wasmJob.Run()
+		msg, err = ji.wasmJob.Run(chunk.ChunkdPath(ji.warmSrvKID))
 	} else {
-		msg, err = ji.plainJob.Run()
+		msg, err = ji.plainJob.Run(chunk.ChunkdPath(ji.warmSrvKID))
 	}
 	if !assert.Nil(ji.Ts.T, err, "Err run SeBS %v (cosandbox=%v): %v", ji.cfg.Benchmark, ji.cfg.UseCoSandbox, err) {
 		return false

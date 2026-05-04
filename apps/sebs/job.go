@@ -6,6 +6,7 @@ import (
 	db "sigmaos/debug"
 	"sigmaos/proc"
 	"sigmaos/sigmaclnt"
+	sp "sigmaos/sigmap"
 )
 
 type SebsJobConfig struct {
@@ -39,7 +40,7 @@ func NewSebsJob(conf *SebsJobConfig, sc *sigmaclnt.SigmaClnt) (*SebsJob, error) 
 	return &SebsJob{conf: conf, SigmaClnt: sc}, nil
 }
 
-func (j *SebsJob) Run() (string, error) {
+func (j *SebsJob) Run(sigmaPath string) (string, error) {
 	args := []string{"--benchmark", j.conf.Benchmark, "--event", j.conf.Event}
 	if j.conf.AsyncFetch {
 		args = append(args, "--async-fetch")
@@ -62,6 +63,9 @@ func (j *SebsJob) Run() (string, error) {
 	}
 	if j.conf.ShmemMB > 0 {
 		p.SetShmemMB(j.conf.ShmemMB)
+	}
+	if sigmaPath != sp.NOT_SET {
+		p.PrependSigmaPath(sigmaPath)
 	}
 	db.DPrintf(db.TEST, "Scale %v", p.GetPid())
 	db.DPrintf(db.TEST, "SebsJob %v %v", j.conf.Benchmark, p.GetPid())
