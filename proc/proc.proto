@@ -60,10 +60,15 @@ enum ProcContainerType {
   PROC_CTR_PYTHON = 2;
 }
 
+message AddedBinProto {
+  string program = 1;
+  bool compressed = 2;
+}
+
 message ProcProto {
   ProcEnvProto procEnvProto = 1;
   repeated string args = 2;
-  repeated string addedBins = 3;
+  repeated AddedBinProto addedBins = 3;
   map<string, string> env = 4;
   Blob blob = 5; // boot script
   bytes coSandboxInput = 6;

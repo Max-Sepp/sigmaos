@@ -124,7 +124,7 @@ func (j *SebsWASMJob) Run(sigmaPath string) (string, error) {
 
 	args := []string{"--benchmark", j.conf.Benchmark, "--event", j.conf.Event, "--delegated"}
 	p := proc.NewProc("sebs-runner.py", args)
-	p.AddBin(fmt.Sprintf("%v-bundle.tar.gz", j.conf.Benchmark))
+	p.AddCompressedBin(fmt.Sprintf("%v-bundle.tar.gz", j.conf.Benchmark))
 	p.GetProcEnv().UseSPProxy = true
 	p.GetProcEnv().UseSPProxyProcClnt = true
 	p.SetProcContainerType(proc.ProcContainerType_PROC_CTR_PYTHON)

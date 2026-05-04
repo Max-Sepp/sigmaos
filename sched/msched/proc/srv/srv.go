@@ -272,15 +272,23 @@ func (ps *ProcSrv) downloadAddedProcBins(uproc *proc.Proc, downloadProcBin bool)
 			ch <- nil
 		}()
 	}
-	for _, prog := range uproc.GetAddedBins() {
-		go func(prog string) {
-			db.DPrintf(db.PROCD, "[%v] Downloading added bin %v", uproc.GetPid(), prog)
-			if err := ps.downloadFullBinary(prog, uproc.GetPid(), uproc.GetRealm(), uproc.GetSecrets()["s3"], uproc.GetSigmaPath(), uproc.GetNamedEndpoint()); err != nil {
+	for _, bin := range uproc.GetAddedBins() {
+		go func(bin *proc.AddedBinProto) {
+			db.DPrintf(db.PROCD, "[%v] Downloading added bin %v", uproc.GetPid(), bin.GetProgram())
+			if err := ps.downloadFullBinary(bin.GetProgram(), uproc.GetPid(), uproc.GetRealm(), uproc.GetSecrets()["s3"], uproc.GetSigmaPath(), uproc.GetNamedEndpoint()); err != nil {
 				db.DPrintf(db.ERROR, "Error download full binary for gVisor container")
 				ch <- err
+				return
+			}
+			if bin.GetCompressed() {
+				if err := ps.decompressBin(bin.GetProgram(), uproc.GetPid(), uproc.GetSpawnTime()); err != nil {
+					db.DPrintf(db.ERROR, "Error decompress bin %v: %v", bin.GetProgram(), err)
+					ch <- err
+					return
+				}
 			}
 			ch <- nil
-		}(prog)
+		}(bin)
 	}
 	for i := 0; i < nDownloads; i++ {
 		err := <-ch
@@ -289,6 +297,21 @@ func (ps *ProcSrv) downloadAddedProcBins(uproc *proc.Proc, downloadProcBin bool)
 			return err
 		}
 	}
+	return nil
+}
+
+func (ps *ProcSrv) decompressBin(prog string, pid sp.Tpid, spawnTime time.Time) error {
+	binDir := chunksrv.PathBinProc()
+	tarPath := filepath.Join(binDir, prog)
+	start := time.Now()
+	cmd := exec.Command("tar", "-xf", tarPath, "-C", binDir)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("tar decompress %v: %v (output: %s)", tarPath, err, out)
+	}
+	perf.LogSpawnLatency("Setup.Untar", pid, spawnTime, start)
+	perf.LogSpawnLatency("Paper.Setup.Untar", pid, spawnTime, start)
+	db.DPrintf(db.PROCD, "Decompressed bin %v in %v", prog, binDir)
 	return nil
 }
 

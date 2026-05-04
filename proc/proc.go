@@ -130,12 +130,16 @@ func (p *Proc) GetVersion() string {
 	return p.ProcEnvProto.GetVersion()
 }
 
-func (p *Proc) GetAddedBins() []string {
+func (p *Proc) GetAddedBins() []*AddedBinProto {
 	return p.AddedBins
 }
 
 func (p *Proc) AddBin(versionedProgram string) {
-	p.AddedBins = append(p.AddedBins, versionedProgram)
+	p.AddedBins = append(p.AddedBins, &AddedBinProto{Program: versionedProgram})
+}
+
+func (p *Proc) AddCompressedBin(versionedProgram string) {
+	p.AddedBins = append(p.AddedBins, &AddedBinProto{Program: versionedProgram, Compressed: true})
 }
 
 func (p *Proc) InheritParentProcEnv(parentPE *ProcEnv) {

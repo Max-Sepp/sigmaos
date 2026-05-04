@@ -2,9 +2,8 @@
 """
 SigmaOS SeBS runner proc.
 
-Untars BENCH_ID-bundle.tar.gz from CWD, initializes the SigmaOS storage shim,
-and calls handler(event). The bundle is downloaded on behalf of the runner
-before it starts.
+The bundle is downloaded and extracted by procsrv before this proc starts.
+This script initializes the SigmaOS storage shim and calls handler(event).
 
 Args:
   --benchmark   Benchmark ID, e.g. "010.sleep"
@@ -17,10 +16,7 @@ import argparse
 import importlib
 import json
 import os
-import subprocess
 import sys
-import time
-import uuid
 
 import sigmaos
 
@@ -49,7 +45,6 @@ def main():
     parser.add_argument("--event", required=True)
     parser.add_argument("--async-fetch", action="store_true")
     parser.add_argument("--delegated", action="store_true")
-    parser.add_argument("--uncompressed", action="store_true")
     args = parser.parse_args()
 
     try:
@@ -60,19 +55,8 @@ def main():
 
 
 def _run(clnt, args):
-    if args.uncompressed:
-        bundle_name = f"{args.benchmark}-bundle.tar"
-    else:
-        bundle_name = f"{args.benchmark}-bundle.tar.gz"
-    bundle_path = os.path.join(os.getcwd(), "bin", "user", bundle_name)
-
-    pkgroot = f"/tmp/sebs-{uuid.uuid4()}"
-    os.makedirs(pkgroot, exist_ok=True)
-
-    untar_start = time.perf_counter()
-    subprocess.run(["tar", "-xf", bundle_path, "-C", pkgroot], check=True)
-    clnt.log_spawn_latency("Paper.Setup.Untar",
-                           int((time.perf_counter() - untar_start) * 1_000_000))
+    # The bundle is decompressed by procsrv before this proc starts.
+    pkgroot = os.path.join(os.getcwd(), "bin", "user")
 
     # deps/ contains pip-installed packages; add first so _sebsbench imports work
     deps_dir = os.path.join(pkgroot, "deps")

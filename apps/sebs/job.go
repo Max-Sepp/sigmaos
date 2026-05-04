@@ -50,11 +50,10 @@ func (j *SebsJob) Run(sigmaPath string) (string, error) {
 	}
 	bundleSuffix := "tar.gz"
 	if j.conf.Uncompressed {
-		args = append(args, "--uncompressed")
 		bundleSuffix = "tar"
 	}
 	p := proc.NewProc("sebs-runner.py", args)
-	p.AddBin(fmt.Sprintf("%v-bundle.%v", j.conf.Benchmark, bundleSuffix))
+	p.AddCompressedBin(fmt.Sprintf("%v-bundle.%v", j.conf.Benchmark, bundleSuffix))
 	p.GetProcEnv().UseSPProxy = true
 	p.GetProcEnv().UseSPProxyProcClnt = true
 	p.SetProcContainerType(proc.ProcContainerType_PROC_CTR_PYTHON)
