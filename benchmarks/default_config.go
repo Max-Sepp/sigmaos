@@ -119,23 +119,23 @@ var DefaultHotelBenchConfig = &HotelBenchConfig{
 
 var DefaultImgBenchConfig = &ImgBenchConfig{
 	JobCfg: &imgresize.ImgdJobConfig{
-		Job:                   "img-job",
-		WorkerMcpu:            proc.Tmcpu(0),
-		WorkerMem:             proc.Tmem(0),
-		Persist:               false,
-		NRounds:               1,
-		ImgdMcpu:              proc.Tmcpu(1000),
-		UseSPProxy:            false,
+		Job:                  "img-job",
+		WorkerMcpu:           proc.Tmcpu(0),
+		WorkerMem:            proc.Tmem(0),
+		Persist:              false,
+		NRounds:              1,
+		ImgdMcpu:             proc.Tmcpu(1000),
+		UseSPProxy:           false,
 		UseCoSandbox:         false,
 		WriteOutViaCoSandbox: false,
-		UseS3Clnt:             false,
+		UseS3Clnt:            false,
 		WorkerCoSandboxMcpu:  proc.Tmcpu(0),
 		WorkerCoSandboxMem:   proc.Tmem(0),
-		FTTaskSrvMcpu:         proc.Tmcpu(1000),
-		ImgDim:                160,
-		PremountS3:            false,
-		MeasurePSS:            false,
-		BailOut:               false,
+		FTTaskSrvMcpu:        proc.Tmcpu(1000),
+		ImgDim:               160,
+		PremountS3:           false,
+		MeasurePSS:           false,
+		BailOut:              false,
 	},
 	InputPath:      filepath.Join(sp.S3, sp.LOCAL, "9ps3/img/8.jpg"),
 	NTasks:         10,
@@ -146,23 +146,23 @@ var DefaultImgBenchConfig = &ImgBenchConfig{
 
 var DefaultEtcdBenchConfig = &EtcdBenchConfig{
 	JobCfg: &etcd.EtcdJobConfig{
-		Job:           "etcd-job",
-		SnapshotPath:  "9ps3/snapshot.db",
-		Name:          "etcd-proc",
-		PeerPort:      6380,
-		ClientPort:    6379,
+		Job:          "etcd-job",
+		SnapshotPath: "9ps3/snapshot.db",
+		Name:         "etcd-proc",
+		PeerPort:     6380,
+		ClientPort:   6379,
 		UseCoSandbox: true,
-		Mcpu:          proc.Tmcpu(1000),
+		Mcpu:         proc.Tmcpu(1000),
 	},
 }
 
 var DefaultMemcachedBenchConfig = &MemcachedBenchConfig{
 	JobCfg: &memcached.MemcachedJobConfig{
-		Job:           "memcached-job",
-		SnapshotPath:  "9ps3/memcached-snapshot-40M",
-		Port:          11211,
+		Job:          "memcached-job",
+		SnapshotPath: "9ps3/memcached-snapshot-40M",
+		Port:         11211,
 		UseCoSandbox: false,
-		Mcpu:          proc.Tmcpu(1000),
+		Mcpu:         proc.Tmcpu(1000),
 	},
 	Cache: false,
 }
@@ -207,7 +207,7 @@ const (
 
 var DefaultSebsThumbnailerBenchConfig = &SebsBenchConfig{
 	Benchmark:    "210.thumbnailer",
-	Event:        `{"bucket":{"bucket":"9ps3","input":"serverless-benchmarks-input/210.thumbnailer/input/0","output":"serverless-benchmarks-input/210.thumbnailer/output/0"},"object":{"key":"test.jpg","width":200,"height":200}}`,
+	Event:        `{"bucket":{"bucket":"9ps3","input":"img-save/1.jpg","output":"serverless-benchmarks-input/210.thumbnailer/output/0"},"object":{"key":"test.jpg","width":200,"height":200}}`,
 	Kid:          sebsKid,
 	ShmemMB:      proc.Tmem(128),
 	Mcpu:         sebsMcpu,
