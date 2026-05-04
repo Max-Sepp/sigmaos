@@ -47,7 +47,7 @@ func sebsRun(t *testing.T, benchmark, eventJSON string) map[string]any {
 	defer mrts.Shutdown()
 
 	rts := mrts.GetRealm(test.REALM1)
-	conf := sebs.NewSebsJobConfig(benchmark, eventJSON, false, false, 0, 0)
+	conf := sebs.NewSebsJobConfig(benchmark, eventJSON, false, false, false, 0, 0)
 	job, err := sebs.NewSebsJob(conf, rts.SigmaClnt)
 	if !assert.Nil(t, err, "NewSebsJob: %v", err) {
 		return nil
@@ -122,7 +122,7 @@ func TestSebsUploader(t *testing.T) {
 	}
 	eventJSON, _ := json.Marshal(eventMap)
 
-	conf := sebs.NewSebsJobConfig("120.uploader", string(eventJSON), false, false, 0, 0)
+	conf := sebs.NewSebsJobConfig("120.uploader", string(eventJSON), false, false, false, 0, 0)
 	job, err := sebs.NewSebsJob(conf, rts.SigmaClnt)
 	if !assert.Nil(t, err, "NewSebsJob: %v", err) {
 		return
@@ -171,7 +171,7 @@ func TestSebsThumbnailer(t *testing.T) {
 	}
 	eventJSON, _ := json.Marshal(eventMap)
 
-	conf := sebs.NewSebsJobConfig("210.thumbnailer", string(eventJSON), false, false, 0, 0)
+	conf := sebs.NewSebsJobConfig("210.thumbnailer", string(eventJSON), false, false, false, 0, 0)
 	job, err := sebs.NewSebsJob(conf, rts.SigmaClnt)
 	if !assert.Nil(t, err, "NewSebsJob: %v", err) {
 		return
@@ -228,7 +228,7 @@ func TestSebsVideoProcessing(t *testing.T) {
 	}
 	eventJSON, _ := json.Marshal(eventMap)
 
-	conf := sebs.NewSebsJobConfig("220.video-processing", string(eventJSON), false, false, 0, 0)
+	conf := sebs.NewSebsJobConfig("220.video-processing", string(eventJSON), false, false, false, 0, 0)
 	job, err := sebs.NewSebsJob(conf, rts.SigmaClnt)
 	if !assert.Nil(t, err, "NewSebsJob: %v", err) {
 		return
@@ -299,7 +299,7 @@ func TestSebsImageRecognition(t *testing.T) {
 	}
 	eventJSON, _ := json.Marshal(eventMap)
 
-	conf := sebs.NewSebsJobConfig("411.image-recognition", string(eventJSON), false, false, 0, 0)
+	conf := sebs.NewSebsJobConfig("411.image-recognition", string(eventJSON), false, false, false, 0, 0)
 	job, err := sebs.NewSebsJob(conf, rts.SigmaClnt)
 	if !assert.Nil(t, err, "NewSebsJob: %v", err) {
 		return
@@ -374,7 +374,7 @@ func TestSebsDnaVisualisation(t *testing.T) {
 	}
 	eventJSON, _ := json.Marshal(eventMap)
 
-	conf := sebs.NewSebsJobConfig("504.dna-visualisation", string(eventJSON), false, false, 0, 0)
+	conf := sebs.NewSebsJobConfig("504.dna-visualisation", string(eventJSON), false, false, false, 0, 0)
 	job, err := sebs.NewSebsJob(conf, rts.SigmaClnt)
 	if !assert.Nil(t, err, "NewSebsJob: %v", err) {
 		return

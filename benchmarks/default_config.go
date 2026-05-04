@@ -213,6 +213,7 @@ var DefaultSebsThumbnailerBenchConfig = &SebsBenchConfig{
 	Mcpu:         sebsMcpu,
 	UseCoSandbox: false,
 	AsyncFetch:   true,
+	Uncompressed: false,
 }
 
 var DefaultSebsVideoProcessingBenchConfig = &SebsBenchConfig{
@@ -223,6 +224,7 @@ var DefaultSebsVideoProcessingBenchConfig = &SebsBenchConfig{
 	Mcpu:         sebsMcpu,
 	UseCoSandbox: false,
 	AsyncFetch:   true,
+	Uncompressed: false,
 }
 
 var DefaultSebsImageRecognitionBenchConfig = &SebsBenchConfig{
@@ -233,6 +235,7 @@ var DefaultSebsImageRecognitionBenchConfig = &SebsBenchConfig{
 	Mcpu:         sebsMcpu,
 	UseCoSandbox: false,
 	AsyncFetch:   true,
+	Uncompressed: false,
 }
 
 var DefaultSebsDnaVisualisationBenchConfig = &SebsBenchConfig{
@@ -243,6 +246,7 @@ var DefaultSebsDnaVisualisationBenchConfig = &SebsBenchConfig{
 	Mcpu:         sebsMcpu,
 	UseCoSandbox: false,
 	AsyncFetch:   true,
+	Uncompressed: false,
 }
 
 var DefaultSebsBenchConfig = DefaultSebsThumbnailerBenchConfig

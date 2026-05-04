@@ -28,7 +28,7 @@ type SebsWASMJobConfig struct {
 }
 
 func newSebsWASMJobConfig(benchmark, event, cosandboxName, kid string, bootObjs []S3Object, mcpu proc.Tmcpu, shmemMB proc.Tmem) *SebsWASMJobConfig {
-	base := NewSebsJobConfig(benchmark, event, false, true, shmemMB, mcpu)
+	base := NewSebsJobConfig(benchmark, event, false, true, false, shmemMB, mcpu)
 	return &SebsWASMJobConfig{
 		SebsJobConfig: *base,
 		CoSandboxName: cosandboxName,

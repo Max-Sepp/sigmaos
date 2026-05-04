@@ -19,6 +19,7 @@ import json
 import os
 import sys
 import tarfile
+import time
 import uuid
 
 import sigmaos
@@ -48,6 +49,7 @@ def main():
     parser.add_argument("--event", required=True)
     parser.add_argument("--async-fetch", action="store_true")
     parser.add_argument("--delegated", action="store_true")
+    parser.add_argument("--uncompressed", action="store_true")
     args = parser.parse_args()
 
     try:
@@ -58,14 +60,21 @@ def main():
 
 
 def _run(clnt, args):
-    bundle_name = f"{args.benchmark}-bundle.tar.gz"
+    if args.uncompressed:
+        bundle_name = f"{args.benchmark}-bundle.tar"
+    else:
+        bundle_name = f"{args.benchmark}-bundle.tar.gz"
     bundle_path = os.path.join(os.getcwd(), "bin", "user", bundle_name)
 
     pkgroot = f"/tmp/sebs-{uuid.uuid4()}"
     os.makedirs(pkgroot, exist_ok=True)
 
-    with tarfile.open(bundle_path, mode="r:gz") as tar:
+    untar_start = time.perf_counter()
+    tar_mode = "r:" if args.uncompressed else "r:gz"
+    with tarfile.open(bundle_path, mode=tar_mode) as tar:
         tar.extractall(pkgroot)
+    clnt.log_spawn_latency("Paper.Setup.Untar",
+                           int((time.perf_counter() - untar_start) * 1_000_000))
 
     # deps/ contains pip-installed packages; add first so _sebsbench imports work
     deps_dir = os.path.join(pkgroot, "deps")

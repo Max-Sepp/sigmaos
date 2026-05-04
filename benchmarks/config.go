@@ -226,11 +226,12 @@ type SebsBenchConfig struct {
 	Mcpu         proc.Tmcpu `json:"mcpu"`
 	UseCoSandbox bool       `json:"use_co_sandbox"`
 	AsyncFetch   bool       `json:"async_fetch"`
+	Uncompressed bool       `json:"uncompressed"`
 }
 
 func (cfg *SebsBenchConfig) String() string {
-	return fmt.Sprintf("&{ Benchmark:%v Kid:%v ShmemMB:%v Mcpu:%v UseCoSandbox:%v AsyncFetch:%v }",
-		cfg.Benchmark, cfg.Kid, cfg.ShmemMB, cfg.Mcpu, cfg.UseCoSandbox, cfg.AsyncFetch)
+	return fmt.Sprintf("&{ Benchmark:%v Kid:%v ShmemMB:%v Mcpu:%v UseCoSandbox:%v AsyncFetch:%v Uncompressed:%v }",
+		cfg.Benchmark, cfg.Kid, cfg.ShmemMB, cfg.Mcpu, cfg.UseCoSandbox, cfg.AsyncFetch, cfg.Uncompressed)
 }
 
 func (cfg *SebsBenchConfig) Marshal() (string, error) {

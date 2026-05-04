@@ -65,9 +65,13 @@ func NewSebsStartLatencyJob(ts *test.RealmTstate, cfg *benchmarks.SebsBenchConfi
 	}
 
 	// Prewarm the warm server with the SeBS proc binaries.
+	bundleSuffix := "tar.gz"
+	if cfg.Uncompressed {
+		bundleSuffix = "tar"
+	}
 	bins := []string{
 		"sebs-runner.py-v" + sp.Version,
-		cfg.Benchmark + "-bundle.tar.gz",
+		cfg.Benchmark + "-bundle." + bundleSuffix,
 	}
 	for _, bin := range bins {
 		db.DPrintf(db.TEST, "Prewarming kernel %v with bin %v", ji.warmSrvKID, bin)
@@ -103,7 +107,7 @@ func NewSebsStartLatencyJob(ts *test.RealmTstate, cfg *benchmarks.SebsBenchConfi
 			return ji
 		}
 	} else {
-		plainCfg := sebs.NewSebsJobConfig(cfg.Benchmark, cfg.Event, cfg.AsyncFetch, false, cfg.ShmemMB, cfg.Mcpu)
+		plainCfg := sebs.NewSebsJobConfig(cfg.Benchmark, cfg.Event, cfg.AsyncFetch, false, cfg.Uncompressed, cfg.ShmemMB, cfg.Mcpu)
 		ji.plainJob, err = sebs.NewSebsJob(plainCfg, ts.SigmaClnt)
 		if !assert.Nil(ts.Ts.T, err, "Err NewSebsJob: %v", err) {
 			return ji

@@ -1685,11 +1685,11 @@ func TestImgProcess(t *testing.T) {
 func TestStartLatency(t *testing.T) {
 	var (
 		benchNameBase string = "start_latency"
-		driverVM      int    = 8
+		driverVM      int    = 5
 	)
 	// Cluster configuration parameters
 	var (
-		numNodes     int = 6
+		numNodes     int = 4
 		numFullNodes int = numNodes
 	)
 	const (
@@ -1851,7 +1851,7 @@ func TestStartLatency(t *testing.T) {
 func TestSebsStartLatency(t *testing.T) {
 	var (
 		benchNameBase string = "sebs_start_latency"
-		driverVM      int    = 8
+		driverVM      int    = 5
 	)
 	// Cluster configuration parameters
 	const (
@@ -1860,7 +1860,7 @@ func TestSebsStartLatency(t *testing.T) {
 		turboBoost        bool = false
 	)
 	var (
-		numNodes     int = 6
+		numNodes     int = 4
 		numFullNodes int = numNodes
 	)
 	type benchSpec struct {
@@ -1875,6 +1875,7 @@ func TestSebsStartLatency(t *testing.T) {
 		{benchmarks.DefaultSebsDnaVisualisationBenchConfig, false},
 	}
 	withCoSandbox := []bool{false, true}
+	withUncompressed := []bool{false, true}
 
 	ts, err := NewTstate(t)
 	if !assert.Nil(ts.t, err, "Creating test state: %v", err) {
@@ -1889,15 +1890,25 @@ func TestSebsStartLatency(t *testing.T) {
 	db.DPrintf(db.ALWAYS, "Benchmark configuration:\n%v", ts)
 	for _, spec := range benchSpecs {
 		for _, cosandbox := range withCoSandbox {
-			benchName := benchNameBase + "_" + spec.defaultCfg.Benchmark
-			if cosandbox {
-				benchName += "_cosandbox"
+			for _, uncompressed := range withUncompressed {
+				// Uncompressed bundles are only supported on the plain (non-cosandbox) path.
+				if cosandbox && uncompressed {
+					continue
+				}
+				benchName := benchNameBase + "_" + spec.defaultCfg.Benchmark
+				if cosandbox {
+					benchName += "_cosandbox"
+				}
+				if uncompressed {
+					benchName += "_uncompressed"
+				}
+				cfg := *spec.defaultCfg
+				cfg.UseCoSandbox = cosandbox
+				cfg.AsyncFetch = !cosandbox
+				cfg.Uncompressed = uncompressed
+				cmdFn := GetSebsStartLatencyCmdConstructor(&cfg, spec.useGVisor)
+				ts.RunStandardBenchmark(benchName, driverVM, cmdFn, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost, spec.useGVisor)
 			}
-			cfg := *spec.defaultCfg
-			cfg.UseCoSandbox = cosandbox
-			cfg.AsyncFetch = !cosandbox
-			cmdFn := GetSebsStartLatencyCmdConstructor(&cfg, spec.useGVisor)
-			ts.RunStandardBenchmark(benchName, driverVM, cmdFn, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost, spec.useGVisor)
 		}
 	}
 }

@@ -156,19 +156,35 @@ def bundle_benchmark(bench_id, sebs_dir, storage_py, data_dir, tag, s3):
             else:
                 print(f"[{bench_id}] warning: --data-dir not given; ffmpeg binary will be missing")
 
-        # Tar
+        # Uncompressed tarball
+        tar_name = f"{bench_id}-bundle.tar"
+        tar_path = os.path.join(tempfile.gettempdir(), tar_name)
+        print(f"[{bench_id}] creating {tar_path} ...")
+        with tarfile.open(tar_path, "w:") as tar:
+            tar.add(work_dir, arcname=".")
+
+        # Compressed tarball
         tarball_name = f"{bench_id}-bundle.tar.gz"
         tarball_path = os.path.join(tempfile.gettempdir(), tarball_name)
         print(f"[{bench_id}] creating {tarball_path} ...")
         with tarfile.open(tarball_path, "w:gz") as tar:
             tar.add(work_dir, arcname=".")
 
-        # Upload
-        s3_key = f"bin/{tarball_name}"
-        size_mb = os.path.getsize(tarball_path) / (1024 * 1024)
-        print(f"[{bench_id}] uploading to s3://{tag}/{s3_key} ({size_mb:.1f} MB) ...")
-        s3.upload_file(tarball_path, tag, s3_key)
-        print(f"[{bench_id}] done. Bundle size: {size_mb:.1f} MB")
+        tar_size_mb = os.path.getsize(tar_path) / (1024 * 1024)
+        gz_size_mb = os.path.getsize(tarball_path) / (1024 * 1024)
+        print(f"[{bench_id}] bundle sizes: uncompressed={tar_size_mb:.1f} MB, compressed={gz_size_mb:.1f} MB")
+
+        # Upload uncompressed
+        s3_key_tar = f"bin/{tar_name}"
+        print(f"[{bench_id}] uploading to s3://{tag}/{s3_key_tar} ({tar_size_mb:.1f} MB) ...")
+        s3.upload_file(tar_path, tag, s3_key_tar)
+
+        # Upload compressed
+        s3_key_gz = f"bin/{tarball_name}"
+        print(f"[{bench_id}] uploading to s3://{tag}/{s3_key_gz} ({gz_size_mb:.1f} MB) ...")
+        s3.upload_file(tarball_path, tag, s3_key_gz)
+
+        print(f"[{bench_id}] done.")
         return True
     finally:
         shutil.rmtree(work_dir, ignore_errors=True)

@@ -9,22 +9,24 @@ import (
 )
 
 type SebsJobConfig struct {
-	Benchmark  string     `json:"benchmark"`
-	Event      string     `json:"event"`
-	AsyncFetch bool       `json:"async_fetch"`
-	Delegated  bool       `json:"delegated"`
-	ShmemMB    proc.Tmem  `json:"shmem_mb"`
-	Mcpu       proc.Tmcpu `json:"mcpu"`
+	Benchmark    string     `json:"benchmark"`
+	Event        string     `json:"event"`
+	AsyncFetch   bool       `json:"async_fetch"`
+	Delegated    bool       `json:"delegated"`
+	Uncompressed bool       `json:"uncompressed"`
+	ShmemMB      proc.Tmem  `json:"shmem_mb"`
+	Mcpu         proc.Tmcpu `json:"mcpu"`
 }
 
-func NewSebsJobConfig(benchmark, event string, asyncFetch, delegated bool, shmemMB proc.Tmem, mcpu proc.Tmcpu) *SebsJobConfig {
+func NewSebsJobConfig(benchmark, event string, asyncFetch, delegated, uncompressed bool, shmemMB proc.Tmem, mcpu proc.Tmcpu) *SebsJobConfig {
 	return &SebsJobConfig{
-		Benchmark:  benchmark,
-		Event:      event,
-		AsyncFetch: asyncFetch,
-		Delegated:  delegated,
-		ShmemMB:    shmemMB,
-		Mcpu:       mcpu,
+		Benchmark:    benchmark,
+		Event:        event,
+		AsyncFetch:   asyncFetch,
+		Delegated:    delegated,
+		Uncompressed: uncompressed,
+		ShmemMB:      shmemMB,
+		Mcpu:         mcpu,
 	}
 }
 
@@ -45,8 +47,13 @@ func (j *SebsJob) Run() (string, error) {
 	if j.conf.Delegated {
 		args = append(args, "--delegated")
 	}
+	bundleSuffix := "tar.gz"
+	if j.conf.Uncompressed {
+		args = append(args, "--uncompressed")
+		bundleSuffix = "tar"
+	}
 	p := proc.NewProc("sebs-runner.py", args)
-	p.AddBin(fmt.Sprintf("%v-bundle.tar.gz", j.conf.Benchmark))
+	p.AddBin(fmt.Sprintf("%v-bundle.%v", j.conf.Benchmark, bundleSuffix))
 	p.GetProcEnv().UseSPProxy = true
 	p.GetProcEnv().UseSPProxyProcClnt = true
 	p.SetProcContainerType(proc.ProcContainerType_PROC_CTR_PYTHON)
