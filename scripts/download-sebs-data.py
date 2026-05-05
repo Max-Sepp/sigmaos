@@ -6,7 +6,7 @@ Usage:
   download-sebs-data.py [--data-dir DIR]
 
   --data-dir   Destination directory (default: /tmp/sebs-data).
-               The directory is removed and recreated on every run.
+               Existing files are skipped; only missing files are downloaded.
 
 Populates data for benchmarks that need local input files:
   210.thumbnailer, 220.video-processing, 411.image-recognition,
@@ -26,6 +26,9 @@ DEFAULT_DATA_DIR = "/tmp/sebs-data"
 
 def download(url, dest, label=""):
     tag = f"[{label}] " if label else ""
+    if os.path.exists(dest):
+        print(f"{tag}skipping {os.path.basename(dest)} (already exists).")
+        return
     print(f"{tag}downloading {os.path.basename(dest)} ...")
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
     with urllib.request.urlopen(req) as resp, open(dest, "wb") as f:
@@ -41,17 +44,14 @@ def main():
     args = parser.parse_args()
 
     data_dir = args.data_dir
-    if os.path.exists(data_dir):
-        print(f"Removing existing {data_dir} ...")
-        shutil.rmtree(data_dir)
-    os.makedirs(data_dir)
-    print(f"Created {data_dir}\n")
+    os.makedirs(data_dir, exist_ok=True)
+    print(f"Data directory: {data_dir}\n")
 
     # -------------------------------------------------------------------------
     # 210.thumbnailer — one JPEG image
     # -------------------------------------------------------------------------
     bench_dir = os.path.join(data_dir, "210.thumbnailer")
-    os.makedirs(bench_dir)
+    os.makedirs(bench_dir, exist_ok=True)
     download(
         "https://commons.wikimedia.org/wiki/Special:FilePath/Jammlich_crop.jpg",
         os.path.join(bench_dir, "test.jpg"),
@@ -62,7 +62,7 @@ def main():
     # 220.video-processing — short MP4 (Big Buck Bunny, CC-BY)
     # -------------------------------------------------------------------------
     bench_dir = os.path.join(data_dir, "220.video-processing")
-    os.makedirs(bench_dir)
+    os.makedirs(bench_dir, exist_ok=True)
     download(
         "https://download.blender.org/peach/bigbuckbunny_movies/BigBuckBunny_320x180.mp4",
         os.path.join(bench_dir, "city.mp4"),
@@ -74,8 +74,8 @@ def main():
     # -------------------------------------------------------------------------
     model_dir = os.path.join(data_dir, "411.image-recognition", "model")
     resnet_dir = os.path.join(data_dir, "411.image-recognition", "fake-resnet")
-    os.makedirs(model_dir)
-    os.makedirs(resnet_dir)
+    os.makedirs(model_dir, exist_ok=True)
+    os.makedirs(resnet_dir, exist_ok=True)
 
     download(
         "https://download.pytorch.org/models/resnet50-19c8e357.pth",
@@ -95,10 +95,10 @@ def main():
     # 504.dna-visualisation — minimal FASTA file (squiggle needs 100+ bases)
     # -------------------------------------------------------------------------
     bench_dir = os.path.join(data_dir, "504.dna-visualisation")
-    os.makedirs(bench_dir)
+    os.makedirs(bench_dir, exist_ok=True)
     with open(os.path.join(bench_dir, "test.fasta"), "w") as f:
         f.write(">test_seq\n")
-        f.write("ATCG" * 60 + "\n")
+        f.write("ATCG" * 6 * 1024 * 1024 + "\n")
     print("[504.dna-visualisation] generated test.fasta.")
 
     print(f"\nAll done. Data directory: {data_dir}")
