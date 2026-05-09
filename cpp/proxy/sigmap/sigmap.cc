@@ -198,10 +198,23 @@ std::expected<std::shared_ptr<std::string>, sigmaos::serr::Error> Clnt::GetFile(
   rep.set_allocated_blob(&blob);
   auto res = _rpcc->RPC("SPProxySrvAPI.GetFile", req, rep);
   if (!res.has_value()) {
+    // Release in_blob from rep and s from iov before they go out of scope
+    // (stack-allocated)
+    {
+      auto _ = rep.release_blob();
+      iov->ReleaseLast();
+    }
     log(SPPROXYCLNT_ERR, "Err RPC: {}", res.error());
     return std::unexpected(res.error());
   }
   if (rep.err().errcode() != sigmaos::serr::Terror::TErrNoError) {
+    // Release in_blob from rep and s from iov before they go out of scope
+    // (stack-allocated)
+    {
+      auto _ = rep.release_blob();
+      iov->ReleaseLast();
+    }
+    log(SPPROXYCLNT_ERR, "Err RPC rep: {}", rep.err().errcode());
     return std::unexpected(sigmaos::serr::Error(
         (sigmaos::serr::Terror)rep.err().errcode(), rep.err().obj()));
   }
@@ -427,7 +440,9 @@ std::expected<int, sigmaos::serr::Error> Clnt::WriteRead(
   }
   auto res = _rpcc->RPC("SPProxySrvAPI.WriteRead", req, rep);
   // Release in_blob from req before req goes out of scope (stack-allocated)
-  { auto _ = req.release_blob(); }
+  {
+    auto _ = req.release_blob();
+  }
   if (!res.has_value()) {
     log(SPPROXYCLNT_ERR, "Err RPC: {}", res.error());
     return std::unexpected(res.error());
@@ -444,12 +459,15 @@ std::expected<int, sigmaos::serr::Error> Clnt::WriteRead(
     for (int i = 0; i < (int)rep.shmoffs().size(); i++) {
       uint64_t off = rep.shmoffs(i);
       size_t len = (size_t)rep.shmlens(i);
-      auto b = std::make_shared<std::string>((char*)_shmem->GetBuf() + off, len);
+      auto b =
+          std::make_shared<std::string>((char *)_shmem->GetBuf() + off, len);
       out_iov->SetBuffer(i, std::make_shared<sigmaos::io::iovec::Buffer>(b));
     }
   } else if (!use_shmem) {
     // Release out_blob from rep before rep goes out of scope (stack-allocated)
-    { auto _ = rep.release_blob(); }
+    {
+      auto _ = rep.release_blob();
+    }
   }
   log(SPPROXYCLNT, "WriteRead done: {}", fd);
   return 0;
