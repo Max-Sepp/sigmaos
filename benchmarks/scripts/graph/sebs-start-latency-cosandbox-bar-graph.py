@@ -178,6 +178,12 @@ SEBS_BENCHMARKS = [
     ("video_processing",  "Video\nProcessing"),
     ("image_recognition", "Image\nRecognition"),
     ("dna_visualisation", "DNA\nVisualisation"),
+    ("sleep",             "Sleep"),
+    ("dynamic_html",      "Dynamic\nHTML"),
+    ("uploader",          "Uploader"),
+    ("graph_pagerank",    "Graph\nPagerank"),
+    ("graph_mst",         "Graph\nMST"),
+    ("graph_bfs",         "Graph\nBFS"),
 ]
 
 
@@ -259,7 +265,7 @@ def main():
         y_max = max(max(compressed), max(uncompressed), max(with_cosandbox))
     else:
         width = 0.35
-        fig, ax = plt.subplots(figsize=(8.0, 2.4))
+        fig, ax = plt.subplots(figsize=(16.0, 2.4))
         bars1 = ax.bar(x - width/2, compressed,     width, label='Without co-sandbox', color='steelblue')
         bars3 = ax.bar(x + width/2, with_cosandbox, width, label='With co-sandbox',    color='coral')
         all_bars = [bars1, bars3]

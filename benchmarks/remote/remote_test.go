@@ -1859,15 +1859,22 @@ func TestSebsStartLatency(t *testing.T) {
 		numFullNodes int = numNodes
 	)
 	type benchSpec struct {
-		defaultCfg *benchmarks.SebsBenchConfig
-		useGVisor  bool
+		defaultCfg        *benchmarks.SebsBenchConfig
+		useGVisor         bool
+		supportsCosandbox bool
 	}
 	// All benchmarks run without gVisor.
 	benchSpecs := []benchSpec{
-		{benchmarks.DefaultSebsThumbnailerBenchConfig, false},
-		{benchmarks.DefaultSebsVideoProcessingBenchConfig, false},
-		{benchmarks.DefaultSebsImageRecognitionBenchConfig, false},
-		{benchmarks.DefaultSebsDnaVisualisationBenchConfig, false},
+		{benchmarks.DefaultSebsThumbnailerBenchConfig, false, true},
+		{benchmarks.DefaultSebsVideoProcessingBenchConfig, false, true},
+		{benchmarks.DefaultSebsImageRecognitionBenchConfig, false, true},
+		{benchmarks.DefaultSebsDnaVisualisationBenchConfig, false, true},
+		{benchmarks.DefaultSebsSleepBenchConfig, false, false},
+		{benchmarks.DefaultSebsDynamicHtmlBenchConfig, false, false},
+		{benchmarks.DefaultSebsUploaderBenchConfig, false, false},
+		{benchmarks.DefaultSebsGraphPagerankBenchConfig, false, false},
+		{benchmarks.DefaultSebsGraphMstBenchConfig, false, false},
+		{benchmarks.DefaultSebsGraphBfsBenchConfig, false, false},
 	}
 	withCoSandbox := []bool{false, true}
 	withUncompressed := []bool{false}
@@ -1898,8 +1905,10 @@ func TestSebsStartLatency(t *testing.T) {
 					benchName += "_uncompressed"
 				}
 				cfg := *spec.defaultCfg
-				cfg.UseCoSandbox = cosandbox
-				cfg.AsyncFetch = !cosandbox
+				if spec.supportsCosandbox {
+					cfg.UseCoSandbox = cosandbox
+					cfg.AsyncFetch = !cosandbox
+				}
 				cfg.Uncompressed = uncompressed
 				cmdFn := GetSebsStartLatencyCmdConstructor(&cfg, spec.useGVisor)
 				ts.RunStandardBenchmark(benchName, driverVM, cmdFn, numNodes, numCoresPerNode, numFullNodes, numProcqOnlyNodes, turboBoost, spec.useGVisor)

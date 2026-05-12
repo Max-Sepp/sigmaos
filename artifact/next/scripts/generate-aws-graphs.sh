@@ -46,15 +46,27 @@ echo "Done generating start latency comparison..."
 
 echo "Generating sebs start latency comparison..."
 ./benchmarks/scripts/graph/sebs-start-latency-cosandbox-bar-graph.py \
-    --dir_path_thumbnailer           $RES_OUT_DIR/sebs_start_latency_210.thumbnailer \
-    --dir_path_thumbnailer_cosandbox $RES_OUT_DIR/sebs_start_latency_210.thumbnailer_cosandbox \
-    --dir_path_video_processing           $RES_OUT_DIR/sebs_start_latency_220.video-processing \
-    --dir_path_video_processing_cosandbox $RES_OUT_DIR/sebs_start_latency_220.video-processing_cosandbox \
-    --dir_path_image_recognition           $RES_OUT_DIR/sebs_start_latency_411.image-recognition \
-    --dir_path_image_recognition_cosandbox $RES_OUT_DIR/sebs_start_latency_411.image-recognition_cosandbox \
-    --dir_path_dna_visualisation           $RES_OUT_DIR/sebs_start_latency_504.dna-visualisation \
-    --dir_path_dna_visualisation_cosandbox $RES_OUT_DIR/sebs_start_latency_504.dna-visualisation_cosandbox \
-    --output $GRAPH_OUT_DIR/sebs-start-latency.pdf
+    --dir_path_thumbnailer                "$RES_OUT_DIR/sebs_start_latency_210.thumbnailer" \
+    --dir_path_thumbnailer_cosandbox      "$RES_OUT_DIR/sebs_start_latency_210.thumbnailer_cosandbox" \
+    --dir_path_video_processing           "$RES_OUT_DIR/sebs_start_latency_220.video-processing" \
+    --dir_path_video_processing_cosandbox "$RES_OUT_DIR/sebs_start_latency_220.video-processing_cosandbox" \
+    --dir_path_image_recognition           "$RES_OUT_DIR/sebs_start_latency_411.image-recognition" \
+    --dir_path_image_recognition_cosandbox "$RES_OUT_DIR/sebs_start_latency_411.image-recognition_cosandbox" \
+    --dir_path_dna_visualisation           "$RES_OUT_DIR/sebs_start_latency_504.dna-visualisation" \
+    --dir_path_dna_visualisation_cosandbox "$RES_OUT_DIR/sebs_start_latency_504.dna-visualisation_cosandbox" \
+    --dir_path_sleep                "$RES_OUT_DIR/sebs_start_latency_010.sleep" \
+    --dir_path_sleep_cosandbox      "$RES_OUT_DIR/sebs_start_latency_010.sleep_cosandbox" \
+    --dir_path_dynamic_html                "$RES_OUT_DIR/sebs_start_latency_110.dynamic-html" \
+    --dir_path_dynamic_html_cosandbox      "$RES_OUT_DIR/sebs_start_latency_110.dynamic-html_cosandbox" \
+    --dir_path_uploader                "$RES_OUT_DIR/sebs_start_latency_120.uploader" \
+    --dir_path_uploader_cosandbox      "$RES_OUT_DIR/sebs_start_latency_120.uploader_cosandbox" \
+    --dir_path_graph_pagerank                "$RES_OUT_DIR/sebs_start_latency_501.graph-pagerank" \
+    --dir_path_graph_pagerank_cosandbox      "$RES_OUT_DIR/sebs_start_latency_501.graph-pagerank_cosandbox" \
+    --dir_path_graph_mst                "$RES_OUT_DIR/sebs_start_latency_502.graph-mst" \
+    --dir_path_graph_mst_cosandbox      "$RES_OUT_DIR/sebs_start_latency_502.graph-mst_cosandbox" \
+    --dir_path_graph_bfs                "$RES_OUT_DIR/sebs_start_latency_503.graph-bfs" \
+    --dir_path_graph_bfs_cosandbox      "$RES_OUT_DIR/sebs_start_latency_503.graph-bfs_cosandbox" \
+    --output "$GRAPH_OUT_DIR/sebs-start-latency.pdf"
 echo "Done generating sebs start latency comparison..."
 
 echo "Generating sebs start latency comparison (with uncompressed)..."

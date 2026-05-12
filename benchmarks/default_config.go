@@ -250,4 +250,70 @@ var DefaultSebsDnaVisualisationBenchConfig = &SebsBenchConfig{
 	Uncompressed: false,
 }
 
+var DefaultSebsSleepBenchConfig = &SebsBenchConfig{
+	Benchmark:    "010.sleep",
+	Event:        `{"sleep": 1}`,
+	Kid:          sebsKid,
+	ShmemMB:      proc.Tmem(128),
+	Mcpu:         sebsMcpu,
+	UseCoSandbox: false,
+	AsyncFetch:   false,
+	Uncompressed: false,
+}
+
+var DefaultSebsDynamicHtmlBenchConfig = &SebsBenchConfig{
+	Benchmark:    "110.dynamic-html",
+	Event:        `{"username": "testname", "random_len": 10}`,
+	Kid:          sebsKid,
+	ShmemMB:      proc.Tmem(128),
+	Mcpu:         sebsMcpu,
+	UseCoSandbox: false,
+	AsyncFetch:   false,
+	Uncompressed: false,
+}
+
+var DefaultSebsUploaderBenchConfig = &SebsBenchConfig{
+	Benchmark:    "120.uploader",
+	Event:        `{"bucket":{"bucket":"9ps3","output":"serverless-benchmarks-input/120.uploader/output/0"},"object":{"url":"https://upload.wikimedia.org/wikipedia/commons/thumb/e/e7/Jammlich_crop.jpg/800px-Jammlich_crop.jpg"}}`,
+	Kid:          sebsKid,
+	ShmemMB:      proc.Tmem(128),
+	Mcpu:         sebsMcpu,
+	UseCoSandbox: false,
+	AsyncFetch:   false,
+	Uncompressed: false,
+}
+
+var DefaultSebsGraphPagerankBenchConfig = &SebsBenchConfig{
+	Benchmark:    "501.graph-pagerank",
+	Event:        `{"size": 10, "seed": 42}`,
+	Kid:          sebsKid,
+	ShmemMB:      proc.Tmem(128),
+	Mcpu:         sebsMcpu,
+	UseCoSandbox: false,
+	AsyncFetch:   false,
+	Uncompressed: false,
+}
+
+var DefaultSebsGraphMstBenchConfig = &SebsBenchConfig{
+	Benchmark:    "502.graph-mst",
+	Event:        `{"size": 10, "seed": 42}`,
+	Kid:          sebsKid,
+	ShmemMB:      proc.Tmem(128),
+	Mcpu:         sebsMcpu,
+	UseCoSandbox: false,
+	AsyncFetch:   false,
+	Uncompressed: false,
+}
+
+var DefaultSebsGraphBfsBenchConfig = &SebsBenchConfig{
+	Benchmark:    "503.graph-bfs",
+	Event:        `{"size": 10, "seed": 42}`,
+	Kid:          sebsKid,
+	ShmemMB:      proc.Tmem(128),
+	Mcpu:         sebsMcpu,
+	UseCoSandbox: false,
+	AsyncFetch:   false,
+	Uncompressed: false,
+}
+
 var DefaultSebsBenchConfig = DefaultSebsThumbnailerBenchConfig
