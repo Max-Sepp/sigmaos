@@ -5,10 +5,13 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
+	"syscall"
 	"time"
 
 	db "sigmaos/debug"
 	"sigmaos/proc"
+	"sigmaos/scontainer"
 	"sigmaos/sched/msched/proc/srv/binsrv"
 	sp "sigmaos/sigmap"
 	"sigmaos/util/linux/mem"
@@ -35,22 +38,39 @@ func (pc *pyCmd) Wait() error {
 	return pc.cmd.Wait()
 }
 
-// StartPythonContainer execs python3 with the proc's program name resolved
-// under BINFS. The script path is appended as the first argument so the proc
-// can find itself, followed by the proc's own args.
-func StartPythonContainer(uproc *proc.Proc) (*pyCmd, error) {
+// StartPythonContainer runs a Python proc through uproc-trampoline, providing
+// the same PID/UTS/mount namespace isolation as a sigma container. The
+// trampoline execs /usr/bin/python3 with scriptPath as its first argument.
+func StartPythonContainer(uproc *proc.Proc, dialproxy bool) (*pyCmd, error) {
 	scriptPath := filepath.Join(binsrv.BINFSMNT, uproc.GetVersionedProgram())
 
+	straceProcs := proc.GetLabels(uproc.GetProcEnv().GetStrace())
 	valgrindProcs := proc.GetLabels(uproc.GetProcEnv().GetValgrind())
 
-	args := append([]string{scriptPath}, uproc.GetArgs()...)
+	trampolineArgs := []string{
+		uproc.GetPid().String(),
+		"/usr/bin/python3",
+		strconv.FormatBool(dialproxy),
+		scriptPath,
+	}
+	trampolineArgs = append(trampolineArgs, uproc.GetArgs()...)
+
 	var cmd *exec.Cmd
-	if valgrindProcs[uproc.GetProgram()] {
-		cmd = exec.Command("valgrind", append([]string{"--trace-children=yes", "python3"}, args...)...)
+	if straceProcs[uproc.GetProgram()] {
+		args := []string{"--absolute-timestamps", "--absolute-timestamps=precision:us", "--syscall-times=us", "-D", "-f", "uproc-trampoline"}
+		if strings.Contains(uproc.GetProgram(), "cpp") {
+			args = append([]string{"--signal=!SIGSEGV"}, args...)
+		}
+		args = append(args, trampolineArgs...)
+		cmd = exec.Command("strace", args...)
+	} else if valgrindProcs[uproc.GetProgram()] {
+		cmd = exec.Command("valgrind", append([]string{"--trace-children=yes", "uproc-trampoline"}, trampolineArgs...)...)
 	} else {
-		cmd = exec.Command("python3", args...)
+		cmd = exec.Command("uproc-trampoline", trampolineArgs...)
 	}
 
+	// Signal to the trampoline that Python-specific mounts are needed.
+	uproc.AppendEnv("SIGMA_PYTHON_PROC", "1")
 	uproc.AppendEnv("PATH", "/bin:/usr/bin:/home/sigmaos/bin/kernel")
 	uproc.AppendEnv("PYTHONPATH", "/home/sigmaos/python")
 	uproc.AppendEnv("SIGMA_EXEC_TIME", strconv.FormatInt(time.Now().UnixMicro(), 10))
@@ -66,11 +86,18 @@ func StartPythonContainer(uproc *proc.Proc) (*pyCmd, error) {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	db.DPrintf(db.CONTAINER, "StartPythonContainer %v args %v", scriptPath, args)
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Cloneflags: syscall.CLONE_NEWUTS |
+			syscall.CLONE_NEWPID |
+			syscall.CLONE_NEWNS,
+	}
+
+	db.DPrintf(db.CONTAINER, "StartPythonContainer %v args %v", scriptPath, trampolineArgs)
 
 	s := time.Now()
 	if err := cmd.Start(); err != nil {
 		db.DPrintf(db.CONTAINER, "StartPythonContainer err %v: %v", cmd, err)
+		scontainer.CleanupUProc(uproc.GetPid())
 		return nil, err
 	}
 	perf.LogSpawnLatency("StartPythonContainer cmd.Start", uproc.GetPid(), uproc.GetSpawnTime(), s)
@@ -83,6 +110,7 @@ func PythonBinPath(program string) string {
 	return filepath.Join(PYTHON_BIN_DIR, program)
 }
 
-// CleanupPythonProc is a no-op placeholder; Python procs have no jail to tear
-// down, but mirrors the scontainer.CleanupUProc call site for consistency.
-func CleanupPythonProc(_ sp.Tpid) {}
+// CleanupPythonProc removes the jail directory created by uproc-trampoline.
+func CleanupPythonProc(pid sp.Tpid) {
+	scontainer.CleanupUProc(pid)
+}

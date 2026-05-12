@@ -557,7 +557,7 @@ func (ps *ProcSrv) Run(ctx fs.CtxI, req proto.RunReq, res *proto.RunRep) error {
 				perf.LogSpawnLatency("Setup.BinaryDownload", uproc.GetPid(), uproc.GetSpawnTime(), start)
 				perf.LogSpawnLatency("Paper.Setup.BinaryDownload", uproc.GetPid(), uproc.GetSpawnTime(), start)
 				db.DPrintf(db.PROCD, "[%v] Run Python proc", uproc.GetPid())
-				ctr, err = pycontainer.StartPythonContainer(uproc)
+				ctr, err = pycontainer.StartPythonContainer(uproc, ps.dialproxy)
 				if err != nil {
 					db.DPrintf(db.PROCD_ERR, "[%v] Run Python proc err: %v", uproc.GetPid(), err)
 					return err

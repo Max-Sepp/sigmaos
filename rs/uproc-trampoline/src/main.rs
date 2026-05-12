@@ -179,7 +179,7 @@ fn jail_proc(
     let mut now = SystemTime::now();
     extern crate sys_mount;
     use nix::unistd::pivot_root;
-    use sys_mount::{unmount, Mount, MountFlags, UnmountFlags};
+    use sys_mount::{Mount, MountFlags, UnmountFlags, unmount};
 
     let old_root_mnt = "oldroot";
     const DIRS: &'static [&'static str] = &[
@@ -191,11 +191,14 @@ fn jail_proc(
         "etc",
         "proc",
         "bin",
+        "bin/user",
         "mnt",
         "dev",
         "dev/shm",
         "tmp",
         "tmp/sigmaos-perf",
+        "home/sigmaos/python",
+        "run",
     ];
 
     let newroot = "/home/sigmaos/jail/";
@@ -292,6 +295,35 @@ fn jail_proc(
         if VERBOSE {
             log::info!("PERF {}", "mounting perf dir");
         }
+    }
+    // Python procs need the sigmaos Python library, the extracted SeBS bundle,
+    // and the systemd-resolved directory so that /etc/resolv.conf (which is
+    // typically a symlink to /run/systemd/resolve/stub-resolv.conf) can be
+    // followed inside the jail for DNS resolution via getaddrinfo().
+    if env::var("SIGMA_PYTHON_PROC").is_ok() {
+        Mount::builder()
+            .fstype("none")
+            .flags(MountFlags::BIND | MountFlags::RDONLY)
+            .mount("/home/sigmaos/python", "home/sigmaos/python")?;
+        Mount::builder()
+            .fstype("none")
+            .flags(MountFlags::BIND | MountFlags::RDONLY)
+            .mount("/home/sigmaos/bin/user", "bin/user")?;
+        Mount::builder()
+            .fstype("none")
+            .flags(MountFlags::BIND | MountFlags::RDONLY)
+            .mount("/run", "run")?;
+        fs::File::create(newroot_pn.clone() + "dev/urandom")?;
+        Mount::builder()
+            .fstype("none")
+            .flags(MountFlags::BIND | MountFlags::RDONLY)
+            .mount("/dev/urandom", "dev/urandom")?;
+
+        fs::File::create(newroot_pn.clone() + "dev/null")?;
+        Mount::builder()
+            .fstype("none")
+            .flags(MountFlags::BIND | MountFlags::RDONLY)
+            .mount("/dev/null", "dev/null")?;
     }
     print_elapsed_time(
         &debug_pid,
