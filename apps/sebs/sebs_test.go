@@ -119,7 +119,7 @@ func TestSebsUploader(t *testing.T) {
 		},
 		"object": map[string]any{
 			// Stable 230 kB Wikimedia JPEG used by SeBS test size
-			"url": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e7/Jammlich_crop.jpg/800px-Jammlich_crop.jpg",
+			"url": "https://commons.wikimedia.org/wiki/Special:FilePath/Jammlich_crop.jpg",
 		},
 	}
 	eventJSON, _ := json.Marshal(eventMap)
