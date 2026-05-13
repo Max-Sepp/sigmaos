@@ -11,7 +11,7 @@ import (
 type RPCClntOptions struct {
 	NewRPCChannel          channel.NewRPCChannelFn
 	NewDelegatedRPCChannel channel.NewRPCChannelFn
-	UseShmem               bool
+	UseShmemDelegatedRPCs               bool
 	ShmemSegment           *shmem.Segment
 }
 
@@ -25,7 +25,7 @@ func NewEmptyRPCClntOptions() *RPCClntOptions {
 			db.DPrintf(db.RPCCHAN, "No delegated RPC channel supplied")
 			return nil, nil
 		},
-		UseShmem: false,
+		UseShmemDelegatedRPCs: false,
 	}
 }
 
@@ -64,7 +64,7 @@ func WithDelegatedRPCChannel(ch channel.RPCChannel) *RPCClntOption {
 func WithShmem(sm *shmem.Segment) *RPCClntOption {
 	return &RPCClntOption{
 		Apply: func(opts *RPCClntOptions) {
-			opts.UseShmem = sm != nil
+			opts.UseShmemDelegatedRPCs = sm != nil
 			opts.ShmemSegment = sm
 		},
 	}

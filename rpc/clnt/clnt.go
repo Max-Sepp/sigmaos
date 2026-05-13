@@ -36,7 +36,7 @@ type RPCClnt struct {
 	ch             channel.RPCChannel
 	delegatedRPCCh channel.RPCChannel
 	rc             *delegation.ReplyCache
-	useShmem       bool
+	useShmemDelegatedRPCs       bool
 	shmemSegment   *shmem.Segment
 }
 
@@ -65,7 +65,7 @@ func NewRPCClnt(pn string, opts ...*rpcclntopts.RPCClntOption) (*RPCClnt, error)
 		ch:             ch,
 		delegatedRPCCh: delCh,
 		rc:             delegation.NewReplyCache(),
-		useShmem:       rpcOpts.UseShmem,
+		useShmemDelegatedRPCs:       rpcOpts.UseShmemDelegatedRPCs,
 		shmemSegment:   rpcOpts.ShmemSegment,
 	}, nil
 }
@@ -196,7 +196,7 @@ func (rpcc *RPCClnt) OutgoingDelegatedRPC(rpcIdx uint64, method string, arg prot
 // IoVec to avoid marshaling overhead of large blobs.
 func (rpcc *RPCClnt) DelegatedRPC(rpcIdx uint64, res proto.Message) (time.Duration, error) {
 	var nIOVec int
-	if !rpcc.useShmem {
+	if !rpcc.useShmemDelegatedRPCs {
 		// Prepend 2 empty slots to the out iovec: one for the rpcproto.Rep
 		// wrapper, and one for the marshaled res proto.Message
 		nIOVec = 2
@@ -205,7 +205,7 @@ func (rpcc *RPCClnt) DelegatedRPC(rpcIdx uint64, res proto.Message) (time.Durati
 	}
 	outiov := sessp.NewUnallocatedIoVec(nIOVec, nil)
 	outblob := rpc.GetBlob(res)
-	if !rpcc.useShmem {
+	if !rpcc.useShmemDelegatedRPCs {
 		// If not using shared memory, append blob IOVecs to the out IOVec
 		if outblob != nil { // handle blob
 			// Get the reply's blob, if it has one, so that data can be read directly
@@ -215,7 +215,7 @@ func (rpcc *RPCClnt) DelegatedRPC(rpcIdx uint64, res proto.Message) (time.Durati
 	}
 	req := &spproxyproto.SigmaDelegatedRPCReq{
 		RPCIdx:   rpcIdx,
-		UseShmem: rpcc.useShmem,
+		UseShmem: rpcc.useShmemDelegatedRPCs,
 	}
 	rep := &spproxyproto.SigmaDelegatedRPCRep{
 		Blob: &rpcproto.Blob{
@@ -238,7 +238,7 @@ func (rpcc *RPCClnt) DelegatedRPC(rpcIdx uint64, res proto.Message) (time.Durati
 	if err != nil {
 		return 0, err
 	}
-	if rpcc.useShmem {
+	if rpcc.useShmemDelegatedRPCs {
 		// Set IOVec from shared memory region
 		if rep.UseShmem {
 			// Sanity check
