@@ -180,7 +180,6 @@ SEBS_BENCHMARKS = [
     ("dna_visualisation", "DNA\nVisualisation"),
     ("sleep",             "Sleep"),
     ("dynamic_html",      "Dynamic\nHTML"),
-    ("uploader",          "Uploader"),
     ("graph_pagerank",    "Graph\nPagerank"),
     ("graph_mst",         "Graph\nMST"),
     ("graph_bfs",         "Graph\nBFS"),
