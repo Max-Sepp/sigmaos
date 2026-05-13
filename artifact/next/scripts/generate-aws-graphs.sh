@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION=EUROSYS2027
+VERSION=EUROSYS2027-submit
 
 ROOT_DIR=$(realpath $(dirname $0)/../../..)
 RES_OUT_DIR=$ROOT_DIR/benchmarks/results/$VERSION
