@@ -85,7 +85,10 @@ class Clnt {
   std::shared_ptr<sigmaos::proc::ProcEnv> ProcEnv() { return _env; }
   std::shared_ptr<sigmaos::rpc::Channel> GetSPProxyChannel() { return _demux; }
   std::shared_ptr<sigmaos::shmem::Segment> GetShmemSegment() { return _shmem; }
-  bool GetUseShmem() { return _shmem != nullptr && _use_shmem; }
+  // True if the shmem segment was initialized for this proc.
+  bool GetShmemEnabled() { return _shmem != nullptr; }
+  // True if shmem is available AND WriteRead shmem has been explicitly enabled.
+  bool GetUseShmemWriteread() { return _shmem != nullptr && _use_shmem_writeread; }
 
   // Stubs
 
@@ -125,7 +128,7 @@ class Clnt {
   // TODO: support WriteFence?
   // func (scc *SPProxyClnt) WriteFence(fd int, d []byte, f sp.Tfence)
   // (sp.Tsize, error) {
-  void SetUseShmem(bool v) { _use_shmem = v; }
+  void SetUseShmemWriteread(bool v) { _use_shmem_writeread = v; }
   std::expected<int, sigmaos::serr::Error> WriteRead(
       int fd, std::shared_ptr<sigmaos::io::iovec::IOVec> in_iov,
       std::shared_ptr<sigmaos::io::iovec::IOVec> out_iov,
@@ -178,7 +181,7 @@ class Clnt {
   std::shared_ptr<sigmaos::proc::ProcEnv> _env;
   std::shared_ptr<sigmaos::shmem::Segment> _shmem;
   bool _disconnected;
-  bool _use_shmem = false;
+  bool _use_shmem_writeread = false;
   // Used for logger initialization
   static bool _l;
   static bool _l_e;

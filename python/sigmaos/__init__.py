@@ -61,6 +61,12 @@ _lib.sigmaos_s3_delegated_get_object_view.restype = ctypes.c_void_p
 _lib.sigmaos_s3_delegated_get_object_view.argtypes = [ctypes.c_void_p, ctypes.c_uint64,
                                                        ctypes.POINTER(ctypes.c_size_t)]
 
+# sigmaos_s3_get_object_view
+_lib.sigmaos_s3_get_object_view.restype = ctypes.c_void_p
+_lib.sigmaos_s3_get_object_view.argtypes = [ctypes.c_void_p, ctypes.c_char_p,
+                                             ctypes.c_char_p, ctypes.c_int,
+                                             ctypes.POINTER(ctypes.c_size_t)]
+
 # sigmaos_ux_get_file
 _lib.sigmaos_ux_get_file.restype = ctypes.c_void_p
 _lib.sigmaos_ux_get_file.argtypes = [ctypes.c_void_p, ctypes.c_char_p,
@@ -70,6 +76,11 @@ _lib.sigmaos_ux_get_file.argtypes = [ctypes.c_void_p, ctypes.c_char_p,
 _lib.sigmaos_ux_put_file.restype = ctypes.c_int
 _lib.sigmaos_ux_put_file.argtypes = [ctypes.c_void_p, ctypes.c_char_p,
                                       ctypes.c_char_p, ctypes.c_size_t]
+
+# sigmaos_ux_get_file_view
+_lib.sigmaos_ux_get_file_view.restype = ctypes.c_void_p
+_lib.sigmaos_ux_get_file_view.argtypes = [ctypes.c_void_p, ctypes.c_char_p,
+                                           ctypes.POINTER(ctypes.c_size_t)]
 
 # sigmaos_ux_delegated_get_file
 _lib.sigmaos_ux_delegated_get_file.restype = ctypes.c_void_p
@@ -86,13 +97,13 @@ _lib.sigmaos_log_spawn_latency.restype = None
 _lib.sigmaos_log_spawn_latency.argtypes = [ctypes.c_void_p, ctypes.c_char_p,
                                             ctypes.c_uint64]
 
-# sigmaos_get_use_shmem
-_lib.sigmaos_get_use_shmem.restype = ctypes.c_int
-_lib.sigmaos_get_use_shmem.argtypes = [ctypes.c_void_p]
+# sigmaos_get_shmem_enabled
+_lib.sigmaos_get_shmem_enabled.restype = ctypes.c_int
+_lib.sigmaos_get_shmem_enabled.argtypes = [ctypes.c_void_p]
 
-# sigmaos_set_use_shmem
-_lib.sigmaos_set_use_shmem.restype = None
-_lib.sigmaos_set_use_shmem.argtypes = [ctypes.c_void_p, ctypes.c_int]
+# sigmaos_set_use_shmem_writeread
+_lib.sigmaos_set_use_shmem_writeread.restype = None
+_lib.sigmaos_set_use_shmem_writeread.argtypes = [ctypes.c_void_p, ctypes.c_int]
 
 # sigmaos_last_error
 _lib.sigmaos_last_error.restype = ctypes.c_char_p
@@ -122,8 +133,8 @@ class SigmaosClnt:
     def get_run_co_sandbox(self) -> bool:
         return bool(_lib.sigmaos_get_run_co_sandbox(self._clnt))
 
-    def get_use_shmem(self) -> bool:
-        return bool(_lib.sigmaos_get_use_shmem(self._clnt))
+    def get_shmem_enabled(self) -> bool:
+        return bool(_lib.sigmaos_get_shmem_enabled(self._clnt))
 
     def started(self):
         rc = _lib.sigmaos_started(self._clnt)
@@ -162,6 +173,19 @@ class SigmaosClnt:
             return bytes(ctypes.cast(ptr, ctypes.POINTER(ctypes.c_char * out_len.value)).contents)
         finally:
             _lib.sigmaos_free_buf(ptr)
+
+    def s3_get_object_view(self, bucket: str, key: str, cache: bool = False,
+                           async_: bool = False):
+        if async_:
+            return _executor.submit(self.s3_get_object_view, bucket, key, cache)
+        out_len = ctypes.c_size_t(0)
+        ptr = _lib.sigmaos_s3_get_object_view(self._clnt, bucket.encode("utf-8"),
+                                               key.encode("utf-8"), int(cache),
+                                               ctypes.byref(out_len))
+        if not ptr:
+            raise RuntimeError(f"sigmaos_s3_get_object_view({bucket!r}, {key!r}) failed: {_last_error()}")
+        arr = (ctypes.c_char * out_len.value).from_address(ptr)
+        return memoryview(arr)
 
     def s3_delegated_get_object_view(self, rpc_idx: int, async_: bool = False):
         if async_:
@@ -206,6 +230,17 @@ class SigmaosClnt:
         finally:
             _lib.sigmaos_free_buf(ptr)
 
+    def ux_get_file_view(self, path: str, async_: bool = False):
+        if async_:
+            return _executor.submit(self.ux_get_file_view, path)
+        out_len = ctypes.c_size_t(0)
+        ptr = _lib.sigmaos_ux_get_file_view(self._clnt, path.encode("utf-8"),
+                                             ctypes.byref(out_len))
+        if not ptr:
+            raise RuntimeError(f"sigmaos_ux_get_file_view({path!r}) failed: {_last_error()}")
+        arr = (ctypes.c_char * out_len.value).from_address(ptr)
+        return memoryview(arr)
+
     def ux_delegated_get_file_view(self, rpc_idx: int, async_: bool = False):
         if async_:
             return _executor.submit(self.ux_delegated_get_file_view, rpc_idx)
@@ -236,8 +271,8 @@ class SigmaosClnt:
         if rc != 0:
             raise RuntimeError(f"sigmaos_ux_put_file({path!r}) failed: {_last_error()}")
 
-    def set_use_shmem(self, enable: bool) -> None:
-        _lib.sigmaos_set_use_shmem(self._clnt, int(enable))
+    def set_use_shmem_writeread(self, enable: bool) -> None:
+        _lib.sigmaos_set_use_shmem_writeread(self._clnt, int(enable))
 
     def log_spawn_latency(self, label: str, elapsed_micros: int) -> None:
         _lib.sigmaos_log_spawn_latency(self._clnt, label.encode("utf-8"),

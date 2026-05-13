@@ -24,7 +24,7 @@ Clnt::GetObject(std::string bucket, std::string key, bool cache) {
   req.set_key(key);
   req.set_cache(cache);
 
-  bool use_shmem = _sp_clnt->GetUseShmem();
+  bool use_shmem = _sp_clnt->GetUseShmemWriteread();
   log(S3CLNT, "GetObject bucket:{} key:{} shmem:{}", bucket, key, use_shmem);
   std::shared_ptr<std::vector<std::shared_ptr<std::string_view>>> views;
   std::shared_ptr<std::string> s;
@@ -67,7 +67,7 @@ Clnt::DelegatedGetObject(uint64_t rpc_idx) {
   std::shared_ptr<std::string> owned;
   std::shared_ptr<std::vector<std::shared_ptr<std::string_view>>> views =
       nullptr;
-  if (_sp_clnt->ProcEnv()->GetUseShmem()) {
+  if (_sp_clnt->GetShmemEnabled()) {
     views = std::make_shared<std::vector<std::shared_ptr<std::string_view>>>();
     views->push_back(std::make_shared<std::string_view>());
   } else {
@@ -81,7 +81,7 @@ Clnt::DelegatedGetObject(uint64_t rpc_idx) {
     return std::unexpected(res.error());
   }
   std::shared_ptr<sigmaos::proxy::buf::DataBuf> dbuf;
-  if (_sp_clnt->ProcEnv()->GetUseShmem()) {
+  if (_sp_clnt->GetShmemEnabled()) {
     dbuf = std::make_shared<sigmaos::proxy::buf::DataBuf>(*views->at(0));
   } else {
     dbuf = std::make_shared<sigmaos::proxy::buf::DataBuf>(std::move(owned));

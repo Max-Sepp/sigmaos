@@ -195,10 +195,10 @@ func (sc *SigmaClnt) WaitExitChan(ch chan error) {
 	ch <- r
 }
 
-// SetUseShmem enables or disables the WriteRead shmem reply path on the
-// underlying SPProxyClnt, if one is in use.
-func (sc *SigmaClnt) SetUseShmem(enable bool) {
+// SetUseShmemWriteread enables or disables the WriteRead shmem reply path on
+// the underlying SPProxyClnt, if one is in use.
+func (sc *SigmaClnt) SetUseShmemWriteread(enable bool) {
 	if spc, ok := sc.FsLib.GetSigmaOS().(*spproxyclnt.SPProxyClnt); ok {
-		spc.SetUseShmem(enable)
+		spc.SetUseShmemWriteread(enable)
 	}
 }

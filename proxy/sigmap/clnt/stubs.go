@@ -243,7 +243,7 @@ func (scc *SPProxyClnt) WriteFence(fd int, d []byte, f sp.Tfence) (sp.Tsize, err
 
 func (scc *SPProxyClnt) WriteRead(fd int, iniov *sessp.IoVec, outiov *sessp.IoVec) error {
 	inblob := rpcproto.NewBlob(iniov)
-	req := spproto.SigmaWriteReq{Fd: uint32(fd), Blob: inblob, NOutVec: uint32(outiov.Len()), ReplyViaShmem: scc.useShmem && scc.shm != nil}
+	req := spproto.SigmaWriteReq{Fd: uint32(fd), Blob: inblob, NOutVec: uint32(outiov.Len()), ReplyViaShmem: scc.useShmemWriteread && scc.shm != nil}
 	rep := spproto.SigmaWriteReadRep{}
 	if !req.ReplyViaShmem {
 		rep.Blob = rpcproto.NewBlob(outiov)

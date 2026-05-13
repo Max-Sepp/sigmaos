@@ -28,7 +28,7 @@ type SPProxyClnt struct {
 	npc          *dialproxyclnt.DialProxyClnt
 	seqcntr      *sessp.Tseqcntr
 	disconnected bool
-	useShmem     bool
+	useShmemWriteread bool
 	shm          *shmem.Segment
 }
 
@@ -61,8 +61,12 @@ func NewSPProxyClnt(pe *proc.ProcEnv, npc *dialproxyclnt.DialProxyClnt) (*SPProx
 	return scc, nil
 }
 
-func (scc *SPProxyClnt) SetUseShmem(v bool) {
-	scc.useShmem = v
+func (scc *SPProxyClnt) GetShmemEnabled() bool {
+	return scc.shm != nil
+}
+
+func (scc *SPProxyClnt) SetUseShmemWriteread(v bool) {
+	scc.useShmemWriteread = v
 }
 
 func (scc *SPProxyClnt) GetShmemSegment() *shmem.Segment {
