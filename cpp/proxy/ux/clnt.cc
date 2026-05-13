@@ -18,21 +18,42 @@ Clnt::Clnt(std::shared_ptr<sigmaos::proxy::sigmap::Clnt> sp_clnt,
 std::expected<std::shared_ptr<sigmaos::proxy::buf::DataBuf>,
               sigmaos::serr::Error>
 Clnt::GetFile(std::string path) {
-  log(UXCLNT, "GetFile path:{}", path);
   UXReq req;
   UXRep rep;
   req.set_path(path);
+
+  bool use_shmem = _sp_clnt->GetUseShmem();
+  log(UXCLNT, "GetFile path:{} shmem:{}", path, use_shmem);
+  std::shared_ptr<std::vector<std::shared_ptr<std::string_view>>> views;
+  std::shared_ptr<std::string> s;
   Blob blob;
-  auto s = std::make_shared<std::string>();
-  blob.mutable_iov()->AddAllocated(s.get());
-  rep.set_allocated_blob(&blob);
-  auto res = _rpcc->RPC("UXRpcAPI.GetFile", req, rep);
+
+  if (use_shmem) {
+    views = std::make_shared<std::vector<std::shared_ptr<std::string_view>>>();
+    views->push_back(std::make_shared<std::string_view>());
+  } else {
+    s = std::make_shared<std::string>();
+    blob.mutable_iov()->AddAllocated(s.get());
+    rep.set_allocated_blob(&blob);
+  }
+
+  auto res = _rpcc->RPC("UXRpcAPI.GetFile", req, rep, views);
+  if (!use_shmem) {
+    auto _ = rep.release_blob();
+  }
   if (!res.has_value()) {
     log(UXCLNT_ERR, "Err GetFile: {}", res.error().String());
     return std::unexpected(res.error());
   }
-  log(UXCLNT, "GetFile ok path:{} len:{}", path, s->size());
-  return std::make_shared<sigmaos::proxy::buf::DataBuf>(std::move(s));
+
+  std::shared_ptr<sigmaos::proxy::buf::DataBuf> dbuf;
+  if (use_shmem) {
+    dbuf = std::make_shared<sigmaos::proxy::buf::DataBuf>(*views->at(0));
+  } else {
+    dbuf = std::make_shared<sigmaos::proxy::buf::DataBuf>(std::move(s));
+  }
+  log(UXCLNT, "GetFile ok path:{} len:{} shmem:{}", path, dbuf->size(), use_shmem);
+  return dbuf;
 }
 
 std::expected<std::shared_ptr<sigmaos::proxy::buf::DataBuf>,

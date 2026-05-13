@@ -48,8 +48,8 @@ Channel::SendReceive(std::shared_ptr<sigmaos::io::transport::Call> call) {
     fatal("Use uninitialized channel");
   }
   {
-    auto res =
-        _sp_clnt->WriteRead(_fd, call->GetInIOVec(), call->GetOutIOVec());
+    auto res = _sp_clnt->WriteRead(_fd, call->GetInIOVec(), call->GetOutIOVec(),
+                                   call->GetViews());
     if (!res.has_value()) {
       log(SPCHAN_ERR, "Error WriteRead({} -> {}): {}", _fd, _srv_pn,
           res.error().String());

@@ -415,10 +415,15 @@ std::expected<int, sigmaos::serr::Error> Clnt::FenceDir(
 
 std::expected<int, sigmaos::serr::Error> Clnt::WriteRead(
     int fd, std::shared_ptr<sigmaos::io::iovec::IOVec> in_iov,
-    std::shared_ptr<sigmaos::io::iovec::IOVec> out_iov) {
+    std::shared_ptr<sigmaos::io::iovec::IOVec> out_iov,
+    std::shared_ptr<std::vector<std::shared_ptr<std::string_view>>> views) {
   log(SPPROXYCLNT, "WriteRead: {} in_iov({}) out_iov({})", fd, in_iov->Size(),
       out_iov->Size());
-  bool use_shmem = _use_shmem && _shmem != nullptr;
+  if (views != nullptr && _shmem == nullptr) {
+    fatal("views requested but shmem segment is null");
+  }
+  bool use_shmem = (_use_shmem || views != nullptr) && _shmem != nullptr;
+  int n_out_vec = out_iov->Size() + (views ? (int)views->size() : 0);
   Blob in_blob;
   auto req_iov = in_blob.mutable_iov();
   for (int i = 0; i < in_iov->Size(); i++) {
@@ -427,7 +432,7 @@ std::expected<int, sigmaos::serr::Error> Clnt::WriteRead(
   SigmaWriteReq req;
   req.set_fd(fd);
   req.set_allocated_blob(&in_blob);
-  req.set_noutvec(out_iov->Size());
+  req.set_noutvec(n_out_vec);
   req.set_replyviashmem(use_shmem);
   SigmaWriteReadRep rep;
   Blob out_blob;
@@ -452,17 +457,45 @@ std::expected<int, sigmaos::serr::Error> Clnt::WriteRead(
         (sigmaos::serr::Terror)rep.err().errcode(), rep.err().obj()));
   }
   if (use_shmem && rep.useshmem()) {
-    if (rep.shmoffs().size() != (size_t)out_iov->Size()) {
-      fatal("WriteRead shmem: frame count mismatch: {} != {}",
-            rep.shmoffs().size(), out_iov->Size());
+    int n_total = (int)rep.shmoffs().size();
+    int n_meta = out_iov->Size();
+    if (views) {
+      // views path (spchannel, zero-copy): metadata frames into out_iov,
+      // blob frames as string_views into shmem
+      if (n_total != n_meta + (int)views->size()) {
+        fatal("WriteRead shmem views: frame count mismatch: {} != {}", n_total,
+              n_meta + (int)views->size());
+      }
+      for (int i = 0; i < n_meta; i++) {
+        uint64_t off = rep.shmoffs(i);
+        size_t len = (size_t)rep.shmlens(i);
+        auto b =
+            std::make_shared<std::string>((char *)_shmem->GetBuf() + off, len);
+        out_iov->SetBuffer(i, std::make_shared<sigmaos::io::iovec::Buffer>(b));
+      }
+      for (int i = n_meta; i < n_total; i++) {
+        uint64_t off = rep.shmoffs(i);
+        size_t len = (size_t)rep.shmlens(i);
+        *views->at(i - n_meta) =
+            std::string_view((char *)_shmem->GetBuf() + off, len);
+      }
+    } else {
+      // _use_shmem path (Python) incurring an extra copy: existing behavior
+      // unchanged
+      if (n_total != n_meta) {
+        fatal("WriteRead shmem: frame count mismatch: {} != {}", n_total,
+              n_meta);
+      }
+      for (int i = 0; i < n_total; i++) {
+        uint64_t off = rep.shmoffs(i);
+        size_t len = (size_t)rep.shmlens(i);
+        auto b =
+            std::make_shared<std::string>((char *)_shmem->GetBuf() + off, len);
+        out_iov->SetBuffer(i, std::make_shared<sigmaos::io::iovec::Buffer>(b));
+      }
     }
-    for (int i = 0; i < (int)rep.shmoffs().size(); i++) {
-      uint64_t off = rep.shmoffs(i);
-      size_t len = (size_t)rep.shmlens(i);
-      auto b =
-          std::make_shared<std::string>((char *)_shmem->GetBuf() + off, len);
-      out_iov->SetBuffer(i, std::make_shared<sigmaos::io::iovec::Buffer>(b));
-    }
+  } else if (views != nullptr && !rep.useshmem()) {
+    fatal("Requested views but server did not use shmem");
   } else if (!use_shmem) {
     // Release out_blob from rep before rep goes out of scope (stack-allocated)
     {

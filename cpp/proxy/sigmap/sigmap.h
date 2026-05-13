@@ -85,6 +85,7 @@ class Clnt {
   std::shared_ptr<sigmaos::proc::ProcEnv> ProcEnv() { return _env; }
   std::shared_ptr<sigmaos::rpc::Channel> GetSPProxyChannel() { return _demux; }
   std::shared_ptr<sigmaos::shmem::Segment> GetShmemSegment() { return _shmem; }
+  bool GetUseShmem() { return _shmem != nullptr && _use_shmem; }
 
   // Stubs
 
@@ -127,7 +128,9 @@ class Clnt {
   void SetUseShmem(bool v) { _use_shmem = v; }
   std::expected<int, sigmaos::serr::Error> WriteRead(
       int fd, std::shared_ptr<sigmaos::io::iovec::IOVec> in_iov,
-      std::shared_ptr<sigmaos::io::iovec::IOVec> out_iov);
+      std::shared_ptr<sigmaos::io::iovec::IOVec> out_iov,
+      std::shared_ptr<std::vector<std::shared_ptr<std::string_view>>> views =
+          nullptr);
   std::expected<int, sigmaos::serr::Error> DirWatch(int fd);
   std::expected<int, sigmaos::serr::Error> MountTree(
       std::shared_ptr<TendpointProto> ep, std::string tree, std::string mount);

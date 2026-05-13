@@ -13,6 +13,8 @@
 
 #include <atomic>
 #include <expected>
+#include <string_view>
+#include <vector>
 
 namespace sigmaos {
 namespace rpc {
@@ -44,9 +46,11 @@ class Clnt {
   ~Clnt() { Close(); }
 
   std::shared_ptr<Channel> GetChannel() { return _chan; }
-  std::expected<int, sigmaos::serr::Error> RPC(std::string method,
-                                               google::protobuf::Message &req,
-                                               google::protobuf::Message &rep);
+  std::expected<int, sigmaos::serr::Error> RPC(
+      std::string method, google::protobuf::Message &req,
+      google::protobuf::Message &rep,
+      std::shared_ptr<std::vector<std::shared_ptr<std::string_view>>> views =
+          nullptr);
   std::expected<google::protobuf::Timestamp, sigmaos::serr::Error> DelegatedRPC(
       uint64_t rpc_idx, google::protobuf::Message &delegated_rep,
       std::shared_ptr<std::vector<std::shared_ptr<std::string_view>>> views =
@@ -71,14 +75,17 @@ class Clnt {
   static bool _l_e;
 
   std::expected<int, sigmaos::serr::Error> check_channel_init();
-  std::expected<int, sigmaos::serr::Error> rpc(bool delegate,
-                                               std::string method,
-                                               google::protobuf::Message &req,
-                                               google::protobuf::Message &rep);
+  std::expected<int, sigmaos::serr::Error> rpc(
+      bool delegate, std::string method, google::protobuf::Message &req,
+      google::protobuf::Message &rep,
+      std::shared_ptr<std::vector<std::shared_ptr<std::string_view>>> views =
+          nullptr);
   std::expected<int, sigmaos::serr::Error> wrap_and_run_rpc(
       bool delegate, uint64_t seqno, std::string method,
       const std::shared_ptr<sigmaos::io::iovec::IOVec> in_iov,
-      std::shared_ptr<sigmaos::io::iovec::IOVec> out_iov);
+      std::shared_ptr<sigmaos::io::iovec::IOVec> out_iov,
+      std::shared_ptr<std::vector<std::shared_ptr<std::string_view>>> views =
+          nullptr);
   std::expected<int, sigmaos::serr::Error> process_wrapped_reply(
       uint64_t seqno, std::shared_ptr<sigmaos::io::iovec::IOVec> out_iov,
       google::protobuf::Message &rep);

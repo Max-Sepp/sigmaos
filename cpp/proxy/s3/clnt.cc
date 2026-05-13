@@ -18,23 +18,44 @@ Clnt::Clnt(std::shared_ptr<sigmaos::proxy::sigmap::Clnt> sp_clnt,
 std::expected<std::shared_ptr<sigmaos::proxy::buf::DataBuf>,
               sigmaos::serr::Error>
 Clnt::GetObject(std::string bucket, std::string key, bool cache) {
-  log(S3CLNT, "GetObject bucket:{} key:{}", bucket, key);
   S3Req req;
   S3Rep rep;
   req.set_bucket(bucket);
   req.set_key(key);
   req.set_cache(cache);
+
+  bool use_shmem = _sp_clnt->GetUseShmem();
+  log(S3CLNT, "GetObject bucket:{} key:{} shmem:{}", bucket, key, use_shmem);
+  std::shared_ptr<std::vector<std::shared_ptr<std::string_view>>> views;
+  std::shared_ptr<std::string> s;
   Blob blob;
-  auto s = std::make_shared<std::string>();
-  blob.mutable_iov()->AddAllocated(s.get());
-  rep.set_allocated_blob(&blob);
-  auto res = _rpcc->RPC("S3RpcAPI.GetObject", req, rep);
+
+  if (use_shmem) {
+    views = std::make_shared<std::vector<std::shared_ptr<std::string_view>>>();
+    views->push_back(std::make_shared<std::string_view>());
+  } else {
+    s = std::make_shared<std::string>();
+    blob.mutable_iov()->AddAllocated(s.get());
+    rep.set_allocated_blob(&blob);
+  }
+
+  auto res = _rpcc->RPC("S3RpcAPI.GetObject", req, rep, views);
+  if (!use_shmem) {
+    auto _ = rep.release_blob();
+  }
   if (!res.has_value()) {
     log(S3CLNT_ERR, "Err GetObject: {}", res.error().String());
     return std::unexpected(res.error());
   }
-  log(S3CLNT, "GetObject ok bucket:{} key:{} len:{}", bucket, key, s->size());
-  return std::make_shared<sigmaos::proxy::buf::DataBuf>(std::move(s));
+
+  std::shared_ptr<sigmaos::proxy::buf::DataBuf> dbuf;
+  if (use_shmem) {
+    dbuf = std::make_shared<sigmaos::proxy::buf::DataBuf>(*views->at(0));
+  } else {
+    dbuf = std::make_shared<sigmaos::proxy::buf::DataBuf>(std::move(s));
+  }
+  log(S3CLNT, "GetObject ok bucket:{} key:{} len:{} shmem:{}", bucket, key, dbuf->size(), use_shmem);
+  return dbuf;
 }
 
 std::expected<std::shared_ptr<sigmaos::proxy::buf::DataBuf>,

@@ -153,14 +153,15 @@ Clnt::DelegatedRPC(
 // Perform an RPC
 std::expected<int, sigmaos::serr::Error> Clnt::RPC(
     std::string method, google::protobuf::Message &req,
-    google::protobuf::Message &rep) {
+    google::protobuf::Message &rep,
+    std::shared_ptr<std::vector<std::shared_ptr<std::string_view>>> views) {
   {
     auto res = check_channel_init();
     if (!res.has_value()) {
       return res;
     }
   }
-  return rpc(false, method, req, rep);
+  return rpc(false, method, req, rep, views);
 }
 
 std::expected<int, sigmaos::serr::Error> Clnt::check_channel_init() {
@@ -185,7 +186,8 @@ std::expected<int, sigmaos::serr::Error> Clnt::check_channel_init() {
 
 std::expected<int, sigmaos::serr::Error> Clnt::rpc(
     bool delegate, std::string method, google::protobuf::Message &req,
-    google::protobuf::Message &rep) {
+    google::protobuf::Message &rep,
+    std::shared_ptr<std::vector<std::shared_ptr<std::string_view>>> views) {
   // Create an IOV for RPC inputs
   auto in_iov = std::make_shared<sigmaos::io::iovec::IOVec>();
   auto req_data = std::make_shared<std::string>();
@@ -198,12 +200,16 @@ std::expected<int, sigmaos::serr::Error> Clnt::rpc(
   // Prepend 2 empty slots to the out iovec: one for the rpcproto.Rep
   // wrapper, and one for the marshaled res proto.Message
   out_iov->AddBuffers(2);
-  // Extract any output IOVecs from the response RPC
-  extract_blob_iov(rep, out_iov);
+  // When views are provided, blob comes back via views; skip pre-allocating
+  // blob output slots in out_iov so NOutVec stays at 2 (+ views->size())
+  if (!views) {
+    // Extract any output IOVecs from the response RPC
+    extract_blob_iov(rep, out_iov);
+  }
   log(RPCCLNT, "out_iov len {}", out_iov->Size());
   uint64_t seqno = _seqno++;
   // Wrap the RPC and execute it
-  auto res = wrap_and_run_rpc(delegate, seqno, method, in_iov, out_iov);
+  auto res = wrap_and_run_rpc(delegate, seqno, method, in_iov, out_iov, views);
   if (!res.has_value()) {
     return std::unexpected(res.error());
   }
@@ -214,7 +220,8 @@ std::expected<int, sigmaos::serr::Error> Clnt::rpc(
 std::expected<int, sigmaos::serr::Error> Clnt::wrap_and_run_rpc(
     bool delegate, uint64_t seqno, std::string method,
     const std::shared_ptr<sigmaos::io::iovec::IOVec> in_iov,
-    std::shared_ptr<sigmaos::io::iovec::IOVec> out_iov) {
+    std::shared_ptr<sigmaos::io::iovec::IOVec> out_iov,
+    std::shared_ptr<std::vector<std::shared_ptr<std::string_view>>> views) {
   auto wrapped_in_iov = std::make_shared<sigmaos::io::iovec::IOVec>();
   Req req;
   auto wrapper_req_data = std::make_shared<std::string>();
@@ -230,8 +237,8 @@ std::expected<int, sigmaos::serr::Error> Clnt::wrap_and_run_rpc(
   }
 
   // Create the call object to be sent, and perform the RPC.
-  auto wrapped_call =
-      std::make_shared<io::transport::Call>(seqno, wrapped_in_iov, out_iov);
+  auto wrapped_call = std::make_shared<io::transport::Call>(seqno, wrapped_in_iov,
+                                                            out_iov, views);
   auto start = GetCurrentTime();
   std::expected<std::shared_ptr<sigmaos::io::transport::Call>,
                 sigmaos::serr::Error>

@@ -179,6 +179,24 @@ char* sigmaos_s3_delegated_get_object(SigmaosClnt clnt, uint64_t rpc_idx,
   return buf;
 }
 
+const char* sigmaos_s3_get_object_view(SigmaosClnt clnt, const char* bucket,
+                                       const char* key, int cache,
+                                       size_t* out_len) {
+  clear_error();
+  auto res = s3_clnt(state(clnt))
+                 ->GetObject(std::string(bucket), std::string(key), cache != 0);
+  if (!res.has_value()) {
+    set_error(res.error().String());
+    *out_len = 0;
+    return nullptr;
+  }
+  auto dbuf = std::move(res.value());
+  *out_len = dbuf->size();
+  const char* ptr = dbuf->data();
+  state(clnt)->data_bufs[(uint64_t)ptr] = std::move(dbuf);
+  return ptr;
+}
+
 const char* sigmaos_s3_delegated_get_object_view(SigmaosClnt clnt,
                                                   uint64_t rpc_idx,
                                                   size_t* out_len) {
@@ -211,6 +229,22 @@ char* sigmaos_ux_get_file(SigmaosClnt clnt, const char* path, size_t* out_len) {
     memcpy(buf, s->data(), s->size());
   }
   return buf;
+}
+
+const char* sigmaos_ux_get_file_view(SigmaosClnt clnt, const char* path,
+                                     size_t* out_len) {
+  clear_error();
+  auto res = ux_clnt(state(clnt))->GetFile(std::string(path));
+  if (!res.has_value()) {
+    set_error(res.error().String());
+    *out_len = 0;
+    return nullptr;
+  }
+  auto dbuf = std::move(res.value());
+  *out_len = dbuf->size();
+  const char* ptr = dbuf->data();
+  state(clnt)->data_bufs[(uint64_t)ptr] = std::move(dbuf);
+  return ptr;
 }
 
 int sigmaos_ux_put_file(SigmaosClnt clnt, const char* path, const char* data,
