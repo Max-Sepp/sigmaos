@@ -54,7 +54,7 @@ class Clnt {
     _rpcc = std::make_shared<sigmaos::rpc::Clnt>(_demux);
     LogSpawnLatency(_env->GetPID(), _env->GetSpawnTime(), start,
                     "Create rpcclnt");
-    if (_env->GetUseShmem()) {
+    if (_env->GetShmemEnabled()) {
       start = GetCurrentTime();
       _shmem = std::make_shared<sigmaos::shmem::Segment>(
           _env->GetPID(),

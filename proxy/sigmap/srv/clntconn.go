@@ -262,7 +262,7 @@ func (sca *SPProxySrvAPI) Seek(ctx fs.CtxI, req scproto.SigmaSeekReq, rep *scpro
 }
 
 func (sca *SPProxySrvAPI) WriteRead(ctx fs.CtxI, req scproto.SigmaWriteReq, rep *scproto.SigmaWriteReadRep) error {
-	useShmem := req.GetReplyViaShmem() && sca.sc.ProcEnv().GetUseShmem()
+	useShmem := req.GetReplyViaShmem() && sca.sc.ProcEnv().GetShmemEnabled()
 	var bl *sessp.IoVec
 	if useShmem {
 		shmAlloc, err := sca.spps.psm.GetShmemAllocator(sca.sc.ProcEnv().GetPID())
@@ -522,7 +522,7 @@ func (sca *SPProxySrvAPI) GetDelegatedRPCReply(ctx fs.CtxI, req scproto.SigmaDel
 		}
 	}
 	db.DPrintf(db.SPPROXYSRV, "%v: GetDelegatedRPCReply done %v lens %v", sca.sc.ClntId(), req, lens)
-	if req.GetUseShmem() && sca.sc.ProcEnv().GetUseShmem() {
+	if req.GetUseShmem() && sca.sc.ProcEnv().GetShmemEnabled() {
 		db.DPrintf(db.SPPROXYSRV, "%v: GetDelegatedRPCReply(%v) calculate shmem offsets", sca.sc.ClntId(), req.RPCIdx)
 		shmemBuf, err := sca.spps.psm.GetShmemBuf(sca.sc.ProcEnv().GetPID())
 		if err != nil {

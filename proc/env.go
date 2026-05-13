@@ -270,9 +270,9 @@ func (pe *ProcEnvProto) GetRunCoSandbox() bool {
 
 func (pe *ProcEnvProto) SetShmemMB(mb Tmem) {
 	if mb > 0 {
-		pe.UseShmem = true
+		pe.ShmemEnabled = true
 	} else {
-		pe.UseShmem = false
+		pe.ShmemEnabled = false
 	}
 	pe.ShmemMBInt = uint64(mb)
 }

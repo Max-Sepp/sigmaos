@@ -481,8 +481,8 @@ func (p *Proc) GetProcContainerType() ProcContainerType {
 	return p.ProcEnvProto.GetContainerType()
 }
 
-func (p *Proc) GetUseShmem() bool {
-	return p.ProcEnvProto.GetUseShmem()
+func (p *Proc) GetShmemEnabled() bool {
+	return p.ProcEnvProto.GetShmemEnabled()
 }
 
 func (p *Proc) SetShmemMB(mb Tmem) {

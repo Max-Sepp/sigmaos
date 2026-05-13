@@ -248,7 +248,7 @@ func newProcState(spps *SPProxySrv, pe *proc.ProcEnv, p *proc.Proc) *procState {
 	}
 	ps.cond = sync.NewCond(&ps.mu)
 	ps.bsCond = sync.NewCond(&ps.mu)
-	if pe.GetUseShmem() {
+	if pe.GetShmemEnabled() {
 		var err error
 		start := time.Now()
 		ps.shm, err = shmem.NewSegment(pe.GetPID().String(), p.GetShmemMB()*proc.Tmem(sp.MBYTE), true)

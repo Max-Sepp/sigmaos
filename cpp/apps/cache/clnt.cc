@@ -20,7 +20,7 @@ Clnt::get_clnt(int srv_id, bool initialize) {
           std::make_shared<sigmaos::rpc::spchannel::Channel>(srv_pn, _sp_clnt);
       log(CACHECLNT, "Create RPC client");
       // Create an RPC client from the channel
-      if (!_sp_clnt->ProcEnv()->GetUseShmem()) {
+      if (!_sp_clnt->ProcEnv()->GetShmemEnabled()) {
         _clnts[srv_id] = std::make_shared<sigmaos::rpc::Clnt>(
             chan, _sp_clnt->GetSPProxyChannel());
       } else {
@@ -430,7 +430,7 @@ Clnt::DelegatedMultiDumpShard(uint64_t rpc_idx, std::vector<uint32_t> &shards) {
   std::shared_ptr<std::vector<std::shared_ptr<std::string_view>>> shard_views =
       nullptr;
   std::vector<std::shared_ptr<std::string>> shard_bufs;
-  if (_sp_clnt->ProcEnv()->GetUseShmem()) {
+  if (_sp_clnt->ProcEnv()->GetShmemEnabled()) {
     shard_views =
         std::make_shared<std::vector<std::shared_ptr<std::string_view>>>();
     // Add buffer views to hold the output
@@ -461,7 +461,7 @@ Clnt::DelegatedMultiDumpShard(uint64_t rpc_idx, std::vector<uint32_t> &shards) {
       (*shard_map)[shard] = std::make_shared<std::map<
           std::string, std::shared_ptr<sigmaos::apps::cache::Value>>>();
     }
-    if (!_sp_clnt->ProcEnv()->GetUseShmem()) {
+    if (!_sp_clnt->ProcEnv()->GetShmemEnabled()) {
       shard_views =
           std::make_shared<std::vector<std::shared_ptr<std::string_view>>>();
       for (int i = 0; i < shard_bufs.size(); i++) {
@@ -476,7 +476,7 @@ Clnt::DelegatedMultiDumpShard(uint64_t rpc_idx, std::vector<uint32_t> &shards) {
     for (int i = 0; i < rep.keys().size(); i++) {
       auto k = rep.keys(i);
       std::shared_ptr<sigmaos::apps::cache::Value> v = nullptr;
-      if (_sp_clnt->ProcEnv()->GetUseShmem()) {
+      if (_sp_clnt->ProcEnv()->GetShmemEnabled()) {
         v = std::make_shared<sigmaos::apps::cache::Value>(shard_view, shard_off,
                                                           rep.lens(i));
       } else {
@@ -558,7 +558,7 @@ Clnt::DelegatedMultiGet(uint64_t rpc_idx) {
       nullptr;
   std::shared_ptr<std::string> buf;
   // Add a buffer, or a string view if using shared mem, to hold the output
-  if (_sp_clnt->ProcEnv()->GetUseShmem()) {
+  if (_sp_clnt->ProcEnv()->GetShmemEnabled()) {
     buf_views =
         std::make_shared<std::vector<std::shared_ptr<std::string_view>>>();
     buf_views->push_back(std::make_shared<std::string_view>());
@@ -578,13 +578,13 @@ Clnt::DelegatedMultiGet(uint64_t rpc_idx) {
       std::vector<std::shared_ptr<sigmaos::apps::cache::Value>>>(
       rep.lengths().size(), nullptr);
   std::shared_ptr<std::string_view> buf_view;
-  if (_sp_clnt->ProcEnv()->GetUseShmem()) {
+  if (_sp_clnt->ProcEnv()->GetShmemEnabled()) {
     buf_view = buf_views->at(0);
   }
   uint64_t off = 0;
   for (int i = 0; i < vals->size(); i++) {
     uint64_t len = rep.lengths().at(i);
-    if (_sp_clnt->ProcEnv()->GetUseShmem()) {
+    if (_sp_clnt->ProcEnv()->GetShmemEnabled()) {
       vals->at(i) =
           std::make_shared<sigmaos::apps::cache::Value>(buf_view, off, len);
     } else {

@@ -701,7 +701,7 @@ class ProcEnvProto final :
     kUseDialProxyFieldNumber = 20,
     kRunCoSandboxFlagFieldNumber = 29,
     kShmemMBIntFieldNumber = 31,
-    kUseShmemFieldNumber = 30,
+    kShmemEnabledFieldNumber = 30,
     kUseSPProxyProcClntFieldNumber = 32,
     kContainerTypeFieldNumber = 34,
   };
@@ -1146,13 +1146,13 @@ class ProcEnvProto final :
   void _internal_set_shmemmbint(uint64_t value);
   public:
 
-  // bool useShmem = 30;
-  void clear_useshmem();
-  bool useshmem() const;
-  void set_useshmem(bool value);
+  // bool shmemEnabled = 30;
+  void clear_shmemenabled();
+  bool shmemenabled() const;
+  void set_shmemenabled(bool value);
   private:
-  bool _internal_useshmem() const;
-  void _internal_set_useshmem(bool value);
+  bool _internal_shmemenabled() const;
+  void _internal_set_shmemenabled(bool value);
   public:
 
   // bool useSPProxyProcClnt = 32;
@@ -1224,7 +1224,7 @@ class ProcEnvProto final :
     bool usedialproxy_;
     bool runcosandboxflag_;
     uint64_t shmemmbint_;
-    bool useshmem_;
+    bool shmemenabled_;
     bool usespproxyprocclnt_;
     int containertype_;
     mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
@@ -3359,24 +3359,24 @@ inline void ProcEnvProto::set_runcosandboxflag(bool value) {
   // @@protoc_insertion_point(field_set:ProcEnvProto.runCoSandboxFlag)
 }
 
-// bool useShmem = 30;
-inline void ProcEnvProto::clear_useshmem() {
-  _impl_.useshmem_ = false;
+// bool shmemEnabled = 30;
+inline void ProcEnvProto::clear_shmemenabled() {
+  _impl_.shmemenabled_ = false;
 }
-inline bool ProcEnvProto::_internal_useshmem() const {
-  return _impl_.useshmem_;
+inline bool ProcEnvProto::_internal_shmemenabled() const {
+  return _impl_.shmemenabled_;
 }
-inline bool ProcEnvProto::useshmem() const {
-  // @@protoc_insertion_point(field_get:ProcEnvProto.useShmem)
-  return _internal_useshmem();
+inline bool ProcEnvProto::shmemenabled() const {
+  // @@protoc_insertion_point(field_get:ProcEnvProto.shmemEnabled)
+  return _internal_shmemenabled();
 }
-inline void ProcEnvProto::_internal_set_useshmem(bool value) {
+inline void ProcEnvProto::_internal_set_shmemenabled(bool value) {
   
-  _impl_.useshmem_ = value;
+  _impl_.shmemenabled_ = value;
 }
-inline void ProcEnvProto::set_useshmem(bool value) {
-  _internal_set_useshmem(value);
-  // @@protoc_insertion_point(field_set:ProcEnvProto.useShmem)
+inline void ProcEnvProto::set_shmemenabled(bool value) {
+  _internal_set_shmemenabled(value);
+  // @@protoc_insertion_point(field_set:ProcEnvProto.shmemEnabled)
 }
 
 // uint64 shmemMBInt = 31;

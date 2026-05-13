@@ -53,7 +53,7 @@ char* sigmaos_s3_delegated_get_object(SigmaosClnt clnt, uint64_t rpc_idx,
 
 // Returns a pointer directly into the reply buffer (no malloc, no copy), or
 // NULL on error. Valid for the proc's lifetime; callers must not free the
-// returned pointer. Uses shmem zero-copy when the proc env has UseShmem set.
+// returned pointer. Uses shmem zero-copy when the proc env has shmem enabled.
 const char* sigmaos_s3_get_object_view(SigmaosClnt clnt, const char* bucket,
                                        const char* key, int cache,
                                        size_t* out_len);
@@ -71,7 +71,7 @@ char* sigmaos_ux_get_file(SigmaosClnt clnt, const char* path, size_t* out_len);
 
 // Returns a pointer directly into the reply buffer (no malloc, no copy), or
 // NULL on error. Valid for the proc's lifetime; callers must not free the
-// returned pointer. Uses shmem zero-copy when the proc env has UseShmem set.
+// returned pointer. Uses shmem zero-copy when the proc env has shmem enabled.
 const char* sigmaos_ux_get_file_view(SigmaosClnt clnt, const char* path,
                                      size_t* out_len);
 

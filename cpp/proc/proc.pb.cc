@@ -116,7 +116,7 @@ PROTOBUF_CONSTEXPR ProcEnvProto::ProcEnvProto(
   , /*decltype(_impl_.usedialproxy_)*/false
   , /*decltype(_impl_.runcosandboxflag_)*/false
   , /*decltype(_impl_.shmemmbint_)*/uint64_t{0u}
-  , /*decltype(_impl_.useshmem_)*/false
+  , /*decltype(_impl_.shmemenabled_)*/false
   , /*decltype(_impl_.usespproxyprocclnt_)*/false
   , /*decltype(_impl_.containertype_)*/0
   , /*decltype(_impl_._cached_size_)*/{}} {}
@@ -269,7 +269,7 @@ const uint32_t TableStruct_proc_2fproc_2eproto::offsets[] PROTOBUF_SECTION_VARIA
   PROTOBUF_FIELD_OFFSET(::ProcEnvProto, _impl_.cachedendpoints_),
   PROTOBUF_FIELD_OFFSET(::ProcEnvProto, _impl_.valgrind_),
   PROTOBUF_FIELD_OFFSET(::ProcEnvProto, _impl_.runcosandboxflag_),
-  PROTOBUF_FIELD_OFFSET(::ProcEnvProto, _impl_.useshmem_),
+  PROTOBUF_FIELD_OFFSET(::ProcEnvProto, _impl_.shmemenabled_),
   PROTOBUF_FIELD_OFFSET(::ProcEnvProto, _impl_.shmemmbint_),
   PROTOBUF_FIELD_OFFSET(::ProcEnvProto, _impl_.usespproxyprocclnt_),
   PROTOBUF_FIELD_OFFSET(::ProcEnvProto, _impl_.debugprocs_),
@@ -344,7 +344,7 @@ const char descriptor_table_protodef_proc_2fproc_2eproto[] PROTOBUF_SECTION_VARI
   "to/rpc.proto\"L\n\tProcSeqno\022\r\n\005epoch\030\001 \001(\004"
   "\022\r\n\005seqno\030\002 \001(\004\022\017\n\007procqID\030\003 \001(\t\022\020\n\010mSch"
   "edID\030\004 \001(\t\";\n\030ResourceReservationProto\022\017"
-  "\n\007mcpuInt\030\001 \001(\r\022\016\n\006memInt\030\002 \001(\r\"\246\010\n\014Proc"
+  "\n\007mcpuInt\030\001 \001(\r\022\016\n\006memInt\030\002 \001(\r\"\252\010\n\014Proc"
   "EnvProto\022\016\n\006pidStr\030\001 \001(\t\022\017\n\007program\030\002 \001("
   "\t\022\020\n\010realmStr\030\003 \001(\t\022\036\n\tprincipal\030\004 \001(\0132\013"
   ".Tprincipal\022\017\n\007procDir\030\005 \001(\t\022\021\n\tparentDi"
@@ -362,32 +362,33 @@ const char descriptor_table_protodef_proc_2fproc_2eproto[] PROTOBUF_SECTION_VARI
   "\n\016realmSwitchStr\030\030 \001(\t\022\017\n\007version\030\031 \001(\t\022"
   "\014\n\004fail\030\032 \001(\t\022;\n\017cachedEndpoints\030\033 \003(\0132\""
   ".ProcEnvProto.CachedEndpointsEntry\022\020\n\010va"
-  "lgrind\030\034 \001(\t\022\030\n\020runCoSandboxFlag\030\035 \001(\010\022\020"
-  "\n\010useShmem\030\036 \001(\010\022\022\n\nshmemMBInt\030\037 \001(\004\022\032\n\022"
-  "useSPProxyProcClnt\030  \001(\010\022\022\n\ndebugProcs\030!"
-  " \001(\t\022)\n\rcontainerType\030\" \001(\0162\022.ProcContai"
-  "nerType\032E\n\022EtcdEndpointsEntry\022\013\n\003key\030\001 \001"
-  "(\t\022\036\n\005value\030\002 \001(\0132\017.TendpointProto:\0028\001\032\?"
-  "\n\017SecretsMapEntry\022\013\n\003key\030\001 \001(\t\022\033\n\005value\030"
-  "\002 \001(\0132\014.SecretProto:\0028\001\032G\n\024CachedEndpoin"
-  "tsEntry\022\013\n\003key\030\001 \001(\t\022\036\n\005value\030\002 \001(\0132\017.Te"
-  "ndpointProto:\0028\001\"4\n\rAddedBinProto\022\017\n\007pro"
-  "gram\030\001 \001(\t\022\022\n\ncompressed\030\002 \001(\010\"\362\003\n\tProcP"
-  "roto\022#\n\014procEnvProto\030\001 \001(\0132\r.ProcEnvProt"
-  "o\022\014\n\004args\030\002 \003(\t\022!\n\taddedBins\030\003 \003(\0132\016.Add"
-  "edBinProto\022 \n\003env\030\004 \003(\0132\023.ProcProto.EnvE"
-  "ntry\022\023\n\004blob\030\005 \001(\0132\005.Blob\022\026\n\016coSandboxIn"
-  "put\030\006 \001(\014\022\017\n\007typeInt\030\007 \001(\r\022\031\n\021runAfterCo"
-  "Sandbox\030\010 \001(\010\022\037\n\027queueableResourcePoolID"
-  "\030\t \001(\004\022.\n\013resourceRes\030\n \001(\0132\031.ResourceRe"
-  "servationProto\0227\n\024coSandboxResourceRes\030\013"
-  " \001(\0132\031.ResourceReservationProto\022\022\n\nmeasu"
-  "rePSS\030\014 \001(\010\022\031\n\021measurePSSDelayMS\030\r \001(\004\022\031"
-  "\n\021cosandboxBufMBInt\030\016 \001(\004\022\024\n\014wasmBufMBIn"
-  "t\030\017 \001(\004\032*\n\010EnvEntry\022\013\n\003key\030\001 \001(\t\022\r\n\005valu"
-  "e\030\002 \001(\t:\0028\001*P\n\021ProcContainerType\022\023\n\017PROC"
-  "_CTR_NATIVE\020\000\022\021\n\rPROC_CTR_WASM\020\001\022\023\n\017PROC"
-  "_CTR_PYTHON\020\002B\016Z\014sigmaos/procb\006proto3"
+  "lgrind\030\034 \001(\t\022\030\n\020runCoSandboxFlag\030\035 \001(\010\022\024"
+  "\n\014shmemEnabled\030\036 \001(\010\022\022\n\nshmemMBInt\030\037 \001(\004"
+  "\022\032\n\022useSPProxyProcClnt\030  \001(\010\022\022\n\ndebugPro"
+  "cs\030! \001(\t\022)\n\rcontainerType\030\" \001(\0162\022.ProcCo"
+  "ntainerType\032E\n\022EtcdEndpointsEntry\022\013\n\003key"
+  "\030\001 \001(\t\022\036\n\005value\030\002 \001(\0132\017.TendpointProto:\002"
+  "8\001\032\?\n\017SecretsMapEntry\022\013\n\003key\030\001 \001(\t\022\033\n\005va"
+  "lue\030\002 \001(\0132\014.SecretProto:\0028\001\032G\n\024CachedEnd"
+  "pointsEntry\022\013\n\003key\030\001 \001(\t\022\036\n\005value\030\002 \001(\0132"
+  "\017.TendpointProto:\0028\001\"4\n\rAddedBinProto\022\017\n"
+  "\007program\030\001 \001(\t\022\022\n\ncompressed\030\002 \001(\010\"\362\003\n\tP"
+  "rocProto\022#\n\014procEnvProto\030\001 \001(\0132\r.ProcEnv"
+  "Proto\022\014\n\004args\030\002 \003(\t\022!\n\taddedBins\030\003 \003(\0132\016"
+  ".AddedBinProto\022 \n\003env\030\004 \003(\0132\023.ProcProto."
+  "EnvEntry\022\023\n\004blob\030\005 \001(\0132\005.Blob\022\026\n\016coSandb"
+  "oxInput\030\006 \001(\014\022\017\n\007typeInt\030\007 \001(\r\022\031\n\021runAft"
+  "erCoSandbox\030\010 \001(\010\022\037\n\027queueableResourcePo"
+  "olID\030\t \001(\004\022.\n\013resourceRes\030\n \001(\0132\031.Resour"
+  "ceReservationProto\0227\n\024coSandboxResourceR"
+  "es\030\013 \001(\0132\031.ResourceReservationProto\022\022\n\nm"
+  "easurePSS\030\014 \001(\010\022\031\n\021measurePSSDelayMS\030\r \001"
+  "(\004\022\031\n\021cosandboxBufMBInt\030\016 \001(\004\022\024\n\014wasmBuf"
+  "MBInt\030\017 \001(\004\032*\n\010EnvEntry\022\013\n\003key\030\001 \001(\t\022\r\n\005"
+  "value\030\002 \001(\t:\0028\001*P\n\021ProcContainerType\022\023\n\017"
+  "PROC_CTR_NATIVE\020\000\022\021\n\rPROC_CTR_WASM\020\001\022\023\n\017"
+  "PROC_CTR_PYTHON\020\002B\016Z\014sigmaos/procb\006proto"
+  "3"
   ;
 static const ::_pbi::DescriptorTable* const descriptor_table_proc_2fproc_2eproto_deps[3] = {
   &::descriptor_table_google_2fprotobuf_2ftimestamp_2eproto,
@@ -396,7 +397,7 @@ static const ::_pbi::DescriptorTable* const descriptor_table_proc_2fproc_2eproto
 };
 static ::_pbi::once_flag descriptor_table_proc_2fproc_2eproto_once;
 const ::_pbi::DescriptorTable descriptor_table_proc_2fproc_2eproto = {
-    false, false, 1957, descriptor_table_protodef_proc_2fproc_2eproto,
+    false, false, 1961, descriptor_table_protodef_proc_2fproc_2eproto,
     "proc/proc.proto",
     &descriptor_table_proc_2fproc_2eproto_once, descriptor_table_proc_2fproc_2eproto_deps, 3, 9,
     schemas, file_default_instances, TableStruct_proc_2fproc_2eproto::offsets,
@@ -1072,7 +1073,7 @@ ProcEnvProto::ProcEnvProto(const ProcEnvProto& from)
     , decltype(_impl_.usedialproxy_){}
     , decltype(_impl_.runcosandboxflag_){}
     , decltype(_impl_.shmemmbint_){}
-    , decltype(_impl_.useshmem_){}
+    , decltype(_impl_.shmemenabled_){}
     , decltype(_impl_.usespproxyprocclnt_){}
     , decltype(_impl_.containertype_){}
     , /*decltype(_impl_._cached_size_)*/{}};
@@ -1273,7 +1274,7 @@ inline void ProcEnvProto::SharedCtor(
     , decltype(_impl_.usedialproxy_){false}
     , decltype(_impl_.runcosandboxflag_){false}
     , decltype(_impl_.shmemmbint_){uint64_t{0u}}
-    , decltype(_impl_.useshmem_){false}
+    , decltype(_impl_.shmemenabled_){false}
     , decltype(_impl_.usespproxyprocclnt_){false}
     , decltype(_impl_.containertype_){0}
     , /*decltype(_impl_._cached_size_)*/{}
@@ -1748,10 +1749,10 @@ const char* ProcEnvProto::_InternalParse(const char* ptr, ::_pbi::ParseContext* 
         } else
           goto handle_unusual;
         continue;
-      // bool useShmem = 30;
+      // bool shmemEnabled = 30;
       case 30:
         if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 240)) {
-          _impl_.useshmem_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          _impl_.shmemenabled_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
           CHK_(ptr);
         } else
           goto handle_unusual;
@@ -2132,10 +2133,10 @@ uint8_t* ProcEnvProto::_InternalSerialize(
     target = ::_pbi::WireFormatLite::WriteBoolToArray(29, this->_internal_runcosandboxflag(), target);
   }
 
-  // bool useShmem = 30;
-  if (this->_internal_useshmem() != 0) {
+  // bool shmemEnabled = 30;
+  if (this->_internal_shmemenabled() != 0) {
     target = stream->EnsureSpace(target);
-    target = ::_pbi::WireFormatLite::WriteBoolToArray(30, this->_internal_useshmem(), target);
+    target = ::_pbi::WireFormatLite::WriteBoolToArray(30, this->_internal_shmemenabled(), target);
   }
 
   // uint64 shmemMBInt = 31;
@@ -2400,8 +2401,8 @@ size_t ProcEnvProto::ByteSizeLong() const {
         this->_internal_shmemmbint());
   }
 
-  // bool useShmem = 30;
-  if (this->_internal_useshmem() != 0) {
+  // bool shmemEnabled = 30;
+  if (this->_internal_shmemenabled() != 0) {
     total_size += 2 + 1;
   }
 
@@ -2519,8 +2520,8 @@ void ProcEnvProto::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::P
   if (from._internal_shmemmbint() != 0) {
     _this->_internal_set_shmemmbint(from._internal_shmemmbint());
   }
-  if (from._internal_useshmem() != 0) {
-    _this->_internal_set_useshmem(from._internal_useshmem());
+  if (from._internal_shmemenabled() != 0) {
+    _this->_internal_set_shmemenabled(from._internal_shmemenabled());
   }
   if (from._internal_usespproxyprocclnt() != 0) {
     _this->_internal_set_usespproxyprocclnt(from._internal_usespproxyprocclnt());

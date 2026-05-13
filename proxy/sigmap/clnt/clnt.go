@@ -52,7 +52,7 @@ func NewSPProxyClnt(pe *proc.ProcEnv, npc *dialproxyclnt.DialProxyClnt) (*SPProx
 		return nil, err
 	}
 	// Open the shmem segment created by the server during proc spawn.
-	if pe.GetUseShmem() {
+	if pe.GetShmemEnabled() {
 		scc.shm, err = shmem.NewSegment(pe.GetPID().String(), pe.GetShmemMB()*proc.Tmem(sp.MBYTE), false)
 		if err != nil {
 			return nil, err

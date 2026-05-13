@@ -41,7 +41,7 @@ class ProcEnv {
   std::string GetPerf() { return _proto.perf(); }
   bool GetRunCoSandbox() { return _proto.runcosandboxflag(); }
   ProcContainerType GetContainerType() { return _proto.containertype(); }
-  bool GetUseShmem() { return _proto.useshmem(); }
+  bool GetShmemEnabled() { return _proto.shmemenabled(); }
   size_t GetShmemMB() { return (size_t)_proto.shmemmbint(); }
   std::pair<std::shared_ptr<TendpointProto>, bool> GetCachedEndpoint(
       std::string &pn);
