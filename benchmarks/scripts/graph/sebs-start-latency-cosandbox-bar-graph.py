@@ -174,10 +174,10 @@ SEBS_PROC_NAME = "sebs-runner.py"
 
 # Ordered list of (arg_key, display_label) pairs.
 SEBS_BENCHMARKS = [
-    ("thumbnailer",       "Thumbnailer"),
-    ("video_processing",  "Video\nProcessing"),
-    ("image_recognition", "Image\nRecognition"),
-    ("dna_visualisation", "DNA\nVisualisation"),
+    ("thumbnailer",       "Thumbnailer*"),
+    ("video_processing",  "Video\nProcessing*"),
+    ("image_recognition", "Image\nRecognition*"),
+    ("dna_visualisation", "DNA\nVisualisation*"),
     ("sleep",             "Sleep"),
     ("dynamic_html",      "Dynamic\nHTML"),
     ("graph_pagerank",    "Graph\nPagerank"),
