@@ -31,6 +31,7 @@ const INPUT_DIM: usize = 224;
 #[export_name = "boot"]
 pub fn boot(b: *mut c_char, buf_sz: usize) {
     let buf: &mut [u8] = unsafe { slice::from_raw_parts_mut(b as *mut u8, buf_sz) };
+    let runtime_init_start_us = sigmaos::get_time_us();
 
     // Parse lengths.
     let img_bucket_len = u32::from_le_bytes(buf[0..4].try_into().unwrap()) as usize;
@@ -63,6 +64,11 @@ pub fn boot(b: *mut c_char, buf_sz: usize) {
 
     let pn = "name/s3/".to_owned() + &kid;
 
+    sigmaos::log_spawn_latency(
+        buf,
+        "Paper.Initialization.RuntimeInit",
+        sigmaos::get_time_us() - runtime_init_start_us,
+    );
     let transfer_start_us = sigmaos::get_time_us();
     let (model_bytes, img_bytes) = if sigmaos::get_run_co_sandbox() {
         // Delegated path: boot script has already fetched model (rpcIdx=0) and

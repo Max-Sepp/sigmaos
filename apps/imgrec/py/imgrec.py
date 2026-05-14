@@ -30,10 +30,13 @@ def preprocess(img_bytes: bytes) -> np.ndarray:
 
 
 def main():
+    runtime_init_start = time.perf_counter()
     clnt = sigmaos.SigmaosClnt()
     if clnt.get_shmem_enabled():
         clnt.set_use_shmem_writeread(True)
     clnt.started()
+    clnt.log_spawn_latency("Paper.Initialization.RuntimeInit",
+                           int((time.perf_counter() - runtime_init_start) * 1_000_000))
 
     if len(sys.argv) != 7:
         print(f"usage: {sys.argv[0]} img_bucket img_key model_bucket model_key kid async_fetch",
