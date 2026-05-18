@@ -19,13 +19,13 @@ GRAPH_OUT_DIR=$ROOT_DIR/benchmarks/results/graphs
 #  --proc_name cached-srv-cpp
 #printf "\n\n\n"
 
-echo "Generating imgresize time comparison..."
-./benchmarks/scripts/graph/imgresize-time.py \
-   --dir_path_nocosandboxes $RES_OUT_DIR/img_process_gvisor \
-   --dir_path_cosandboxes $RES_OUT_DIR/img_process_gvisor_cosandbox \
-   --dir_path_cosandboxes_writeout $RES_OUT_DIR/img_process_gvisor_cosandbox_writeout \
-   --output $GRAPH_OUT_DIR/imgresize-time.pdf
-echo "Done generating imgresize time comparison..."
+#echo "Generating imgresize time comparison..."
+#./benchmarks/scripts/graph/imgresize-time.py \
+#   --dir_path_nocosandboxes $RES_OUT_DIR/img_process_gvisor \
+#   --dir_path_cosandboxes $RES_OUT_DIR/img_process_gvisor_cosandbox \
+#   --dir_path_cosandboxes_writeout $RES_OUT_DIR/img_process_gvisor_cosandbox_writeout \
+#   --output $GRAPH_OUT_DIR/imgresize-time.pdf
+#echo "Done generating imgresize time comparison..."
 
 echo "Generating start latency comparison..."
 ./benchmarks/scripts/graph/start-latency-cosandbox-bar-graph.py \
@@ -41,32 +41,35 @@ echo "Generating start latency comparison..."
   --dir_path_imgrec_wasm_cosandbox $RES_OUT_DIR/start_latency_imgrec-wasm_cosandbox \
   --dir_path_imgrec_py $RES_OUT_DIR/start_latency_imgrec-py \
   --dir_path_imgrec_py_cosandbox $RES_OUT_DIR/start_latency_imgrec-py_cosandbox \
-  --output $GRAPH_OUT_DIR/start-latency.pdf
+  --output_shims $GRAPH_OUT_DIR/start-latency-shims.pdf \
+  --output_cpp $GRAPH_OUT_DIR/start-latency-cpp.pdf \
+  --output_imgrec $GRAPH_OUT_DIR/start-latency-imgrec.pdf
 echo "Done generating start latency comparison..."
+  #--show_breakdown \
 
 echo "Generating sebs start latency comparison..."
 ./benchmarks/scripts/graph/sebs-start-latency-cosandbox-bar-graph.py \
-    --dir_path_thumbnailer                "$RES_OUT_DIR/sebs_start_latency_210.thumbnailer" \
-    --dir_path_thumbnailer_cosandbox      "$RES_OUT_DIR/sebs_start_latency_210.thumbnailer_cosandbox" \
-    --dir_path_video_processing           "$RES_OUT_DIR/sebs_start_latency_220.video-processing" \
-    --dir_path_video_processing_cosandbox "$RES_OUT_DIR/sebs_start_latency_220.video-processing_cosandbox" \
-    --dir_path_image_recognition           "$RES_OUT_DIR/sebs_start_latency_411.image-recognition" \
-    --dir_path_image_recognition_cosandbox "$RES_OUT_DIR/sebs_start_latency_411.image-recognition_cosandbox" \
-    --dir_path_dna_visualisation           "$RES_OUT_DIR/sebs_start_latency_504.dna-visualisation" \
-    --dir_path_dna_visualisation_cosandbox "$RES_OUT_DIR/sebs_start_latency_504.dna-visualisation_cosandbox" \
-    --dir_path_sleep                "$RES_OUT_DIR/sebs_start_latency_010.sleep" \
-    --dir_path_sleep_cosandbox      "$RES_OUT_DIR/sebs_start_latency_010.sleep_cosandbox" \
-    --dir_path_dynamic_html                "$RES_OUT_DIR/sebs_start_latency_110.dynamic-html" \
-    --dir_path_dynamic_html_cosandbox      "$RES_OUT_DIR/sebs_start_latency_110.dynamic-html_cosandbox" \
-    --dir_path_graph_pagerank                "$RES_OUT_DIR/sebs_start_latency_501.graph-pagerank" \
-    --dir_path_graph_pagerank_cosandbox      "$RES_OUT_DIR/sebs_start_latency_501.graph-pagerank_cosandbox" \
-    --dir_path_graph_mst                "$RES_OUT_DIR/sebs_start_latency_502.graph-mst" \
-    --dir_path_graph_mst_cosandbox      "$RES_OUT_DIR/sebs_start_latency_502.graph-mst_cosandbox" \
-    --dir_path_graph_bfs                "$RES_OUT_DIR/sebs_start_latency_503.graph-bfs" \
-    --dir_path_graph_bfs_cosandbox      "$RES_OUT_DIR/sebs_start_latency_503.graph-bfs_cosandbox" \
-    --output "$GRAPH_OUT_DIR/sebs-start-latency.pdf"
-#    --dir_path_uploader                "$RES_OUT_DIR/sebs_start_latency_120.uploader" \
-#    --dir_path_uploader_cosandbox      "$RES_OUT_DIR/sebs_start_latency_120.uploader_cosandbox" \
+  --dir_path_thumbnailer                "$RES_OUT_DIR/sebs_start_latency_210.thumbnailer" \
+  --dir_path_thumbnailer_cosandbox      "$RES_OUT_DIR/sebs_start_latency_210.thumbnailer_cosandbox" \
+  --dir_path_video_processing           "$RES_OUT_DIR/sebs_start_latency_220.video-processing" \
+  --dir_path_video_processing_cosandbox "$RES_OUT_DIR/sebs_start_latency_220.video-processing_cosandbox" \
+  --dir_path_image_recognition           "$RES_OUT_DIR/sebs_start_latency_411.image-recognition" \
+  --dir_path_image_recognition_cosandbox "$RES_OUT_DIR/sebs_start_latency_411.image-recognition_cosandbox" \
+  --dir_path_dna_visualisation           "$RES_OUT_DIR/sebs_start_latency_504.dna-visualisation" \
+  --dir_path_dna_visualisation_cosandbox "$RES_OUT_DIR/sebs_start_latency_504.dna-visualisation_cosandbox" \
+  --dir_path_sleep                "$RES_OUT_DIR/sebs_start_latency_010.sleep" \
+  --dir_path_sleep_cosandbox      "$RES_OUT_DIR/sebs_start_latency_010.sleep_cosandbox" \
+  --dir_path_dynamic_html                "$RES_OUT_DIR/sebs_start_latency_110.dynamic-html" \
+  --dir_path_dynamic_html_cosandbox      "$RES_OUT_DIR/sebs_start_latency_110.dynamic-html_cosandbox" \
+  --dir_path_graph_pagerank                "$RES_OUT_DIR/sebs_start_latency_501.graph-pagerank" \
+  --dir_path_graph_pagerank_cosandbox      "$RES_OUT_DIR/sebs_start_latency_501.graph-pagerank_cosandbox" \
+  --dir_path_graph_mst                "$RES_OUT_DIR/sebs_start_latency_502.graph-mst" \
+  --dir_path_graph_mst_cosandbox      "$RES_OUT_DIR/sebs_start_latency_502.graph-mst_cosandbox" \
+  --dir_path_graph_bfs                "$RES_OUT_DIR/sebs_start_latency_503.graph-bfs" \
+  --dir_path_graph_bfs_cosandbox      "$RES_OUT_DIR/sebs_start_latency_503.graph-bfs_cosandbox" \
+  --output "$GRAPH_OUT_DIR/sebs-start-latency.pdf"
+#  --dir_path_uploader                "$RES_OUT_DIR/sebs_start_latency_120.uploader" \
+#  --dir_path_uploader_cosandbox      "$RES_OUT_DIR/sebs_start_latency_120.uploader_cosandbox" \
 echo "Done generating sebs start latency comparison..."
 
 #echo "Generating sebs start latency comparison (with uncompressed)..."
@@ -87,18 +90,18 @@ echo "Done generating sebs start latency comparison..."
 #    --output $GRAPH_OUT_DIR/sebs-start-latency-uncompressed.pdf
 #echo "Done generating sebs start latency comparison (with uncompressed)..."
 
-echo "Generating imgresize mem usage comparison..."
-./benchmarks/scripts/graph/imgresize-mem-usage.py \
-   --input_dir $RES_OUT_DIR/img_process_sequential_gvisor_cosandbox_pss \
-   --output $GRAPH_OUT_DIR/imgresize-mem-usage.pdf
-echo "Done generating imgresize mem usage comparison..."
-
-echo "Generating imgresize writeout cost comparison..."
-./benchmarks/scripts/graph/imgresize-cost-writeout.py \
-   --cosandbox_dir $RES_OUT_DIR/img_process_gvisor_cosandbox_writeout \
-   --nocosandbox_dir $RES_OUT_DIR/img_process_gvisor_cosandbox \
-   --output $GRAPH_OUT_DIR/imgresize-cost-writeout.pdf
-echo "Done generating imgresize writeout cost comparison..."
+#echo "Generating imgresize mem usage comparison..."
+#./benchmarks/scripts/graph/imgresize-mem-usage.py \
+#   --input_dir $RES_OUT_DIR/img_process_sequential_gvisor_cosandbox_pss \
+#   --output $GRAPH_OUT_DIR/imgresize-mem-usage.pdf
+#echo "Done generating imgresize mem usage comparison..."
+#
+#echo "Generating imgresize writeout cost comparison..."
+#./benchmarks/scripts/graph/imgresize-cost-writeout.py \
+#   --cosandbox_dir $RES_OUT_DIR/img_process_gvisor_cosandbox_writeout \
+#   --nocosandbox_dir $RES_OUT_DIR/img_process_gvisor_cosandbox \
+#   --output $GRAPH_OUT_DIR/imgresize-cost-writeout.pdf
+#echo "Done generating imgresize writeout cost comparison..."
 
 echo "Generating vecdb start latency breakdown simplified graph..."
 ./benchmarks/scripts/graph/start-latency-breakdown-timeline.py \

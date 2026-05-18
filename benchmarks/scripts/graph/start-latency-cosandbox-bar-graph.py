@@ -150,6 +150,47 @@ def find_setup_init_lines(dir_path, proc_pid):
     return setup_timings, init_timings
 
 
+def get_setup_and_init_times(dir_path, proc_name):
+    """
+    Returns (setup_span_ms, init_start_ms, init_span_ms):
+      setup_span  = end of last setup op - start of first setup op (bottom always 0)
+      init_start  = start of first init op (sinceSpawn - opTime, clamped to 0)
+      init_span   = end of last init op - init_start
+    Returns (None, None, None) on failure.
+    """
+    proc_pid = find_proc_pid(dir_path, proc_name, start=True)
+    if proc_pid is None:
+        return None, None, None
+
+    setup_timings, init_timings = find_setup_init_lines(dir_path, proc_pid)
+
+    def phase_bounds(timings):
+        """Returns (start_ms, end_ms) for a phase, or (None, None)."""
+        end_ms   = None
+        start_ms = None
+        for _, (since_spawn_ms, op_time_ms) in timings.items():
+            if since_spawn_ms is None:
+                continue
+            if end_ms is None or since_spawn_ms > end_ms:
+                end_ms = since_spawn_ms
+            s = max(0.0, since_spawn_ms - op_time_ms) if op_time_ms is not None else 0.0
+            if start_ms is None or s < start_ms:
+                start_ms = s
+        return start_ms, end_ms
+
+    _, setup_end       = phase_bounds(setup_timings)
+    init_start, init_end = phase_bounds(init_timings)
+
+    if setup_end is None and init_end is None:
+        return None, None, None
+
+    setup_span = setup_end if setup_end is not None else 0.0
+    init_start = init_start or 0.0
+    init_span  = (init_end - init_start) if init_end is not None else 0.0
+
+    return setup_span, init_start, init_span
+
+
 def get_last_init_time(dir_path, proc_name):
     """
     Extract the time since spawn for the last initialization step for a given proc.
@@ -240,9 +281,24 @@ def main():
         help="Path to imgrec-py with cosandbox benchmark output directory"
     )
     parser.add_argument(
-        "--output",
-        default="start-latency-cosandbox-comparison.png",
-        help="Output filename for the graph (default: start-latency-cosandbox-comparison.png)"
+        "--output_shims",
+        default="start-latency-cosandbox-shims.pdf",
+        help="Output PDF for etcd + memcached graph (default: start-latency-cosandbox-shims.pdf)"
+    )
+    parser.add_argument(
+        "--output_cpp",
+        default="start-latency-cosandbox-cpp.pdf",
+        help="Output PDF for vecdb + cached graph (default: start-latency-cosandbox-cpp.pdf)"
+    )
+    parser.add_argument(
+        "--output_imgrec",
+        default="start-latency-cosandbox-imgrec.pdf",
+        help="Output PDF for imgrec-wasm + imgrec-py graph (default: start-latency-cosandbox-imgrec.pdf)"
+    )
+    parser.add_argument(
+        "--show_breakdown",
+        action="store_true",
+        help="Overlay setup and initialization time segments on each bar"
     )
 
     args = parser.parse_args()
@@ -280,57 +336,123 @@ def main():
         print("Error: No data found for any proc", file=sys.stderr)
         sys.exit(1)
 
-    # Prepare data for plotting
-    procs = ['etcd-shim', 'cossim-srv-cpp', 'cached-srv-cpp', 'memcached-shim',
-             'imgrec_precompiled.wasm', 'imgrec.py']
-    proc_labels = ['Etcd', 'VecDB', 'Cached', 'Memcached', 'Imgrec\n(WASM)', 'Imgrec\n(Python)']
+    # Optionally collect setup/init breakdown per proc
+    breakdown = None
+    if args.show_breakdown:
+        proc_dirs = {
+            'etcd-shim':               (args.dir_path_etcd,        args.dir_path_etcd_cosandbox),
+            'memcached-shim':          (args.dir_path_memcached,   args.dir_path_memcached_cosandbox),
+            'cossim-srv-cpp':          (args.dir_path_vecdb,       args.dir_path_vecdb_cosandbox),
+            'cached-srv-cpp':          (args.dir_path_cached,      args.dir_path_cached_cosandbox),
+            'imgrec_precompiled.wasm': (args.dir_path_imgrec_wasm, args.dir_path_imgrec_wasm_cosandbox),
+            'imgrec.py':               (args.dir_path_imgrec_py,   args.dir_path_imgrec_py_cosandbox),
+        }
+        breakdown = {}
+        for proc, (d_without, d_with) in proc_dirs.items():
+            breakdown[proc] = {
+                'without_cosandbox': get_setup_and_init_times(d_without, proc),  # (setup_span, init_start, init_span)
+                'with_cosandbox':    get_setup_and_init_times(d_with, proc),
+            }
 
-    without_cosandbox = [data[proc]['without_cosandbox'] if data[proc]['without_cosandbox'] is not None else 0 for proc in procs]
-    with_cosandbox = [data[proc]['with_cosandbox'] if data[proc]['with_cosandbox'] is not None else 0 for proc in procs]
+    # Three graphs: shims, cpp services, imgrec
+    shims_procs = ['etcd-shim', 'memcached-shim']
+    shims_labels = ['Etcd', 'Memcached']
+    cpp_procs = ['cossim-srv-cpp', 'cached-srv-cpp']
+    cpp_labels = ['VecDB', 'Cached']
+    imgrec_procs = ['imgrec_precompiled.wasm', 'imgrec.py']
+    imgrec_labels = ['Imgrec-wasm', 'Imgrec-py']
 
-    # Create bar graph
-    x = np.arange(len(proc_labels))
+    def group_values(procs):
+        without = [data[p]['without_cosandbox'] if data[p]['without_cosandbox'] is not None else 0 for p in procs]
+        with_ = [data[p]['with_cosandbox'] if data[p]['with_cosandbox'] is not None else 0 for p in procs]
+        return without, with_
+
     width = 0.35
 
-    fig, ax = plt.subplots(figsize=(9.0, 2.4))
-    bars1 = ax.bar(x - width/2, without_cosandbox, width, label='Without co-sandbox', color='steelblue')
-    bars2 = ax.bar(x + width/2, with_cosandbox, width, label='With co-sandbox', color='coral')
+    def make_figure(procs, labels, output_path, bd=None):
+        from matplotlib.patches import Patch
+        without_vals, with_vals = group_values(procs)
+        x = np.arange(len(labels))
+        fig, ax = plt.subplots(figsize=(5.0, 2.4))
 
-    # Customize the plot
-    ax.set_xlabel('Service', fontsize=12)
-    ax.set_ylabel('Start time (ms)', fontsize=12)
-    ax.set_xticks(x)
-    ax.set_xticklabels(proc_labels)
-    ax.legend()
-    ax.grid(axis='y', alpha=0.3, linestyle='--')
+        if bd is not None:
+            setup_wo      = [bd[p]['without_cosandbox'][0] or 0 for p in procs]
+            init_start_wo = [bd[p]['without_cosandbox'][1] or 0 for p in procs]
+            init_wo       = [bd[p]['without_cosandbox'][2] or 0 for p in procs]
+            setup_wi      = [bd[p]['with_cosandbox'][0] or 0 for p in procs]
+            init_start_wi = [bd[p]['with_cosandbox'][1] or 0 for p in procs]
+            init_wi       = [bd[p]['with_cosandbox'][2] or 0 for p in procs]
+            # without_vals/with_vals come from get_last_init_time (true end-to-end)
 
-    # Add value labels on top of bars
-    def add_value_labels(bars):
-        for bar in bars:
-            height = bar.get_height()
-            if height > 0:
-                ax.text(bar.get_x() + bar.get_width()/2., height,
-                       f'{height:.0f}ms',
-                       ha='center', va='bottom', fontsize=9)
+            sub_w  = (width - 0.01) / 2   # each sub-bar width
+            offset = sub_w / 2 + 0.005    # distance from outer-bar center to sub-bar center
 
-    add_value_labels(bars1)
-    add_value_labels(bars2)
+            # Outline bars showing total end-to-end time
+            ax.bar(x - width/2, without_vals, width, fill=False, edgecolor='steelblue', linewidth=1.5)
+            ax.bar(x + width/2, with_vals,    width, fill=False, edgecolor='coral',     linewidth=1.5)
 
-    # Add headroom at the top for labels
-    y_max = max(max(without_cosandbox), max(with_cosandbox))
-    ax.set_ylim(0, y_max * 1.15)
+            # Setup sub-bars (left half, always starting from 0)
+            ax.bar(x - width/2 - offset, setup_wo, sub_w, color='steelblue')
+            ax.bar(x + width/2 - offset, setup_wi, sub_w, color='coral')
 
-    plt.tight_layout()
-    plt.savefig(args.output, dpi=300, bbox_inches='tight')
-    print(f"Graph saved to {args.output}")
+            # Initialization sub-bars (right half, starting at first init op)
+            ax.bar(x - width/2 + offset, init_wo, sub_w, bottom=init_start_wo, color='steelblue', hatch='///', edgecolor='white', linewidth=0)
+            ax.bar(x + width/2 + offset, init_wi, sub_w, bottom=init_start_wi, color='coral',     hatch='///', edgecolor='white', linewidth=0)
+        else:
+            ax.bar(x - width/2, without_vals, width, color='steelblue')
+            ax.bar(x + width/2, with_vals,    width, color='coral')
+
+        ax.set_ylabel('Start time (ms)', fontsize=12)
+        ax.set_xticks(x)
+        ax.set_xticklabels(labels)
+        ax.grid(axis='y', alpha=0.3, linestyle='--')
+        y_max = max(max(without_vals), max(with_vals))
+        ax.set_ylim(0, y_max * 1.15)
+
+        for xpos, h in zip(x - width/2, without_vals):
+            if h > 0:
+                ax.text(xpos, h, f'{h:.0f}ms', ha='center', va='bottom', fontsize=9)
+        for xpos, h in zip(x + width/2, with_vals):
+            if h > 0:
+                ax.text(xpos, h, f'{h:.0f}ms', ha='center', va='bottom', fontsize=9)
+
+        if bd is not None:
+            legend_handles = [
+                Patch(facecolor='steelblue', label='Without co-sandbox'),
+                Patch(facecolor='coral',     label='With co-sandbox'),
+                Patch(facecolor='lightgrey', edgecolor='grey', label='Setup'),
+                Patch(facecolor='lightgrey', edgecolor='grey', hatch='///', label='Initialization'),
+            ]
+            ax.legend(handles=legend_handles, loc='lower center', bbox_to_anchor=(0.5, 1.0),
+                      ncol=2, fontsize=10, borderpad=0.3, handletextpad=0.5,
+                      columnspacing=1.0, frameon=True)
+        else:
+            legend_handles = [
+                Patch(facecolor='steelblue', label='Without co-sandbox'),
+                Patch(facecolor='coral',     label='With co-sandbox'),
+            ]
+            ax.legend(handles=legend_handles, loc='lower center', bbox_to_anchor=(0.5, 1.0),
+                      ncol=2, fontsize=10, borderpad=0.3, handletextpad=0.5,
+                      columnspacing=1.0, frameon=True)
+
+        plt.tight_layout()
+        plt.savefig(output_path, dpi=300, bbox_inches='tight')
+        print(f"Graph saved to {output_path}")
+        plt.close(fig)
+
+    make_figure(shims_procs, shims_labels, args.output_shims, breakdown)
+    make_figure(cpp_procs, cpp_labels, args.output_cpp, breakdown)
+    make_figure(imgrec_procs, imgrec_labels, args.output_imgrec, breakdown)
 
     # Print summary statistics
     print("\nSummary:")
     print("=" * 80)
-    for i, proc in enumerate(procs):
+    all_procs = shims_procs + cpp_procs + imgrec_procs
+    all_labels = shims_labels + cpp_labels + imgrec_labels
+    for i, proc in enumerate(all_procs):
         without = data[proc]['without_cosandbox']
         with_init = data[proc]['with_cosandbox']
-        print(f"{proc_labels[i]:20} | Without: {without:.2f}ms | With: {with_init:.2f}ms | Diff: {(without - with_init):.2f}ms ({((without - with_init) / without * 100):.1f}%)" if without and with_init else f"{proc_labels[i]:20} | Data missing")
+        print(f"{all_labels[i]:20} | Without: {without:.2f}ms | With: {with_init:.2f}ms | Diff: {(without - with_init):.2f}ms ({((without - with_init) / without * 100):.1f}%)" if without and with_init else f"{all_labels[i]:20} | Data missing")
 
 
 if __name__ == "__main__":

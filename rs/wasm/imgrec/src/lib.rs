@@ -66,7 +66,7 @@ pub fn boot(b: *mut c_char, buf_sz: usize) {
 
     sigmaos::log_spawn_latency(
         buf,
-        "Paper.Initialization.RuntimeInit",
+        "Paper.Setup.RuntimeInit",
         sigmaos::get_time_us() - runtime_init_start_us,
     );
     let transfer_start_us = sigmaos::get_time_us();

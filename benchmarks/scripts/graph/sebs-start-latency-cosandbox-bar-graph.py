@@ -143,6 +143,44 @@ def find_setup_init_lines(dir_path, proc_pid):
     return setup_timings, init_timings
 
 
+def get_setup_and_init_times(dir_path, proc_name):
+    """
+    Returns (setup_span_ms, init_start_ms, init_span_ms):
+      setup_span  = end of last setup op - start of first setup op (bar bottom always 0)
+      init_start  = start of first init op (sinceSpawn - opTime, clamped to 0)
+      init_span   = end of last init op - init_start
+    Returns (None, None, None) on failure.
+    """
+    proc_pid = find_proc_pid(dir_path, proc_name, start=True)
+    if proc_pid is None:
+        return None, None, None
+
+    setup_timings, init_timings = find_setup_init_lines(dir_path, proc_pid)
+
+    def phase_bounds(timings):
+        end_ms = start_ms = None
+        for _, (since_spawn_ms, op_time_ms) in timings.items():
+            if since_spawn_ms is None:
+                continue
+            if end_ms is None or since_spawn_ms > end_ms:
+                end_ms = since_spawn_ms
+            s = max(0.0, since_spawn_ms - op_time_ms) if op_time_ms is not None else 0.0
+            if start_ms is None or s < start_ms:
+                start_ms = s
+        return start_ms, end_ms
+
+    _, setup_end         = phase_bounds(setup_timings)
+    init_start, init_end = phase_bounds(init_timings)
+
+    if setup_end is None and init_end is None:
+        return None, None, None
+
+    setup_span = setup_end if setup_end is not None else 0.0
+    init_start = init_start or 0.0
+    init_span  = (init_end - init_start) if init_end is not None else 0.0
+    return setup_span, init_start, init_span
+
+
 def get_last_init_time(dir_path, proc_name):
     """
     Extract the time since spawn for the last initialization step for a given proc.
@@ -215,6 +253,11 @@ def main():
             help=f"Path to {key} with co-sandbox benchmark output directory"
         )
     parser.add_argument(
+        "--show_breakdown",
+        action="store_true",
+        help="Overlay setup and initialization time sub-bars inside each end-to-end bar"
+    )
+    parser.add_argument(
         "--output",
         default="sebs-start-latency-cosandbox-comparison.png",
         help="Output filename for the graph (default: sebs-start-latency-cosandbox-comparison.png)"
@@ -246,48 +289,105 @@ def main():
         print("Error: No data found for any SeBS benchmark", file=sys.stderr)
         sys.exit(1)
 
+    breakdown = None
+    if args.show_breakdown and not args.show_uncompressed:
+        breakdown = {}
+        for key, _ in SEBS_BENCHMARKS:
+            plain_dir     = getattr(args, f"dir_path_{key}")
+            cosandbox_dir = getattr(args, f"dir_path_{key}_cosandbox")
+            breakdown[key] = {
+                'compressed':     get_setup_and_init_times(plain_dir,     SEBS_PROC_NAME),
+                'with_cosandbox': get_setup_and_init_times(cosandbox_dir, SEBS_PROC_NAME),
+            }
+
     keys = [k for k, _ in SEBS_BENCHMARKS]
     proc_labels   = [data[k]['label']         for k in keys]
     compressed    = [data[k]['compressed']     or 0 for k in keys]
     with_cosandbox = [data[k]['with_cosandbox'] or 0 for k in keys]
 
-    x = np.arange(len(proc_labels))
+    x = np.arange(len(proc_labels)) * 0.3
+
+    from matplotlib.patches import Patch
 
     if args.show_uncompressed:
         uncompressed = [data[k]['uncompressed'] or 0 for k in keys]
-        width = 0.25
+        width = 0.08
         fig, ax = plt.subplots(figsize=(9.0, 2.4))
         bars1 = ax.bar(x - width, compressed,     width, label='Compressed',      color='steelblue')
         bars2 = ax.bar(x,         uncompressed,   width, label='Uncompressed',    color='seagreen')
         bars3 = ax.bar(x + width, with_cosandbox, width, label='With co-sandbox', color='coral')
-        all_bars = [bars1, bars2, bars3]
         y_max = max(max(compressed), max(uncompressed), max(with_cosandbox))
+
+        def add_value_labels(bars):
+            for bar in bars:
+                height = bar.get_height()
+                if height > 0:
+                    ax.text(bar.get_x() + bar.get_width()/2., height,
+                            f'{height:.0f}ms', ha='center', va='bottom', fontsize=9)
+        for bars in [bars1, bars2, bars3]:
+            add_value_labels(bars)
+
+        legend_handles = [
+            Patch(facecolor='steelblue', label='Compressed'),
+            Patch(facecolor='seagreen',  label='Uncompressed'),
+            Patch(facecolor='coral',     label='With co-sandbox'),
+        ]
+        ncol = 3
     else:
-        width = 0.35
+        width = 0.12
         fig, ax = plt.subplots(figsize=(16.0, 2.4))
-        bars1 = ax.bar(x - width/2, compressed,     width, label='Without co-sandbox', color='steelblue')
-        bars3 = ax.bar(x + width/2, with_cosandbox, width, label='With co-sandbox',    color='coral')
-        all_bars = [bars1, bars3]
+
+        if breakdown:
+            sub_w  = (width - 0.01) / 2
+            offset = sub_w / 2 + 0.005
+
+            setup_co  = [breakdown[k]['compressed'][0]     or 0 for k in keys]
+            i_start_co = [breakdown[k]['compressed'][1]    or 0 for k in keys]
+            init_co   = [breakdown[k]['compressed'][2]     or 0 for k in keys]
+            setup_cs  = [breakdown[k]['with_cosandbox'][0] or 0 for k in keys]
+            i_start_cs = [breakdown[k]['with_cosandbox'][1] or 0 for k in keys]
+            init_cs   = [breakdown[k]['with_cosandbox'][2] or 0 for k in keys]
+
+            ax.bar(x - width/2, compressed,     width, fill=False, edgecolor='steelblue', linewidth=1.5)
+            ax.bar(x + width/2, with_cosandbox, width, fill=False, edgecolor='coral',     linewidth=1.5)
+            ax.bar(x - width/2 - offset, setup_co, sub_w, color='steelblue')
+            ax.bar(x + width/2 - offset, setup_cs, sub_w, color='coral')
+            ax.bar(x - width/2 + offset, init_co, sub_w, bottom=i_start_co, color='steelblue', hatch='///', edgecolor='white', linewidth=0)
+            ax.bar(x + width/2 + offset, init_cs, sub_w, bottom=i_start_cs, color='coral',     hatch='///', edgecolor='white', linewidth=0)
+
+            legend_handles = [
+                Patch(facecolor='steelblue', label='Without co-sandbox'),
+                Patch(facecolor='coral',     label='With co-sandbox'),
+                Patch(facecolor='lightgrey', edgecolor='grey', label='Setup'),
+                Patch(facecolor='lightgrey', edgecolor='grey', hatch='///', label='Initialization'),
+            ]
+            ncol = 2
+        else:
+            ax.bar(x - width/2, compressed,     width, color='steelblue')
+            ax.bar(x + width/2, with_cosandbox, width, color='coral')
+            legend_handles = [
+                Patch(facecolor='steelblue', label='Without co-sandbox'),
+                Patch(facecolor='coral',     label='With co-sandbox'),
+            ]
+            ncol = 2
+
+        for xpos, h in zip(x - width/2, compressed):
+            if h > 0:
+                ax.text(xpos, h, f'{h:.0f}ms', ha='center', va='bottom', fontsize=9)
+        for xpos, h in zip(x + width/2, with_cosandbox):
+            if h > 0:
+                ax.text(xpos, h, f'{h:.0f}ms', ha='center', va='bottom', fontsize=9)
+
         y_max = max(max(compressed), max(with_cosandbox))
 
-    ax.set_xlabel('Benchmark', fontsize=12)
     ax.set_ylabel('Start time (ms)', fontsize=12)
+    ax.set_xlim(x[0] - width - 0.02, x[-1] + width + 0.02)
     ax.set_xticks(x)
     ax.set_xticklabels(proc_labels)
-    ax.legend()
     ax.grid(axis='y', alpha=0.3, linestyle='--')
-
-    def add_value_labels(bars):
-        for bar in bars:
-            height = bar.get_height()
-            if height > 0:
-                ax.text(bar.get_x() + bar.get_width()/2., height,
-                        f'{height:.0f}ms',
-                        ha='center', va='bottom', fontsize=9)
-
-    for bars in all_bars:
-        add_value_labels(bars)
-
+    ax.legend(handles=legend_handles, loc='lower center', bbox_to_anchor=(0.5, 1.0),
+              ncol=ncol, fontsize=10, borderpad=0.3, handletextpad=0.5,
+              columnspacing=1.0, frameon=True)
     ax.set_ylim(0, y_max * 1.15)
 
     plt.tight_layout()

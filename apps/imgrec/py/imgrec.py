@@ -35,7 +35,7 @@ def main():
     if clnt.get_shmem_enabled():
         clnt.set_use_shmem_writeread(True)
     clnt.started()
-    clnt.log_spawn_latency("Paper.Initialization.RuntimeInit",
+    clnt.log_spawn_latency("Paper.Setup.RuntimeInit",
                            int((time.perf_counter() - runtime_init_start) * 1_000_000))
 
     if len(sys.argv) != 7:
