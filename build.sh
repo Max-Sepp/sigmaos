@@ -305,7 +305,7 @@ fi
 if [ "${NO_DOCKER}" != "true" ]; then
   echo "========== Copying kernel bins for procd =========="
   if [ "${TARGET}" == "local" ]; then
-    sudo cp $ROOT/create-net.sh $KERNELBIN/
+    cp $ROOT/create-net.sh $KERNELBIN/
     cp $KERNELBIN/procd $PROCD_BIN/
     cp $KERNELBIN/spproxyd $PROCD_BIN/
     cp $KERNELBIN/wasmd $PROCD_BIN/
