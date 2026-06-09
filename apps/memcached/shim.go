@@ -22,9 +22,9 @@ import (
 )
 
 const (
-	TMPFS_MOUNT      = "/tmp/memcached"
-	SNAP_FILE        = "snapshot"
-	MEMCACHED_MEM_SZ = "40" // Min mem sz for memcached is 39 MB
+	TMPFS_MOUNT          = "/tmp/memcached"
+	SNAP_FILE            = "snapshot"
+	MEMCACHED_MEM_SZ_DEFAULT = "40" // Min mem sz for memcached is 39 MB
 )
 
 type MemcachedShim struct {
@@ -73,7 +73,9 @@ func RunMemcachedShim(snapPn string, port string) error {
 	perf.LogSpawnLatency("Initialization.LoadState", pe.GetPID(), pe.GetSpawnTime(), start)
 	start = time.Now()
 	// Start memcached
-	cmd, err := startMemcached(port)
+	memSz := memSzFromSnapPn(snapPn)
+	db.DPrintf(db.ALWAYS, "Starting memcached with mem size %vM", memSz)
+	cmd, err := startMemcached(port, memSz)
 	if err != nil {
 		db.DFatalf("Err startMemcached: %v", err)
 		return err
@@ -229,7 +231,20 @@ func (ms *MemcachedShim) restoreSnapshot(snapPn string) (time.Time, error) {
 	return start, nil
 }
 
-func startMemcached(port string) (*exec.Cmd, error) {
+// memSzFromSnapPn extracts the memory size (in MB, without unit) from the
+// snapshot filename suffix, e.g. "memcached-snapshot-40M" → "40".
+// Falls back to MEMCACHED_MEM_SZ_DEFAULT if no M-suffixed segment is found.
+func memSzFromSnapPn(snapPn string) string {
+	base := filepath.Base(snapPn)
+	parts := strings.Split(base, "-")
+	last := parts[len(parts)-1]
+	if strings.HasSuffix(last, "M") {
+		return strings.TrimSuffix(last, "M")
+	}
+	return MEMCACHED_MEM_SZ_DEFAULT
+}
+
+func startMemcached(port, memSz string) (*exec.Cmd, error) {
 	// Build the memcached command arguments
 	// -u: must specify that memcached runs as root user, because it runs in the
 	// Docker container
@@ -240,7 +255,7 @@ func startMemcached(port string) (*exec.Cmd, error) {
 	args := []string{
 		"-u", "root",
 		"-p", port,
-		"-m", MEMCACHED_MEM_SZ,
+		"-m", memSz,
 		"-c", "1024",
 		"-e", filepath.Join(TMPFS_MOUNT, SNAP_FILE),
 		"-v", // verbose mode
