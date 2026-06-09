@@ -43,18 +43,19 @@ type BenchConfig struct {
 // remote benchmarks
 func NewBenchConfig() (*BenchConfig, error) {
 	cfg := &BenchConfig{
-		Platform:   sp.Tplatform(platformArg),
-		VPC:        vpcArg,
-		Tag:        tagArg,
-		Branch:     branchArg,
-		Version:    versionArg,
-		Debug:      os.Getenv(proc.SIGMADEBUG),
-		Perf:       os.Getenv(proc.SIGMAPERF),
-		NoNetproxy: noNetproxyArg,
-		Overlays:   overlaysArg,
-		Parallel:   parallelArg,
-		NoShutdown: noShutdownArg,
-		K8s:        k8sArg,
+		Platform:     sp.Tplatform(platformArg),
+		VPC:          vpcArg,
+		Tag:          tagArg,
+		Branch:       branchArg,
+		Version:      versionArg,
+		Debug:        os.Getenv(proc.SIGMADEBUG),
+		Perf:         os.Getenv(proc.SIGMAPERF),
+		NoNetproxy:   noNetproxyArg,
+		Overlays:     overlaysArg,
+		Parallel:     parallelArg,
+		NoShutdown:   noShutdownArg,
+		K8s:          k8sArg,
+		ReloadGVisor: reloadGVisor,
 	}
 	// Check that required arguments have been set
 	if cfg.Platform == sp.NOT_SET {
