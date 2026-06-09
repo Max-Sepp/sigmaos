@@ -14,7 +14,7 @@ import (
 	sp "sigmaos/sigmap"
 )
 
-const SHMEM_MB proc.Tmem = 42
+const SHMEM_MB proc.Tmem = 250
 
 type MemcachedJobConfig struct {
 	Job            string     `json:"job"`
