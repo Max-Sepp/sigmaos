@@ -57,7 +57,7 @@ func TestGenSnapshot(t *testing.T) {
 	memcachedBinary := filepath.Join(projectRoot, "bin", "user", "memcached-v1.0")
 	args := []string{
 		"-p", PORT,
-		"-m", memcached.MEMCACHED_MEM_SZ,
+		"-m", memcached.MEMCACHED_MEM_SZ_DEFAULT,
 		"-c", "1024",
 		"-e", filepath.Join(memcached.TMPFS_MOUNT, memcached.SNAP_FILE), // Point memcached at the tmpfs mount snapshot file
 		"-v", // verbose mode

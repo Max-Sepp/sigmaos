@@ -146,13 +146,15 @@ var DefaultImgBenchConfig = &ImgBenchConfig{
 
 var DefaultEtcdBenchConfig = &EtcdBenchConfig{
 	JobCfg: &etcd.EtcdJobConfig{
-		Job:          "etcd-job",
-		SnapshotPath: "9ps3/snapshot.db",
-		Name:         "etcd-proc",
-		PeerPort:     6380,
-		ClientPort:   6379,
-		UseCoSandbox: true,
-		Mcpu:         proc.Tmcpu(1000),
+		Job:            "etcd-job",
+		SnapshotS3Path: "name/s3/~local/9ps3/snapshot.db",
+		SnapshotUXPath: "name/ux/~local/snapshot.db",
+		UseUX:          false,
+		Name:           "etcd-proc",
+		PeerPort:       6380,
+		ClientPort:     6379,
+		UseCoSandbox:   true,
+		Mcpu:           proc.Tmcpu(1000),
 	},
 }
 

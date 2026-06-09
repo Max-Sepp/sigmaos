@@ -1,6 +1,7 @@
 package etcd
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,6 +17,7 @@ import (
 	db "sigmaos/debug"
 	"sigmaos/proc"
 	s3clnt "sigmaos/proxy/s3/clnt"
+	uxclnt "sigmaos/proxy/ux/clnt"
 	sp "sigmaos/sigmap"
 	"sigmaos/sigmasrv"
 	"sigmaos/util/perf"
@@ -25,6 +27,7 @@ type EtcdShim struct {
 	clnt   *clientv3.Client
 	ssrv   *sigmasrv.SigmaSrv
 	s3Clnt *s3clnt.S3Clnt
+	uxClnt *uxclnt.UXClnt
 }
 
 func RunEtcdShim(snapPn, name string, peerUrls, clientUrls, listenClientUrls []string) error {
@@ -37,13 +40,22 @@ func RunEtcdShim(snapPn, name string, peerUrls, clientUrls, listenClientUrls []s
 		return err
 	}
 	es.ssrv = ssrv
+	es.ssrv.SigmaClnt().SetUseShmemWriteread(true)
 	start := time.Now()
-	// Create an S3 clnt
-	s3Clnt, err := s3clnt.NewS3ClntInit(es.ssrv.SigmaClnt().FsLib, filepath.Join(sp.S3, pe.GetKernelID()), pe.GetRunCoSandbox())
-	if err != nil {
-		db.DFatalf("Err newS3Clnt: %v", err)
+	// Create an S3 or UX clnt depending on the snapPn prefix
+	if strings.HasPrefix(snapPn, sp.UX) {
+		uxc, err := uxclnt.NewUXClntInit(es.ssrv.SigmaClnt().FsLib, filepath.Join(sp.UX, pe.GetKernelID()), pe.GetRunCoSandbox())
+		if err != nil {
+			db.DFatalf("Err newUXClnt: %v", err)
+		}
+		es.uxClnt = uxc
+	} else {
+		s3c, err := s3clnt.NewS3ClntInit(es.ssrv.SigmaClnt().FsLib, filepath.Join(sp.S3, pe.GetKernelID()), pe.GetRunCoSandbox())
+		if err != nil {
+			db.DFatalf("Err newS3Clnt: %v", err)
+		}
+		es.s3Clnt = s3c
 	}
-	es.s3Clnt = s3Clnt
 	perf.LogSpawnLatency("Initialization.ConnectionSetup", pe.GetPID(), pe.GetSpawnTime(), start)
 	start = time.Now()
 	// Restore the snapshot to a fresh etcd directory
@@ -119,27 +131,46 @@ func RunEtcdShim(snapPn, name string, peerUrls, clientUrls, listenClientUrls []s
 }
 
 func (es *EtcdShim) restoreSnapshot(snapPn string, name string, peerUrls []string) error {
-	pn := strings.Split(snapPn, "/")
-	bucket := pn[0]
-	key := filepath.Join(pn[1:]...)
+	// Determine backend and strip the "name/{s3,ux}/~local/" prefix
+	isUX := strings.HasPrefix(snapPn, sp.UX)
+	prefix := sp.S3 + sp.LOCAL + "/"
+	if isUX {
+		prefix = sp.UX + sp.LOCAL + "/"
+	}
+	strippedPn, ok := strings.CutPrefix(snapPn, prefix)
+	if !ok {
+		return fmt.Errorf("snapPn %v missing expected prefix %v", snapPn, prefix)
+	}
+
 	var b []byte
 	var err error
 	start := time.Now()
 	if es.ssrv.SigmaClnt().ProcEnv().GetRunCoSandbox() {
 		var transferDur time.Duration
-		b, transferDur, err = es.s3Clnt.DelegatedGetObject(0)
+		if isUX {
+			b, transferDur, err = es.uxClnt.DelegatedGetFile(0)
+		} else {
+			b, transferDur, err = es.s3Clnt.DelegatedGetObject(0)
+		}
 		if err != nil {
-			db.DPrintf(db.ETCD_ERR, "Err DelegatedGetObject bucket:%v key:%v: %v", bucket, key, err)
-			db.DPrintf(db.ERROR, "Err DelegatedGetObject bucket:%v key:%v: %v", bucket, key, err)
+			db.DPrintf(db.ETCD_ERR, "Err delegated get %v: %v", strippedPn, err)
+			db.DPrintf(db.ERROR, "Err delegated get %v: %v", strippedPn, err)
 			return err
 		}
 		perf.LogSpawnLatency("Paper.Initialization.TransferState", es.ssrv.SigmaClnt().ProcEnv().GetPID(), es.ssrv.SigmaClnt().ProcEnv().GetSpawnTime(), time.Now().Add(-1*transferDur))
 		db.DPrintf(db.ETCD, "Done delegated get")
 	} else {
-		b, err = es.s3Clnt.GetObject(bucket, key, false)
+		if isUX {
+			b, err = es.uxClnt.GetFile(strippedPn)
+		} else {
+			pn := strings.Split(strippedPn, "/")
+			bucket := pn[0]
+			key := filepath.Join(pn[1:]...)
+			b, err = es.s3Clnt.GetObject(bucket, key, false)
+		}
 		if err != nil {
-			db.DPrintf(db.ETCD_ERR, "Err GetObject bucket:%v key:%v: %v", bucket, key, err)
-			db.DPrintf(db.ERROR, "Err GetObject bucket:%v key:%v: %v", bucket, key, err)
+			db.DPrintf(db.ETCD_ERR, "Err get %v: %v", strippedPn, err)
+			db.DPrintf(db.ERROR, "Err get %v: %v", strippedPn, err)
 			return err
 		}
 		db.DPrintf(db.ETCD, "Done direct get")

@@ -165,6 +165,14 @@ func NewStartLatencyJob(ts *test.RealmTstate, cfg *benchmarks.StartLatencyBenchC
 		if !assert.Nil(ts.Ts.T, err, "Err new etcd job: %v", err) {
 			return ji
 		}
+		if ji.etcdCfg.JobCfg.UseUX {
+			srcPath, _ := strings.CutPrefix(ji.etcdCfg.JobCfg.SnapshotS3Path, sp.S3+sp.LOCAL+"/")
+			dstPath, _ := strings.CutPrefix(ji.etcdCfg.JobCfg.SnapshotUXPath, sp.UX+sp.LOCAL+"/")
+			err = ji.etcdJob.DownloadSnapToAllUXs(srcPath, dstPath)
+			if !assert.Nil(ts.Ts.T, err, "Err DownloadSnapToAllUXs etcd: %v", err) {
+				return ji
+			}
+		}
 	case "imgrec-py":
 		ji.imgrecPyJob, err = imgrec_py.NewImgrecPyJob(ji.imgrecPyCfg.JobCfg, ts.SigmaClnt)
 		if !assert.Nil(ts.Ts.T, err, "Err new imgrec-py job: %v", err) {

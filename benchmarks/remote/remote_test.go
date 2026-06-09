@@ -1788,20 +1788,22 @@ func TestStartLatency(t *testing.T) {
 				}
 				etcdCfg := &benchmarks.EtcdBenchConfig{
 					JobCfg: &etcd.EtcdJobConfig{
-						Job:          "etcd-job",
-						SnapshotPath: "9ps3/snapshot-14MB.db",
-						Name:         "etcd-proc",
-						PeerPort:     6380,
-						ClientPort:   6379,
-						UseCoSandbox: cosandbox,
-						Mcpu:         proc.Tmcpu(4000),
+						Job:            "etcd-job",
+						SnapshotS3Path: "name/s3/~local/9ps3/snapshot-14MB.db",
+						SnapshotUXPath: "name/ux/~local/snapshot-14MB.db",
+						UseUX:          false,
+						Name:           "etcd-proc",
+						PeerPort:       6380,
+						ClientPort:     6379,
+						UseCoSandbox:   cosandbox,
+						Mcpu:           proc.Tmcpu(4000),
 					},
 				}
 				memcachedCfg := &benchmarks.MemcachedBenchConfig{
 					JobCfg: &memcached.MemcachedJobConfig{
 						Job:            "memcached-job",
-						SnapshotS3Path: "name/s3/~local/9ps3/memcached-snapshot-40M",
-						SnapshotUXPath: "name/ux/~local/memcached-snapshot-40M",
+						SnapshotS3Path: "name/s3/~local/9ps3/memcached-snapshot-200M",
+						SnapshotUXPath: "name/ux/~local/memcached-snapshot-200M",
 						UseUX:          true,
 						Port:           11211,
 						UseCoSandbox:   cosandbox,
