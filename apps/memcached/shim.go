@@ -44,6 +44,7 @@ func RunMemcachedShim(snapPn string, port string) error {
 		return err
 	}
 	ms.ssrv = ssrv
+	ms.ssrv.SigmaClnt().SetUseShmemWriteread(true)
 	start := time.Now()
 	// Create an S3 or UX clnt depending on the snapPn prefix
 	if strings.HasPrefix(snapPn, sp.UX) {

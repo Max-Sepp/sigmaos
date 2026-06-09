@@ -72,22 +72,34 @@ func newMemcachedJob(conf *MemcachedJobConfig, sc *sigmaclnt.SigmaClnt, epcj *ep
 
 	// If using init script, read boot script and prepare input
 	if conf.UseCoSandbox {
-		coSandbox, err = GetCoSandbox(sc)
-		if err != nil {
-			db.DPrintf(db.ERROR, "Err read boot script: %v", err)
-			return nil, err
-		}
-
-		// Parse S3 snapshot path to get bucket and key (strip name/s3/~local/ prefix)
-		strippedS3 := strings.TrimPrefix(conf.SnapshotS3Path, sp.S3+sp.LOCAL+"/")
-		splitFN := strings.Split(strippedS3, "/")
-		bucket := splitFN[0]
-		key := filepath.Join(splitFN[1:]...)
-
-		coSandboxInput, err = GetCoSandboxInput(bucket, key, sp.LOCAL)
-		if err != nil {
-			db.DPrintf(db.ERROR, "Err GetCoSandboxInput: %v", err)
-			return nil, err
+		if conf.UseUX {
+			coSandbox, err = GetCoSandboxUX(sc)
+			if err != nil {
+				db.DPrintf(db.ERROR, "Err read ux boot script: %v", err)
+				return nil, err
+			}
+			strippedUX := strings.TrimPrefix(conf.SnapshotUXPath, sp.UX+sp.LOCAL+"/")
+			coSandboxInput, err = GetCoSandboxUXInput(strippedUX, sp.LOCAL)
+			if err != nil {
+				db.DPrintf(db.ERROR, "Err GetCoSandboxUXInput: %v", err)
+				return nil, err
+			}
+		} else {
+			coSandbox, err = GetCoSandbox(sc)
+			if err != nil {
+				db.DPrintf(db.ERROR, "Err read boot script: %v", err)
+				return nil, err
+			}
+			// Parse S3 snapshot path to get bucket and key (strip name/s3/~local/ prefix)
+			strippedS3 := strings.TrimPrefix(conf.SnapshotS3Path, sp.S3+sp.LOCAL+"/")
+			splitFN := strings.Split(strippedS3, "/")
+			bucket := splitFN[0]
+			key := filepath.Join(splitFN[1:]...)
+			coSandboxInput, err = GetCoSandboxInput(bucket, key, sp.LOCAL)
+			if err != nil {
+				db.DPrintf(db.ERROR, "Err GetCoSandboxInput: %v", err)
+				return nil, err
+			}
 		}
 	}
 
