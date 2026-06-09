@@ -1802,7 +1802,7 @@ func TestStartLatency(t *testing.T) {
 						Job:            "memcached-job",
 						SnapshotS3Path: "name/s3/~local/9ps3/memcached-snapshot-40M",
 						SnapshotUXPath: "name/ux/~local/memcached-snapshot-40M",
-						UseUX:          false,
+						UseUX:          true,
 						Port:           11211,
 						UseCoSandbox:   cosandbox,
 						Mcpu:           proc.Tmcpu(4000),
