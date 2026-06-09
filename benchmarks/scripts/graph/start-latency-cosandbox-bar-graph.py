@@ -300,6 +300,11 @@ def main():
         action="store_true",
         help="Overlay setup and initialization time segments on each bar"
     )
+    parser.add_argument(
+        "--sys-name",
+        default="co-sandbox",
+        help="Label to use in place of 'co-sandbox' in legend entries (default: co-sandbox)"
+    )
 
     args = parser.parse_args()
 
@@ -418,8 +423,8 @@ def main():
 
         if bd is not None:
             legend_handles = [
-                Patch(facecolor='steelblue', label='Without co-sandbox'),
-                Patch(facecolor='coral',     label='With co-sandbox'),
+                Patch(facecolor='steelblue', label=f'Without {args.sys_name}'),
+                Patch(facecolor='coral',     label=f'With {args.sys_name}'),
                 Patch(facecolor='lightgrey', edgecolor='grey', label='Setup'),
                 Patch(facecolor='lightgrey', edgecolor='grey', hatch='///', label='Initialization'),
             ]
@@ -428,8 +433,8 @@ def main():
                       columnspacing=1.0, frameon=True)
         else:
             legend_handles = [
-                Patch(facecolor='steelblue', label='Without co-sandbox'),
-                Patch(facecolor='coral',     label='With co-sandbox'),
+                Patch(facecolor='steelblue', label=f'Without {args.sys_name}'),
+                Patch(facecolor='coral',     label=f'With {args.sys_name}'),
             ]
             ax.legend(handles=legend_handles, loc='lower center', bbox_to_anchor=(0.5, 1.0),
                       ncol=2, fontsize=10, borderpad=0.3, handletextpad=0.5,
