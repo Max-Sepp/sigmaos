@@ -17,20 +17,24 @@ import (
 const SHMEM_MB proc.Tmem = 42
 
 type MemcachedJobConfig struct {
-	Job           string     `json:"job"`
-	SnapshotPath  string     `json:"snapshot_path"` // Path to snapshot file in SigmaOS
-	Port          int        `json:"port"`
-	UseCoSandbox bool       `json:"use_co_sandbox"`
-	Mcpu          proc.Tmcpu `json:"mcpu"`
+	Job            string     `json:"job"`
+	SnapshotS3Path string     `json:"snapshot_s3_path"` // Path to snapshot in S3 (name/s3/~local/...)
+	SnapshotUXPath string     `json:"snapshot_ux_path"` // Path to snapshot in UX (name/ux/~local/...)
+	UseUX          bool       `json:"use_ux"`           // Use UX path instead of S3 path
+	Port           int        `json:"port"`
+	UseCoSandbox   bool       `json:"use_co_sandbox"`
+	Mcpu           proc.Tmcpu `json:"mcpu"`
 }
 
-func NewMemcachedJobConfig(job, snapshotPath string, port int, useCoSandbox bool, mcpu proc.Tmcpu) *MemcachedJobConfig {
+func NewMemcachedJobConfig(job, snapshotS3Path, snapshotUXPath string, port int, useCoSandbox, useUX bool, mcpu proc.Tmcpu) *MemcachedJobConfig {
 	return &MemcachedJobConfig{
-		Job:           job,
-		SnapshotPath:  snapshotPath,
-		Port:          port,
-		UseCoSandbox: useCoSandbox,
-		Mcpu:          mcpu,
+		Job:            job,
+		SnapshotS3Path: snapshotS3Path,
+		SnapshotUXPath: snapshotUXPath,
+		UseUX:          useUX,
+		Port:           port,
+		UseCoSandbox:   useCoSandbox,
+		Mcpu:           mcpu,
 	}
 }
 
@@ -38,11 +42,11 @@ type MemcachedJob struct {
 	mu   sync.Mutex
 	conf *MemcachedJobConfig
 	*sigmaclnt.SigmaClnt
-	EPCacheJob      *epsrv.EPCacheJob
-	p               *proc.Proc
+	EPCacheJob     *epsrv.EPCacheJob
+	p              *proc.Proc
 	coSandbox      []byte
 	coSandboxInput []byte
-	stopEPCJ        bool
+	stopEPCJ       bool
 }
 
 func NewMemcachedJob(conf *MemcachedJobConfig, sc *sigmaclnt.SigmaClnt, epcj *epsrv.EPCacheJob) (*MemcachedJob, error) {
@@ -74,8 +78,9 @@ func newMemcachedJob(conf *MemcachedJobConfig, sc *sigmaclnt.SigmaClnt, epcj *ep
 			return nil, err
 		}
 
-		// Parse snapshot path to get bucket and key
-		splitFN := strings.Split(conf.SnapshotPath, "/")
+		// Parse S3 snapshot path to get bucket and key (strip name/s3/~local/ prefix)
+		strippedS3 := strings.TrimPrefix(conf.SnapshotS3Path, sp.S3+sp.LOCAL+"/")
+		splitFN := strings.Split(strippedS3, "/")
 		bucket := splitFN[0]
 		key := filepath.Join(splitFN[1:]...)
 
@@ -87,20 +92,24 @@ func newMemcachedJob(conf *MemcachedJobConfig, sc *sigmaclnt.SigmaClnt, epcj *ep
 	}
 
 	return &MemcachedJob{
-		conf:            conf,
-		SigmaClnt:       sc,
-		EPCacheJob:      epcj,
+		conf:           conf,
+		SigmaClnt:      sc,
+		EPCacheJob:     epcj,
 		coSandbox:      coSandbox,
 		coSandboxInput: coSandboxInput,
-		stopEPCJ:        stopEPCJ,
+		stopEPCJ:       stopEPCJ,
 	}, nil
 }
 
 // Start starts the memcached shim process
 func (j *MemcachedJob) Start(sigmaPath string) error {
 	// Create the memcached shim proc
+	snapPn := j.conf.SnapshotS3Path
+	if j.conf.UseUX {
+		snapPn = j.conf.SnapshotUXPath
+	}
 	p := proc.NewProc("memcached-shim", []string{
-		j.conf.SnapshotPath,
+		snapPn,
 		strconv.Itoa(j.conf.Port),
 	})
 	// Add the memcached binary to be downloaded with the proc
@@ -108,7 +117,7 @@ func (j *MemcachedJob) Start(sigmaPath string) error {
 	// Set MCPU
 	p.SetMcpu(j.conf.Mcpu)
 	// Configure proc environment
-	p.GetProcEnv().UseSPProxy = j.conf.UseCoSandbox
+	p.GetProcEnv().UseSPProxy = true
 	p.GetProcEnv().SetShmemMB(SHMEM_MB)
 	p.SetCoSandbox(j.coSandbox, j.coSandboxInput)
 	p.SetRunCoSandbox(j.conf.UseCoSandbox)
@@ -162,6 +171,28 @@ func (j *MemcachedJob) GetProc() *proc.Proc {
 }
 
 func (cfg *MemcachedJobConfig) String() string {
-	return fmt.Sprintf("&{ job:%v snapshot:%v port:%v useCoSandbox:%v mcpu:%v }",
-		cfg.Job, cfg.SnapshotPath, cfg.Port, cfg.UseCoSandbox, cfg.Mcpu)
+	return fmt.Sprintf("&{ job:%v snapshotS3:%v snapshotUX:%v useUX:%v port:%v useCoSandbox:%v mcpu:%v }",
+		cfg.Job, cfg.SnapshotS3Path, cfg.SnapshotUXPath, cfg.UseUX, cfg.Port, cfg.UseCoSandbox, cfg.Mcpu)
+}
+
+// DownloadSnapToAllUXs copies the snapshot (and its .meta file) from
+// name/s3/~any/<srcPath> to name/ux/<child>/<dstPath> for every child of name/ux/.
+func (j *MemcachedJob) DownloadSnapToAllUXs(srcPath, dstPath string) error {
+	sts, err := j.GetDir(sp.UX)
+	if err != nil {
+		db.DPrintf(db.ERROR, "DownloadSnapToAllUXs: GetDir %v: %v", sp.UX, err)
+		return err
+	}
+	for _, st := range sts {
+		uxBase := filepath.Join(sp.UX, st.Name)
+		for _, pair := range [][2]string{{srcPath, dstPath}, {srcPath + ".meta", dstPath + ".meta"}} {
+			src := filepath.Join(sp.S3+sp.ANY, pair[0])
+			dst := filepath.Join(uxBase, pair[1])
+			if err := j.CopyFile(src, dst); err != nil {
+				db.DPrintf(db.ERROR, "DownloadSnapToAllUXs: CopyFile %v -> %v: %v", src, dst, err)
+				return err
+			}
+		}
+	}
+	return nil
 }

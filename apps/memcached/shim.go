@@ -1,6 +1,7 @@
 package memcached
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,6 +15,7 @@ import (
 	db "sigmaos/debug"
 	"sigmaos/proc"
 	s3clnt "sigmaos/proxy/s3/clnt"
+	uxclnt "sigmaos/proxy/ux/clnt"
 	sp "sigmaos/sigmap"
 	"sigmaos/sigmasrv"
 	"sigmaos/util/perf"
@@ -29,6 +31,7 @@ type MemcachedShim struct {
 	clnt   *memcache.Client
 	ssrv   *sigmasrv.SigmaSrv
 	s3Clnt *s3clnt.S3Clnt
+	uxClnt *uxclnt.UXClnt
 }
 
 func RunMemcachedShim(snapPn string, port string) error {
@@ -42,12 +45,20 @@ func RunMemcachedShim(snapPn string, port string) error {
 	}
 	ms.ssrv = ssrv
 	start := time.Now()
-	// Create an S3 clnt
-	s3Clnt, err := s3clnt.NewS3ClntInit(ms.ssrv.SigmaClnt().FsLib, filepath.Join(sp.S3, pe.GetKernelID()), pe.GetRunCoSandbox())
-	if err != nil {
-		db.DFatalf("Err newS3Clnt: %v", err)
+	// Create an S3 or UX clnt depending on the snapPn prefix
+	if strings.HasPrefix(snapPn, sp.UX) {
+		uxc, err := uxclnt.NewUXClntInit(ms.ssrv.SigmaClnt().FsLib, filepath.Join(sp.UX, pe.GetKernelID()), pe.GetRunCoSandbox())
+		if err != nil {
+			db.DFatalf("Err newUXClnt: %v", err)
+		}
+		ms.uxClnt = uxc
+	} else {
+		s3c, err := s3clnt.NewS3ClntInit(ms.ssrv.SigmaClnt().FsLib, filepath.Join(sp.S3, pe.GetKernelID()), pe.GetRunCoSandbox())
+		if err != nil {
+			db.DFatalf("Err newS3Clnt: %v", err)
+		}
+		ms.s3Clnt = s3c
 	}
-	ms.s3Clnt = s3Clnt
 	if !ms.ssrv.SigmaClnt().ProcEnv().GetRunCoSandbox() {
 		perf.LogSpawnLatency("Paper.Initialization.ConnectionSetup", pe.GetPID(), pe.GetSpawnTime(), start)
 	}
@@ -131,29 +142,48 @@ func newMemcachedClnt(port string) (*memcache.Client, error) {
 }
 
 func (ms *MemcachedShim) restoreSnapshot(snapPn string) (time.Time, error) {
-	pn := strings.Split(snapPn, "/")
-	bucket := pn[0]
-	key := filepath.Join(pn[1:]...)
+	// Determine backend and strip the "name/{s3,ux}/~local/" prefix
+	isUX := strings.HasPrefix(snapPn, sp.UX)
+	prefix := sp.S3 + sp.LOCAL + "/"
+	if isUX {
+		prefix = sp.UX + sp.LOCAL + "/"
+	}
+	strippedPn, ok := strings.CutPrefix(snapPn, prefix)
+	if !ok {
+		return time.Now(), fmt.Errorf("snapPn %v missing expected prefix %v", snapPn, prefix)
+	}
+
 	var b []byte
 	var err error
 	start := time.Now()
 	pe := proc.GetProcEnv()
 	if ms.ssrv.SigmaClnt().ProcEnv().GetRunCoSandbox() {
 		var transferDur time.Duration
-		b, transferDur, err = ms.s3Clnt.DelegatedGetObject(0)
+		if isUX {
+			b, transferDur, err = ms.uxClnt.DelegatedGetFile(0)
+		} else {
+			b, transferDur, err = ms.s3Clnt.DelegatedGetObject(0)
+		}
 		if err != nil {
-			db.DPrintf(db.MEMCACHED_ERR, "Err DelegatedGetObject bucket:%v key:%v: %v", bucket, key, err)
-			db.DPrintf(db.ERROR, "Err DelegatedGetObject bucket:%v key:%v: %v", bucket, key, err)
+			db.DPrintf(db.MEMCACHED_ERR, "Err delegated get %v: %v", strippedPn, err)
+			db.DPrintf(db.ERROR, "Err delegated get %v: %v", strippedPn, err)
 			return time.Now(), err
 		}
 		db.DPrintf(db.MEMCACHED, "Done delegated get")
 		perf.LogSpawnLatency("Paper.Initialization.TransferState", pe.GetPID(), pe.GetSpawnTime(), time.Now().Add(-1*transferDur))
 		perf.LogSpawnLatency("Initialization.TransferState", pe.GetPID(), pe.GetSpawnTime(), start)
 	} else {
-		b, err = ms.s3Clnt.GetObject(bucket, key, false)
+		if isUX {
+			b, err = ms.uxClnt.GetFile(strippedPn)
+		} else {
+			pn := strings.Split(strippedPn, "/")
+			bucket := pn[0]
+			key := filepath.Join(pn[1:]...)
+			b, err = ms.s3Clnt.GetObject(bucket, key, false)
+		}
 		if err != nil {
-			db.DPrintf(db.MEMCACHED_ERR, "Err GetObject bucket:%v key:%v: %v", bucket, key, err)
-			db.DPrintf(db.ERROR, "Err GetObject bucket:%v key:%v: %v", bucket, key, err)
+			db.DPrintf(db.MEMCACHED_ERR, "Err get %v: %v", strippedPn, err)
+			db.DPrintf(db.ERROR, "Err get %v: %v", strippedPn, err)
 			return time.Now(), err
 		}
 		db.DPrintf(db.MEMCACHED, "Done direct get")
@@ -161,10 +191,18 @@ func (ms *MemcachedShim) restoreSnapshot(snapPn string) (time.Time, error) {
 	}
 	start = time.Now()
 	// Get meta file
-	b2, err := ms.s3Clnt.GetObject(bucket, key+".meta", false)
+	var b2 []byte
+	if isUX {
+		b2, err = ms.uxClnt.GetFile(strippedPn + ".meta")
+	} else {
+		pn := strings.Split(strippedPn, "/")
+		bucket := pn[0]
+		key := filepath.Join(pn[1:]...)
+		b2, err = ms.s3Clnt.GetObject(bucket, key+".meta", false)
+	}
 	if err != nil {
-		db.DPrintf(db.MEMCACHED_ERR, "Err GetObject bucket:%v key:%v: %v", bucket, key+".meta", err)
-		db.DPrintf(db.ERROR, "Err GetObject bucket:%v key:%v: %v", bucket, key+".meta", err)
+		db.DPrintf(db.MEMCACHED_ERR, "Err get meta %v: %v", strippedPn+".meta", err)
+		db.DPrintf(db.ERROR, "Err get meta %v: %v", strippedPn+".meta", err)
 		return time.Now(), err
 	}
 	db.DPrintf(db.MEMCACHED, "Done direct get")

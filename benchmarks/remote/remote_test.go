@@ -1799,11 +1799,13 @@ func TestStartLatency(t *testing.T) {
 				}
 				memcachedCfg := &benchmarks.MemcachedBenchConfig{
 					JobCfg: &memcached.MemcachedJobConfig{
-						Job:          "memcached-job",
-						SnapshotPath: "9ps3/memcached-snapshot-40M",
-						Port:         11211,
-						UseCoSandbox: cosandbox,
-						Mcpu:         proc.Tmcpu(4000),
+						Job:            "memcached-job",
+						SnapshotS3Path: "name/s3/~local/9ps3/memcached-snapshot-40M",
+						SnapshotUXPath: "name/ux/~local/memcached-snapshot-40M",
+						UseUX:          false,
+						Port:           11211,
+						UseCoSandbox:   cosandbox,
+						Mcpu:           proc.Tmcpu(4000),
 					},
 					Cache: false,
 				}

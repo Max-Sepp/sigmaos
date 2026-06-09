@@ -158,11 +158,13 @@ var DefaultEtcdBenchConfig = &EtcdBenchConfig{
 
 var DefaultMemcachedBenchConfig = &MemcachedBenchConfig{
 	JobCfg: &memcached.MemcachedJobConfig{
-		Job:          "memcached-job",
-		SnapshotPath: "9ps3/memcached-snapshot-40M",
-		Port:         11211,
-		UseCoSandbox: false,
-		Mcpu:         proc.Tmcpu(1000),
+		Job:            "memcached-job",
+		SnapshotS3Path: "name/s3/~local/9ps3/memcached-snapshot-40M",
+		SnapshotUXPath: "name/ux/~local/memcached-snapshot-40M",
+		UseUX:          false,
+		Port:           11211,
+		UseCoSandbox:   false,
+		Mcpu:           proc.Tmcpu(1000),
 	},
 	Cache: false,
 }
