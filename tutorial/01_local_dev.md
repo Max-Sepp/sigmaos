@@ -146,7 +146,7 @@ https://docs.aws.amazon.com/cli/v1/userguide/cli-chap-configure.html
 ```
 
 SigmaOS expects there to be a `sigmaos` entry in your AWS `credentials` and
-`config` files. The entry in `~/aws/credentials` looks like this:
+`config` files. The entry in `~/.aws/credentials` looks like this:
 
 ```
 [sigmaos]
