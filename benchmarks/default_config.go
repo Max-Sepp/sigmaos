@@ -155,6 +155,7 @@ var DefaultEtcdBenchConfig = &EtcdBenchConfig{
 		ClientPort:     6379,
 		UseCoSandbox:   true,
 		Mcpu:           proc.Tmcpu(1000),
+		ShmemMB:        proc.Tmem(250),
 	},
 }
 
@@ -167,6 +168,7 @@ var DefaultMemcachedBenchConfig = &MemcachedBenchConfig{
 		Port:           11211,
 		UseCoSandbox:   false,
 		Mcpu:           proc.Tmcpu(1000),
+		ShmemMB:        proc.Tmem(250),
 	},
 	Cache: false,
 }

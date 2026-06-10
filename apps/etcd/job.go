@@ -25,9 +25,10 @@ type EtcdJobConfig struct {
 	ClientPort     int        `json:"client_port"`
 	UseCoSandbox   bool       `json:"use_co_sandbox"`
 	Mcpu           proc.Tmcpu `json:"mcpu"`
+	ShmemMB        proc.Tmem  `json:"shmem_mb"`
 }
 
-func NewEtcdJobConfig(job, snapshotS3Path, snapshotUXPath, name string, peerPort, clientPort int, useCoSandbox, useUX bool, mcpu proc.Tmcpu) *EtcdJobConfig {
+func NewEtcdJobConfig(job, snapshotS3Path, snapshotUXPath, name string, peerPort, clientPort int, useCoSandbox, useUX bool, mcpu proc.Tmcpu, shmemMB proc.Tmem) *EtcdJobConfig {
 	return &EtcdJobConfig{
 		Job:            job,
 		SnapshotS3Path: snapshotS3Path,
@@ -38,6 +39,7 @@ func NewEtcdJobConfig(job, snapshotS3Path, snapshotUXPath, name string, peerPort
 		ClientPort:     clientPort,
 		UseCoSandbox:   useCoSandbox,
 		Mcpu:           mcpu,
+		ShmemMB:        shmemMB,
 	}
 }
 
@@ -136,7 +138,7 @@ func (j *EtcdJob) Start(sigmaPath string) error {
 	p.SetMcpu(j.conf.Mcpu)
 	// Configure proc environment
 	p.GetProcEnv().UseSPProxy = true
-	p.SetShmemMB(SHMEM_MB)
+	p.SetShmemMB(j.conf.ShmemMB)
 	p.SetCoSandbox(j.coSandbox, j.coSandboxInput)
 	p.SetRunCoSandbox(j.conf.UseCoSandbox)
 	// Set the proc's sigma path
@@ -189,8 +191,8 @@ func (j *EtcdJob) GetProc() *proc.Proc {
 }
 
 func (cfg *EtcdJobConfig) String() string {
-	return fmt.Sprintf("&{ job:%v snapshotS3:%v snapshotUX:%v useUX:%v name:%v peerPort:%v clientPort:%v useCoSandbox:%v mcpu:%v }",
-		cfg.Job, cfg.SnapshotS3Path, cfg.SnapshotUXPath, cfg.UseUX, cfg.Name, cfg.PeerPort, cfg.ClientPort, cfg.UseCoSandbox, cfg.Mcpu)
+	return fmt.Sprintf("&{ job:%v snapshotS3:%v snapshotUX:%v useUX:%v name:%v peerPort:%v clientPort:%v useCoSandbox:%v mcpu:%v shmemMB:%v }",
+		cfg.Job, cfg.SnapshotS3Path, cfg.SnapshotUXPath, cfg.UseUX, cfg.Name, cfg.PeerPort, cfg.ClientPort, cfg.UseCoSandbox, cfg.Mcpu, cfg.ShmemMB)
 }
 
 // DownloadSnapToAllUXs copies the snapshot from name/s3/~any/<srcPath> to

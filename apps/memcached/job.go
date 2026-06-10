@@ -24,9 +24,10 @@ type MemcachedJobConfig struct {
 	Port           int        `json:"port"`
 	UseCoSandbox   bool       `json:"use_co_sandbox"`
 	Mcpu           proc.Tmcpu `json:"mcpu"`
+	ShmemMB        proc.Tmem  `json:"shmem_mb"`
 }
 
-func NewMemcachedJobConfig(job, snapshotS3Path, snapshotUXPath string, port int, useCoSandbox, useUX bool, mcpu proc.Tmcpu) *MemcachedJobConfig {
+func NewMemcachedJobConfig(job, snapshotS3Path, snapshotUXPath string, port int, useCoSandbox, useUX bool, mcpu proc.Tmcpu, shmemMB proc.Tmem) *MemcachedJobConfig {
 	return &MemcachedJobConfig{
 		Job:            job,
 		SnapshotS3Path: snapshotS3Path,
@@ -35,6 +36,7 @@ func NewMemcachedJobConfig(job, snapshotS3Path, snapshotUXPath string, port int,
 		Port:           port,
 		UseCoSandbox:   useCoSandbox,
 		Mcpu:           mcpu,
+		ShmemMB:        shmemMB,
 	}
 }
 
@@ -130,7 +132,7 @@ func (j *MemcachedJob) Start(sigmaPath string) error {
 	p.SetMcpu(j.conf.Mcpu)
 	// Configure proc environment
 	p.GetProcEnv().UseSPProxy = true
-	p.GetProcEnv().SetShmemMB(SHMEM_MB)
+	p.GetProcEnv().SetShmemMB(j.conf.ShmemMB)
 	p.SetCoSandbox(j.coSandbox, j.coSandboxInput)
 	p.SetRunCoSandbox(j.conf.UseCoSandbox)
 	// Set the proc's sigma path
@@ -183,8 +185,8 @@ func (j *MemcachedJob) GetProc() *proc.Proc {
 }
 
 func (cfg *MemcachedJobConfig) String() string {
-	return fmt.Sprintf("&{ job:%v snapshotS3:%v snapshotUX:%v useUX:%v port:%v useCoSandbox:%v mcpu:%v }",
-		cfg.Job, cfg.SnapshotS3Path, cfg.SnapshotUXPath, cfg.UseUX, cfg.Port, cfg.UseCoSandbox, cfg.Mcpu)
+	return fmt.Sprintf("&{ job:%v snapshotS3:%v snapshotUX:%v useUX:%v port:%v useCoSandbox:%v mcpu:%v shmemMB:%v }",
+		cfg.Job, cfg.SnapshotS3Path, cfg.SnapshotUXPath, cfg.UseUX, cfg.Port, cfg.UseCoSandbox, cfg.Mcpu, cfg.ShmemMB)
 }
 
 // DownloadSnapToAllUXs copies the snapshot (and its .meta file) from

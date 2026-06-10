@@ -1797,6 +1797,7 @@ func TestStartLatency(t *testing.T) {
 						ClientPort:     6379,
 						UseCoSandbox:   cosandbox,
 						Mcpu:           proc.Tmcpu(4000),
+						ShmemMB:        proc.Tmem(250),
 					},
 				}
 				memcachedCfg := &benchmarks.MemcachedBenchConfig{
@@ -1808,6 +1809,7 @@ func TestStartLatency(t *testing.T) {
 						Port:           11211,
 						UseCoSandbox:   cosandbox,
 						Mcpu:           proc.Tmcpu(4000),
+						ShmemMB:        proc.Tmem(250),
 					},
 					Cache: false,
 				}

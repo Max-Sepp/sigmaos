@@ -147,6 +147,7 @@ func TestEtcd(t *testing.T) {
 		true, // use init script
 		USE_UX,
 		proc.Tmcpu(1000),
+		proc.Tmem(250),
 	)
 
 	// Create etcd job

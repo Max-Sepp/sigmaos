@@ -190,7 +190,7 @@ func TestMemcached(t *testing.T) {
 	db.DPrintf(db.TEST, "Resolved snapshot pathnames: s3=%v ux=%v", SNAP_S3_PATH, SNAP_UX_PATH)
 
 	// Create memcached job config
-	conf := memcached.NewMemcachedJobConfig("memcached-job", SNAP_S3_PATH, SNAP_UX_PATH, PORT, USE_INITSCRIPT, USE_UX, proc.Tmcpu(1000))
+	conf := memcached.NewMemcachedJobConfig("memcached-job", SNAP_S3_PATH, SNAP_UX_PATH, PORT, USE_INITSCRIPT, USE_UX, proc.Tmcpu(1000), proc.Tmem(250))
 	db.DPrintf(db.TEST, "Created memcached job config: %v", conf)
 
 	// Create memcached job
