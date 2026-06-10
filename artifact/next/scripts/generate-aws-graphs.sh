@@ -199,6 +199,7 @@ echo "Generating memcached start latency breakdown graph..."
   --omit_1 "GlobalScheduling" \
   --relabel_1 "Download${SYS_NAME_CAMEL}" "Download${SYS_NAME_CAMEL}" \
   --relabel_1 "CoSandboxStart" "${SYS_NAME_CAMEL}Start" \
+  --relabel_1 "Download${SYS_NAME_CAMEL}" "Download${SYS_NAME_CAMEL}" \
   --dir_path_2 benchmarks/results/$VERSION/start_latency_memcached_cosandbox \
   --proc_name_2 memcached-shim \
   --label_2 "Memcached (${SYS_NAME})" \
