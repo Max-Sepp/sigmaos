@@ -37,12 +37,14 @@ func TestBasicGraph(t *testing.T) {
 		{11, 5, 1}, // K → E
 	}
 
+	db.DPrintf(db.TEST, "Wiki Graph created")
+
 	wikiGraphData, err := json.Marshal(wikiGraph)
 	if !assert.Nil(t, err, "Error marshalling graph: %v", err) {
 		return
 	}
 
-	db.DPrintf(db.TEST, "Got here")
+	db.DPrintf(db.TEST, "Marshalled to json")
 
 	mrts, err1 := test.NewMultiRealmTstate(t, []sp.Trealm{test.REALM1})
 	if !assert.Nil(t, err1, "Error New Tstate: %v", err1) {
@@ -50,16 +52,22 @@ func TestBasicGraph(t *testing.T) {
 	}
 	defer mrts.Shutdown()
 
+	db.DPrintf(db.TEST, "MultiRealmTstate created")
+
 	err = mrts.GetRealm(test.REALM1).MkDir(filepath.Join(sp.S3, sp.LOCAL, "9ps3/pagerank"), 0777)
 	if !assert.False(t, err != nil && !serr.IsErrorExists(err), "Error creating directory: %v", err) {
 		return
 	}
+
+	db.DPrintf(db.TEST, "Directory created")
 
 	in := filepath.Join(sp.S3, sp.LOCAL, "9ps3/pagerank/graph.json")
 	_, err = mrts.GetRealm(test.REALM1).PutFile(in, 0777, sp.ORDWR, wikiGraphData)
 	if !assert.Nil(t, err, "Error putting graph file: %v", err) {
 		return
 	}
+
+	db.DPrintf(db.TEST, "Graph file created")
 
 	out := filepath.Join(sp.S3, sp.LOCAL, "9ps3/pagerank/ranks.json")
 
@@ -68,10 +76,16 @@ func TestBasicGraph(t *testing.T) {
 	if !assert.Nil(t, err, "Spawn") {
 		return
 	}
+
+	db.DPrintf(db.TEST, "Pagerank process spawned")
+
 	err = mrts.GetRealm(test.REALM1).WaitStart(p.GetPid())
 	if !assert.Nil(t, err, "WaitStart error") {
 		return
 	}
+
+	db.DPrintf(db.TEST, "Pagerank process started")
+
 	status, err := mrts.GetRealm(test.REALM1).WaitExit(p.GetPid())
 	if !assert.Nil(t, err, "WaitExit error %v", err) {
 		return
@@ -79,4 +93,6 @@ func TestBasicGraph(t *testing.T) {
 	if !assert.True(t, status.IsStatusOK(), "WaitExit status error: %v", status) {
 		return
 	}
+
+	db.DPrintf(db.TEST, "Pagerank process exited OK")
 }
