@@ -11,6 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	sp "sigmaos/sigmap"
+
+	db "sigmaos/debug"
 )
 
 func TestCompile(t *testing.T) {
@@ -36,9 +38,11 @@ func TestBasicGraph(t *testing.T) {
 	}
 
 	wikiGraphData, err := json.Marshal(wikiGraph)
-	if assert.Nil(t, err, "Error marshalling graph: %v", err) {
+	if !assert.Nil(t, err, "Error marshalling graph: %v", err) {
 		return
 	}
+
+	db.DPrintf(db.TEST, "Got here")
 
 	mrts, err1 := test.NewMultiRealmTstate(t, []sp.Trealm{test.REALM1})
 	if !assert.Nil(t, err1, "Error New Tstate: %v", err1) {
@@ -47,13 +51,13 @@ func TestBasicGraph(t *testing.T) {
 	defer mrts.Shutdown()
 
 	err = mrts.GetRealm(test.REALM1).MkDir(filepath.Join(sp.S3, sp.LOCAL, "9ps3/pagerank"), 0777)
-	if assert.False(t, err != nil && !serr.IsErrorExists(err), "Error creating directory: %v", err) {
+	if !assert.False(t, err != nil && !serr.IsErrorExists(err), "Error creating directory: %v", err) {
 		return
 	}
 
 	in := filepath.Join(sp.S3, sp.LOCAL, "9ps3/pagerank/graph.json")
 	_, err = mrts.GetRealm(test.REALM1).PutFile(in, 0777, sp.ORDWR, wikiGraphData)
-	if assert.Nil(t, err, "Error putting graph file: %v", err) {
+	if !assert.Nil(t, err, "Error putting graph file: %v", err) {
 		return
 	}
 
@@ -61,10 +65,18 @@ func TestBasicGraph(t *testing.T) {
 
 	p := proc.NewProc("pagerank", []string{in, out, "0.85", "0.0001"})
 	err = mrts.GetRealm(test.REALM1).Spawn(p)
-	assert.Nil(t, err, "Spawn")
+	if !assert.Nil(t, err, "Spawn") {
+		return
+	}
 	err = mrts.GetRealm(test.REALM1).WaitStart(p.GetPid())
-	assert.Nil(t, err, "WaitStart error")
+	if !assert.Nil(t, err, "WaitStart error") {
+		return
+	}
 	status, err := mrts.GetRealm(test.REALM1).WaitExit(p.GetPid())
-	assert.Nil(t, err, "WaitExit error %v", err)
-	assert.True(t, status.IsStatusOK(), "WaitExit status error: %v", status)
+	if !assert.Nil(t, err, "WaitExit error %v", err) {
+		return
+	}
+	if !assert.True(t, status.IsStatusOK(), "WaitExit status error: %v", status) {
+		return
+	}
 }
