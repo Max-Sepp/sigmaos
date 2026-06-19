@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
@@ -156,7 +155,7 @@ func StartDockerContainer(p *proc.Proc, kernelId, user, netmode string, useGViso
 		db.DPrintf(db.CONTAINER, "ContainerCreate err %v\n", err)
 		return nil, err
 	}
-	if err := cli.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
+	if err := cli.ContainerStart(ctx, resp.ID, container.StartOptions{}); err != nil {
 		db.DPrintf(db.CONTAINER, "ContainerStart err %v\n", err)
 		return nil, err
 	}
@@ -221,12 +220,12 @@ func (c *DContainer) Shutdown() error {
 	case st := <-statusCh:
 		db.DPrintf(db.CONTAINER, "container %s done status %v\n", c, st)
 	}
-	out, err := c.cli.ContainerLogs(c.ctx, c.container, types.ContainerLogsOptions{ShowStderr: true, ShowStdout: true})
+	out, err := c.cli.ContainerLogs(c.ctx, c.container, container.LogsOptions{ShowStderr: true, ShowStdout: true})
 	if err != nil {
 		panic(err)
 	}
 	stdcopy.StdCopy(os.Stdout, os.Stderr, out)
-	removeOptions := types.ContainerRemoveOptions{
+	removeOptions := container.RemoveOptions{
 		RemoveVolumes: true,
 		Force:         true,
 	}
