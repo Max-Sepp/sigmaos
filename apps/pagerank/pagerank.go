@@ -26,6 +26,8 @@ type PagerankResult struct {
 func Pagerank(args []string) {
 	// First argument is input path
 	// Second argument is output path
+	// Third argument is damping factor
+	// Fourth argument is convergence criteria
 
 	pe := proc.GetProcEnv()
 	sc, err := sigmaclnt.NewSigmaClnt(pe)
@@ -73,7 +75,7 @@ func Pagerank(args []string) {
 		db.DFatalf("Error %v", err)
 	}
 
-	_, err = sc.PutFile(args[1], 0777, sp.ORDWR, resultData)
+	_, err = sc.PutFile(args[1], 0777, sp.OWRITE, resultData)
 	if err != nil {
 		db.DFatalf("Error %v", err)
 	}
