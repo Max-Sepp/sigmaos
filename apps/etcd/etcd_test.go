@@ -111,7 +111,9 @@ func TestGenSnapshot(t *testing.T) {
 
 func TestEtcd(t *testing.T) {
 	const (
-		SNAP_PATH = "9ps3/snapshot-10MB.db"
+		SNAP_S3_PATH = "name/s3/~local/9ps3/snapshot-10MB.db"
+		SNAP_UX_PATH = "name/ux/~local/snapshot-10MB.db"
+		USE_UX       = false
 	)
 
 	// Only works when running with gVisor
@@ -137,12 +139,15 @@ func TestEtcd(t *testing.T) {
 	// Create etcd job config
 	etcdCfg := etcd.NewEtcdJobConfig(
 		"etcd-job",
-		SNAP_PATH,
+		SNAP_S3_PATH,
+		SNAP_UX_PATH,
 		"etcd-proc",
 		6380, // peer port
 		6379, // client port
 		true, // use init script
+		USE_UX,
 		proc.Tmcpu(1000),
+		proc.Tmem(250),
 	)
 
 	// Create etcd job

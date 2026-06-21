@@ -262,6 +262,11 @@ def main():
         default="sebs-start-latency-cosandbox-comparison.png",
         help="Output filename for the graph (default: sebs-start-latency-cosandbox-comparison.png)"
     )
+    parser.add_argument(
+        "--sys-name",
+        default="co-sandbox",
+        help="Label to use in place of 'co-sandbox' in legend entries (default: co-sandbox)"
+    )
 
     args = parser.parse_args()
 
@@ -315,7 +320,7 @@ def main():
         fig, ax = plt.subplots(figsize=(9.0, 2.4))
         bars1 = ax.bar(x - width, compressed,     width, label='Compressed',      color='steelblue')
         bars2 = ax.bar(x,         uncompressed,   width, label='Uncompressed',    color='seagreen')
-        bars3 = ax.bar(x + width, with_cosandbox, width, label='With co-sandbox', color='coral')
+        bars3 = ax.bar(x + width, with_cosandbox, width, label=f'With {args.sys_name}', color='coral')
         y_max = max(max(compressed), max(uncompressed), max(with_cosandbox))
 
         def add_value_labels(bars):
@@ -330,7 +335,7 @@ def main():
         legend_handles = [
             Patch(facecolor='steelblue', label='Compressed'),
             Patch(facecolor='seagreen',  label='Uncompressed'),
-            Patch(facecolor='coral',     label='With co-sandbox'),
+            Patch(facecolor='coral',     label=f'With {args.sys_name}'),
         ]
         ncol = 3
     else:
@@ -356,8 +361,8 @@ def main():
             ax.bar(x + width/2 + offset, init_cs, sub_w, bottom=i_start_cs, color='coral',     hatch='///', edgecolor='white', linewidth=0)
 
             legend_handles = [
-                Patch(facecolor='steelblue', label='Without co-sandbox'),
-                Patch(facecolor='coral',     label='With co-sandbox'),
+                Patch(facecolor='steelblue', label=f'Without {args.sys_name}'),
+                Patch(facecolor='coral',     label=f'With {args.sys_name}'),
                 Patch(facecolor='lightgrey', edgecolor='grey', label='Setup'),
                 Patch(facecolor='lightgrey', edgecolor='grey', hatch='///', label='Initialization'),
             ]
@@ -366,8 +371,8 @@ def main():
             ax.bar(x - width/2, compressed,     width, color='steelblue')
             ax.bar(x + width/2, with_cosandbox, width, color='coral')
             legend_handles = [
-                Patch(facecolor='steelblue', label='Without co-sandbox'),
-                Patch(facecolor='coral',     label='With co-sandbox'),
+                Patch(facecolor='steelblue', label=f'Without {args.sys_name}'),
+                Patch(facecolor='coral',     label=f'With {args.sys_name}'),
             ]
             ncol = 2
 

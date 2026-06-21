@@ -165,6 +165,14 @@ func NewStartLatencyJob(ts *test.RealmTstate, cfg *benchmarks.StartLatencyBenchC
 		if !assert.Nil(ts.Ts.T, err, "Err new etcd job: %v", err) {
 			return ji
 		}
+		if ji.etcdCfg.JobCfg.UseUX {
+			srcPath, _ := strings.CutPrefix(ji.etcdCfg.JobCfg.SnapshotS3Path, sp.S3+sp.LOCAL+"/")
+			dstPath, _ := strings.CutPrefix(ji.etcdCfg.JobCfg.SnapshotUXPath, sp.UX+sp.LOCAL+"/")
+			err = ji.etcdJob.DownloadSnapToAllUXs(srcPath, dstPath)
+			if !assert.Nil(ts.Ts.T, err, "Err DownloadSnapToAllUXs etcd: %v", err) {
+				return ji
+			}
+		}
 	case "imgrec-py":
 		ji.imgrecPyJob, err = imgrec_py.NewImgrecPyJob(ji.imgrecPyCfg.JobCfg, ts.SigmaClnt)
 		if !assert.Nil(ts.Ts.T, err, "Err new imgrec-py job: %v", err) {
@@ -181,23 +189,30 @@ func NewStartLatencyJob(ts *test.RealmTstate, cfg *benchmarks.StartLatencyBenchC
 		if !assert.Nil(ts.Ts.T, err, "Err new memcached job: %v", err) {
 			return ji
 		}
-		if ji.memcachedCfg.Cache {
-			// Get S3 proxies
+		if ji.memcachedCfg.JobCfg.UseUX {
+			// Download snapshot from S3 to all UX servers
+			srcPath, _ := strings.CutPrefix(ji.memcachedCfg.JobCfg.SnapshotS3Path, sp.S3+sp.LOCAL+"/")
+			dstPath, _ := strings.CutPrefix(ji.memcachedCfg.JobCfg.SnapshotUXPath, sp.UX+sp.LOCAL+"/")
+			err = ji.memcachedJob.DownloadSnapToAllUXs(srcPath, dstPath)
+			if !assert.Nil(ts.Ts.T, err, "Err DownloadSnapToAllUXs: %v", err) {
+				return ji
+			}
+		} else if ji.memcachedCfg.Cache {
+			// S3 path: force each proxy to cache the snapshot in-memory
 			sts, err := ji.GetDir(sp.S3)
 			if !assert.Nil(ji.Ts.T, err, "Err GetDir S3: %v", err) {
 				return ji
 			}
-			pn := strings.Split(ji.memcachedCfg.JobCfg.SnapshotPath, "/")
+			relPath, _ := strings.CutPrefix(ji.memcachedCfg.JobCfg.SnapshotS3Path, sp.S3+sp.LOCAL+"/")
+			pn := strings.Split(relPath, "/")
 			bucket := pn[0]
 			key := filepath.Join(pn[1:]...)
-			// Create S3 clients for each proxy
 			for _, st := range sp.Names(sts) {
 				s3clnt, err := s3clnt.NewS3Clnt(ji.FsLib, filepath.Join(sp.S3, st))
 				if !assert.Nil(ji.Ts.T, err, "Err NewS3Clnt for %v: %v", st, err) {
 					return ji
 				}
 				db.DPrintf(db.TEST, "Force caching of %v %v on %v", bucket, key, st)
-				// Force each proxy to cache the memcached snapshot in-memory
 				if _, err := s3clnt.GetObject(bucket, key, true); !assert.Nil(ji.Ts.T, err, "GetObject[%v] cache: %v", st, err) {
 					return ji
 				}

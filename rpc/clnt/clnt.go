@@ -32,12 +32,12 @@ type RPCcall struct {
 }
 
 type RPCClnt struct {
-	si             *rpc.StatInfo
-	ch             channel.RPCChannel
-	delegatedRPCCh channel.RPCChannel
-	rc             *delegation.ReplyCache
-	useShmemDelegatedRPCs       bool
-	shmemSegment   *shmem.Segment
+	si                    *rpc.StatInfo
+	ch                    channel.RPCChannel
+	delegatedRPCCh        channel.RPCChannel
+	rc                    *delegation.ReplyCache
+	useShmemDelegatedRPCs bool
+	shmemSegment          *shmem.Segment
 }
 
 // XXX TODO Shouldn't take pn here
@@ -61,12 +61,12 @@ func NewRPCClnt(pn string, opts ...*rpcclntopts.RPCClntOption) (*RPCClnt, error)
 		return nil, err
 	}
 	return &RPCClnt{
-		si:             rpc.NewStatInfo(),
-		ch:             ch,
-		delegatedRPCCh: delCh,
-		rc:             delegation.NewReplyCache(),
-		useShmemDelegatedRPCs:       rpcOpts.UseShmemDelegatedRPCs,
-		shmemSegment:   rpcOpts.ShmemSegment,
+		si:                    rpc.NewStatInfo(),
+		ch:                    ch,
+		delegatedRPCCh:        delCh,
+		rc:                    delegation.NewReplyCache(),
+		useShmemDelegatedRPCs: rpcOpts.UseShmemDelegatedRPCs,
+		shmemSegment:          rpcOpts.ShmemSegment,
 	}, nil
 }
 

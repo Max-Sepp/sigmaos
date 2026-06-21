@@ -1,11 +1,38 @@
 #!/bin/bash
 
-VERSION=EUROSYS2027-submit
+VERSION=EUROSYS2027-submit-2
 
 ROOT_DIR=$(realpath $(dirname $0)/../../..)
 RES_OUT_DIR=$ROOT_DIR/benchmarks/results/$VERSION
 GRAPH_SCRIPTS_DIR=$ROOT_DIR/benchmarks/scripts/graph
 GRAPH_OUT_DIR=$ROOT_DIR/benchmarks/results/graphs
+
+# Parse optional --sys-name and --sys-name-camel arguments
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --sys-name)
+            SYS_NAME="$2"
+            shift 2
+            ;;
+        --sys-name-camel)
+            SYS_NAME_CAMEL="$2"
+            shift 2
+            ;;
+        *)
+            shift
+            ;;
+    esac
+done
+
+# Validate: if SYS_NAME was set, SYS_NAME_CAMEL must also be set
+if [[ -n "${SYS_NAME+x}" ]] && [[ -z "${SYS_NAME_CAMEL+x}" ]]; then
+    echo "Error: --sys-name-camel must be set when --sys-name is set" >&2
+    exit 1
+fi
+
+# Set defaults
+SYS_NAME="${SYS_NAME:-co-sandbox}"
+SYS_NAME_CAMEL="${SYS_NAME_CAMEL:-CoSandbox}"
 
 #echo "..............................................Cached, no cosandbox.............................................."
 #./benchmarks/scripts/graph/start-latency-breakdown-setup-init.py \
@@ -43,7 +70,8 @@ echo "Generating start latency comparison..."
   --dir_path_imgrec_py_cosandbox $RES_OUT_DIR/start_latency_imgrec-py_cosandbox \
   --output_shims $GRAPH_OUT_DIR/start-latency-shims.pdf \
   --output_cpp $GRAPH_OUT_DIR/start-latency-cpp.pdf \
-  --output_imgrec $GRAPH_OUT_DIR/start-latency-imgrec.pdf
+  --output_imgrec $GRAPH_OUT_DIR/start-latency-imgrec.pdf \
+  --sys-name "$SYS_NAME"
 echo "Done generating start latency comparison..."
   #--show_breakdown \
 
@@ -67,7 +95,8 @@ echo "Generating sebs start latency comparison..."
   --dir_path_graph_mst_cosandbox      "$RES_OUT_DIR/sebs_start_latency_502.graph-mst_cosandbox" \
   --dir_path_graph_bfs                "$RES_OUT_DIR/sebs_start_latency_503.graph-bfs" \
   --dir_path_graph_bfs_cosandbox      "$RES_OUT_DIR/sebs_start_latency_503.graph-bfs_cosandbox" \
-  --output "$GRAPH_OUT_DIR/sebs-start-latency.pdf"
+  --output "$GRAPH_OUT_DIR/sebs-start-latency.pdf" \
+  --sys-name "$SYS_NAME"
 #  --dir_path_uploader                "$RES_OUT_DIR/sebs_start_latency_120.uploader" \
 #  --dir_path_uploader_cosandbox      "$RES_OUT_DIR/sebs_start_latency_120.uploader_cosandbox" \
 echo "Done generating sebs start latency comparison..."
@@ -112,16 +141,16 @@ echo "Generating vecdb start latency breakdown simplified graph..."
   --combine_1 "InitSPProxyConn" "ConnectionSetup" \
   --relabel_1 "ConnectionSetup" "ConnectionSetup-2" \
   --relabel_1 "InitSPProxyConn" "ConnectionSetup-1" \
-  --relabel_1 "DownloadCoSandbox" "DownloadCoSandbox" \
+  --relabel_1 "DownloadCoSandbox" "Download${SYS_NAME_CAMEL}" \
   --omit_1 "GlobalScheduling" \
   --dir_path_2 benchmarks/results/$VERSION/start_latency_cossim_cosandbox \
   --proc_name_2 cossim-srv-cpp \
-  --label_2 "VecDB (co-sandbox)" \
+  --label_2 "VecDB (${SYS_NAME})" \
   --relabel_2 "ConnectionSetup" "ConnectionSetup-1" \
   --relabel_2 "InitSPProxyConn" "ConnectionSetup-2" \
-  --relabel_2 "DownloadCoSandbox" "DownloadCoSandbox" \
+  --relabel_2 "DownloadCoSandbox" "Download${SYS_NAME_CAMEL}" \
   --omit_2 "GlobalScheduling" \
-  --subtract_1_from_2 "GlobalScheduling" "DownloadCoSandbox" \
+  --subtract_1_from_2 "GlobalScheduling" "Download${SYS_NAME_CAMEL}" \
   --simplified \
   --output $GRAPH_OUT_DIR/vecdb-start-latency-breakdown-timeline-simplified.pdf \
   | tee $GRAPH_OUT_DIR/vecdb-start-latency-breakdown-timeline.txt
@@ -136,24 +165,27 @@ echo "Generating cached start latency breakdown graph..."
   --combine_1 "InitSPProxyConn" "ConnectionSetup" \
   --relabel_1 "ConnectionSetup" "ConnectionSetup-2" \
   --relabel_1 "InitSPProxyConn" "ConnectionSetup-1" \
-  --relabel_1 "DownloadCoSandbox" "DownloadCoSandbox" \
+  --relabel_1 "CoSandboxStart" "${SYS_NAME_CAMEL}Start" \
+  --relabel_1 "DownloadCoSandbox" "Download${SYS_NAME_CAMEL}" \
   --omit_1 "GlobalScheduling" \
   --dir_path_2 benchmarks/results/$VERSION/start_latency_cached_cosandbox_noshmem \
   --proc_name_2 cached-srv-cpp \
-  --label_2 "Cached (co-sandbox, no shared-memory)" \
+  --label_2 "Cached (${SYS_NAME}, no shared-memory)" \
   --relabel_2 "ConnectionSetup" "ConnectionSetup-1" \
   --relabel_2 "InitSPProxyConn" "ConnectionSetup-2" \
-  --relabel_2 "DownloadCoSandbox" "DownloadCoSandbox" \
+  --relabel_2 "CoSandboxStart" "${SYS_NAME_CAMEL}Start" \
+  --relabel_2 "DownloadCoSandbox" "Download${SYS_NAME_CAMEL}" \
   --omit_2 "GlobalScheduling" \
-  --subtract_1_from_2 "GlobalScheduling" "DownloadCoSandbox" \
+  --subtract_1_from_2 "GlobalScheduling" "Download${SYS_NAME_CAMEL}" \
   --dir_path_3 benchmarks/results/$VERSION/start_latency_cached_cosandbox \
   --proc_name_3 cached-srv-cpp \
-  --label_3 "Cached (co-sandbox, shared-memory)" \
+  --label_3 "Cached (${SYS_NAME}, shared-memory)" \
   --relabel_3 "ConnectionSetup" "ConnectionSetup-1" \
   --relabel_3 "InitSPProxyConn" "ConnectionSetup-2" \
-  --relabel_3 "DownloadCoSandbox" "DownloadCoSandbox" \
+  --relabel_3 "DownloadCoSandbox" "Download${SYS_NAME_CAMEL}" \
+  --relabel_3 "CoSandboxStart" "${SYS_NAME_CAMEL}Start" \
   --omit_3 "GlobalScheduling" \
-  --subtract_1_from_3 "GlobalScheduling" "DownloadCoSandbox" \
+  --subtract_1_from_3 "GlobalScheduling" "Download${SYS_NAME_CAMEL}" \
   --output $GRAPH_OUT_DIR/cached-start-latency-breakdown-timeline.pdf \
   | tee $GRAPH_OUT_DIR/cached-start-latency-breakdown-timeline.txt
 echo "Done generating cached start latency breakdown graph..."
@@ -165,13 +197,15 @@ echo "Generating memcached start latency breakdown graph..."
   --proc_name_1 memcached-shim \
   --label_1 "Memcached" \
   --omit_1 "GlobalScheduling" \
-  --relabel_1 "DownloadCoSandbox" "DownloadCoSandbox" \
+  --relabel_1 "CoSandboxStart" "${SYS_NAME_CAMEL}Start" \
+  --relabel_1 "DownloadCoSandbox" "Download${SYS_NAME_CAMEL}" \
   --dir_path_2 benchmarks/results/$VERSION/start_latency_memcached_cosandbox \
   --proc_name_2 memcached-shim \
-  --label_2 "Memcached (co-sandbox)" \
+  --label_2 "Memcached (${SYS_NAME})" \
   --omit_2 "GlobalScheduling" \
-  --relabel_2 "DownloadCoSandbox" "DownloadCoSandbox" \
-  --subtract_1_from_2 "GlobalScheduling" "DownloadCoSandbox" \
+  --relabel_2 "CoSandboxStart" "${SYS_NAME_CAMEL}Start" \
+  --relabel_2 "DownloadCoSandbox" "Download${SYS_NAME_CAMEL}" \
+  --subtract_1_from_2 "GlobalScheduling" "Download${SYS_NAME_CAMEL}" \
   --output $GRAPH_OUT_DIR/memcached-start-latency-breakdown-timeline.pdf \
   | tee $GRAPH_OUT_DIR/memcached-start-latency-breakdown-timeline.txt
 echo "Done generating memcached start latency breakdown graph..."
@@ -183,13 +217,15 @@ echo "Generating imgrec-wasm start latency breakdown graph..."
   --proc_name_1 imgrec_precompiled.wasm \
   --label_1 "Imgrec (WASM)" \
   --omit_1 "GlobalScheduling" \
-  --relabel_1 "DownloadCoSandbox" "DownloadCoSandbox" \
+  --relabel_1 "DownloadCoSandbox" "Download${SYS_NAME_CAMEL}" \
+  --relabel_1 "CoSandboxStart" "${SYS_NAME_CAMEL}Start" \
   --dir_path_2 benchmarks/results/$VERSION/start_latency_imgrec-wasm_cosandbox \
   --proc_name_2 imgrec_precompiled.wasm \
-  --label_2 "Imgrec (WASM, co-sandbox)" \
+  --label_2 "Imgrec (WASM, ${SYS_NAME})" \
   --omit_2 "GlobalScheduling" \
-  --relabel_2 "DownloadCoSandbox" "DownloadCoSandbox" \
-  --subtract_1_from_2 "GlobalScheduling" "DownloadCoSandbox" \
+  --relabel_2 "CoSandboxStart" "${SYS_NAME_CAMEL}Start" \
+  --relabel_2 "DownloadCoSandbox" "Download${SYS_NAME_CAMEL}" \
+  --subtract_1_from_2 "GlobalScheduling" "Download${SYS_NAME_CAMEL}" \
   --output $GRAPH_OUT_DIR/imgrec-wasm-start-latency-breakdown-timeline.pdf \
   | tee $GRAPH_OUT_DIR/imgrec-wasm-start-latency-breakdown-timeline.txt
 echo "Done generating imgrec-wasm start latency breakdown graph..."
@@ -201,13 +237,15 @@ echo "Generating imgrec-py start latency breakdown graph..."
   --proc_name_1 imgrec.py \
   --label_1 "Imgrec (Python)" \
   --omit_1 "GlobalScheduling" \
-  --relabel_1 "DownloadCoSandbox" "DownloadCoSandbox" \
+  --relabel_1 "DownloadCoSandbox" "Download${SYS_NAME_CAMEL}" \
+  --relabel_1 "CoSandboxStart" "${SYS_NAME_CAMEL}Start" \
   --dir_path_2 benchmarks/results/$VERSION/start_latency_imgrec-py_cosandbox \
   --proc_name_2 imgrec.py \
-  --label_2 "Imgrec (Python, co-sandbox)" \
+  --label_2 "Imgrec (Python, ${SYS_NAME})" \
+  --relabel_2 "CoSandboxStart" "${SYS_NAME_CAMEL}Start" \
   --omit_2 "GlobalScheduling" \
-  --relabel_2 "DownloadCoSandbox" "DownloadCoSandbox" \
-  --subtract_1_from_2 "GlobalScheduling" "DownloadCoSandbox" \
+  --relabel_2 "DownloadCoSandbox" "Download${SYS_NAME_CAMEL}" \
+  --subtract_1_from_2 "GlobalScheduling" "Download${SYS_NAME_CAMEL}" \
   --output $GRAPH_OUT_DIR/imgrec-py-start-latency-breakdown-timeline.pdf \
   | tee $GRAPH_OUT_DIR/imgrec-py-start-latency-breakdown-timeline.txt
 echo "Done generating imgrec-py start latency breakdown graph..."
@@ -219,13 +257,13 @@ echo "Generating SeBS thumbnailer start latency breakdown graph..."
   --proc_name_1 sebs-runner.py \
   --label_1 "Thumbnailer" \
   --omit_1 "GlobalScheduling" \
-  --relabel_1 "DownloadCoSandbox" "DownloadCoSandbox" \
+  --relabel_1 "DownloadCoSandbox" "Download${SYS_NAME_CAMEL}" \
   --dir_path_2 $RES_OUT_DIR/sebs_start_latency_210.thumbnailer_cosandbox \
   --proc_name_2 sebs-runner.py \
-  --label_2 "Thumbnailer (co-sandbox)" \
+  --label_2 "Thumbnailer (${SYS_NAME})" \
   --omit_2 "GlobalScheduling" \
-  --relabel_2 "DownloadCoSandbox" "DownloadCoSandbox" \
-  --subtract_1_from_2 "GlobalScheduling" "DownloadCoSandbox" \
+  --relabel_2 "DownloadCoSandbox" "Download${SYS_NAME_CAMEL}" \
+  --subtract_1_from_2 "GlobalScheduling" "Download${SYS_NAME_CAMEL}" \
   --output $GRAPH_OUT_DIR/sebs-thumbnailer-start-latency-breakdown-timeline.pdf \
   | tee $GRAPH_OUT_DIR/sebs-thumbnailer-start-latency-breakdown-timeline.txt
 echo "Done generating SeBS thumbnailer start latency breakdown graph..."
@@ -237,13 +275,13 @@ echo "Generating SeBS video-processing start latency breakdown graph..."
   --proc_name_1 sebs-runner.py \
   --label_1 "Video Processing" \
   --omit_1 "GlobalScheduling" \
-  --relabel_1 "DownloadCoSandbox" "DownloadCoSandbox" \
+  --relabel_1 "DownloadCoSandbox" "Download${SYS_NAME_CAMEL}" \
   --dir_path_2 $RES_OUT_DIR/sebs_start_latency_220.video-processing_cosandbox \
   --proc_name_2 sebs-runner.py \
-  --label_2 "Video Processing (co-sandbox)" \
+  --label_2 "Video Processing (${SYS_NAME})" \
   --omit_2 "GlobalScheduling" \
-  --relabel_2 "DownloadCoSandbox" "DownloadCoSandbox" \
-  --subtract_1_from_2 "GlobalScheduling" "DownloadCoSandbox" \
+  --relabel_2 "DownloadCoSandbox" "Download${SYS_NAME_CAMEL}" \
+  --subtract_1_from_2 "GlobalScheduling" "Download${SYS_NAME_CAMEL}" \
   --output $GRAPH_OUT_DIR/sebs-video-processing-start-latency-breakdown-timeline.pdf \
   | tee $GRAPH_OUT_DIR/sebs-video-processing-start-latency-breakdown-timeline.txt
 echo "Done generating SeBS video-processing start latency breakdown graph..."
@@ -255,13 +293,13 @@ echo "Generating SeBS image-recognition start latency breakdown graph..."
   --proc_name_1 sebs-runner.py \
   --label_1 "Image Recognition" \
   --omit_1 "GlobalScheduling" \
-  --relabel_1 "DownloadCoSandbox" "DownloadCoSandbox" \
+  --relabel_1 "DownloadCoSandbox" "Download${SYS_NAME_CAMEL}" \
   --dir_path_2 $RES_OUT_DIR/sebs_start_latency_411.image-recognition_cosandbox \
   --proc_name_2 sebs-runner.py \
-  --label_2 "Image Recognition (co-sandbox)" \
+  --label_2 "Image Recognition (${SYS_NAME})" \
   --omit_2 "GlobalScheduling" \
-  --relabel_2 "DownloadCoSandbox" "DownloadCoSandbox" \
-  --subtract_1_from_2 "GlobalScheduling" "DownloadCoSandbox" \
+  --relabel_2 "DownloadCoSandbox" "Download${SYS_NAME_CAMEL}" \
+  --subtract_1_from_2 "GlobalScheduling" "Download${SYS_NAME_CAMEL}" \
   --output $GRAPH_OUT_DIR/sebs-image-recognition-start-latency-breakdown-timeline.pdf \
   | tee $GRAPH_OUT_DIR/sebs-image-recognition-start-latency-breakdown-timeline.txt
 echo "Done generating SeBS image-recognition start latency breakdown graph..."
@@ -273,13 +311,13 @@ echo "Generating SeBS dna-visualisation start latency breakdown graph..."
   --proc_name_1 sebs-runner.py \
   --label_1 "DNA Visualisation" \
   --omit_1 "GlobalScheduling" \
-  --relabel_1 "DownloadCoSandbox" "DownloadCoSandbox" \
+  --relabel_1 "DownloadCoSandbox" "Download${SYS_NAME_CAMEL}" \
   --dir_path_2 $RES_OUT_DIR/sebs_start_latency_504.dna-visualisation_cosandbox \
   --proc_name_2 sebs-runner.py \
-  --label_2 "DNA Visualisation (co-sandbox)" \
+  --label_2 "DNA Visualisation (${SYS_NAME})" \
   --omit_2 "GlobalScheduling" \
-  --relabel_2 "DownloadCoSandbox" "DownloadCoSandbox" \
-  --subtract_1_from_2 "GlobalScheduling" "DownloadCoSandbox" \
+  --relabel_2 "DownloadCoSandbox" "Download${SYS_NAME_CAMEL}" \
+  --subtract_1_from_2 "GlobalScheduling" "Download${SYS_NAME_CAMEL}" \
   --output $GRAPH_OUT_DIR/sebs-dna-visualisation-start-latency-breakdown-timeline.pdf \
   | tee $GRAPH_OUT_DIR/sebs-dna-visualisation-start-latency-breakdown-timeline.txt
 echo "Done generating SeBS dna-visualisation start latency breakdown graph..."
@@ -298,6 +336,14 @@ echo "Imgresize (writeout) breakdown..."
 ./benchmarks/scripts/graph/imgresize-time-breakdown.py \
   --input_dir $RES_OUT_DIR/img_process_gvisor_cosandbox_writeout
 echo "Imgresize (writeout) breakdown..."
+
+echo "Generating blink start latency comparison..."
+$GRAPH_SCRIPTS_DIR/blink-start-latency-cosandbox-bar-graph.py \
+    --dir_path_imgrec         $RES_OUT_DIR/blink_nocosandbox \
+    --dir_path_imgrec_cosandbox $RES_OUT_DIR/blink_cosandbox \
+    --output $GRAPH_OUT_DIR/blink-start-latency.pdf \
+    --sys-name "$SYS_NAME"
+echo "Done generating blink start latency comparison..."
 
 #echo "..............................................Cached, no cosandbox.............................................."
 #./benchmarks/scripts/graph/start-latency-breakdown-setup-init.py \

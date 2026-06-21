@@ -13,27 +13,33 @@ import (
 	sp "sigmaos/sigmap"
 )
 
-const SHMEM_MB proc.Tmem = 40
+const SHMEM_MB proc.Tmem = 250
 
 type EtcdJobConfig struct {
-	Job           string     `json:"job"`
-	SnapshotPath  string     `json:"snapshot_path"` // Path to snapshot file in SigmaOS
-	Name          string     `json:"name"`          // Etcd node name
-	PeerPort      int        `json:"peer_port"`
-	ClientPort    int        `json:"client_port"`
-	UseCoSandbox bool       `json:"use_co_sandbox"`
-	Mcpu          proc.Tmcpu `json:"mcpu"`
+	Job            string     `json:"job"`
+	SnapshotS3Path string     `json:"snapshot_s3_path"` // Path to snapshot in S3 (name/s3/~local/...)
+	SnapshotUXPath string     `json:"snapshot_ux_path"` // Path to snapshot in UX (name/ux/~local/...)
+	UseUX          bool       `json:"use_ux"`           // Use UX path instead of S3 path
+	Name           string     `json:"name"`             // Etcd node name
+	PeerPort       int        `json:"peer_port"`
+	ClientPort     int        `json:"client_port"`
+	UseCoSandbox   bool       `json:"use_co_sandbox"`
+	Mcpu           proc.Tmcpu `json:"mcpu"`
+	ShmemMB        proc.Tmem  `json:"shmem_mb"`
 }
 
-func NewEtcdJobConfig(job, snapshotPath, name string, peerPort, clientPort int, useCoSandbox bool, mcpu proc.Tmcpu) *EtcdJobConfig {
+func NewEtcdJobConfig(job, snapshotS3Path, snapshotUXPath, name string, peerPort, clientPort int, useCoSandbox, useUX bool, mcpu proc.Tmcpu, shmemMB proc.Tmem) *EtcdJobConfig {
 	return &EtcdJobConfig{
-		Job:           job,
-		SnapshotPath:  snapshotPath,
-		Name:          name,
-		PeerPort:      peerPort,
-		ClientPort:    clientPort,
-		UseCoSandbox: useCoSandbox,
-		Mcpu:          mcpu,
+		Job:            job,
+		SnapshotS3Path: snapshotS3Path,
+		SnapshotUXPath: snapshotUXPath,
+		UseUX:          useUX,
+		Name:           name,
+		PeerPort:       peerPort,
+		ClientPort:     clientPort,
+		UseCoSandbox:   useCoSandbox,
+		Mcpu:           mcpu,
+		ShmemMB:        shmemMB,
 	}
 }
 
@@ -41,11 +47,11 @@ type EtcdJob struct {
 	mu   sync.Mutex
 	conf *EtcdJobConfig
 	*sigmaclnt.SigmaClnt
-	EPCacheJob      *epsrv.EPCacheJob
-	p               *proc.Proc
+	EPCacheJob     *epsrv.EPCacheJob
+	p              *proc.Proc
 	coSandbox      []byte
 	coSandboxInput []byte
-	stopEPCJ        bool
+	stopEPCJ       bool
 }
 
 func NewEtcdJob(conf *EtcdJobConfig, sc *sigmaclnt.SigmaClnt, epcj *epsrv.EPCacheJob) (*EtcdJob, error) {
@@ -71,39 +77,56 @@ func newEtcdJob(conf *EtcdJobConfig, sc *sigmaclnt.SigmaClnt, epcj *epsrv.EPCach
 
 	// If using init script, read boot script and prepare input
 	if conf.UseCoSandbox {
-		coSandbox, err = GetCoSandbox(sc)
-		if err != nil {
-			db.DPrintf(db.ERROR, "Err read boot script: %v", err)
-			return nil, err
-		}
-
-		// Parse snapshot path to get bucket and key
-		splitFN := strings.Split(conf.SnapshotPath, "/")
-		bucket := splitFN[0]
-		key := filepath.Join(splitFN[1:]...)
-
-		coSandboxInput, err = GetCoSandboxInput(bucket, key, sp.LOCAL)
-		if err != nil {
-			db.DPrintf(db.ERROR, "Err GetCoSandboxInput: %v", err)
-			return nil, err
+		if conf.UseUX {
+			coSandbox, err = GetCoSandboxUX(sc)
+			if err != nil {
+				db.DPrintf(db.ERROR, "Err read ux boot script: %v", err)
+				return nil, err
+			}
+			strippedUX := strings.TrimPrefix(conf.SnapshotUXPath, sp.UX+sp.LOCAL+"/")
+			coSandboxInput, err = GetCoSandboxUXInput(strippedUX, sp.LOCAL)
+			if err != nil {
+				db.DPrintf(db.ERROR, "Err GetCoSandboxUXInput: %v", err)
+				return nil, err
+			}
+		} else {
+			coSandbox, err = GetCoSandbox(sc)
+			if err != nil {
+				db.DPrintf(db.ERROR, "Err read boot script: %v", err)
+				return nil, err
+			}
+			// Parse S3 snapshot path to get bucket and key (strip name/s3/~local/ prefix)
+			strippedS3 := strings.TrimPrefix(conf.SnapshotS3Path, sp.S3+sp.LOCAL+"/")
+			splitFN := strings.Split(strippedS3, "/")
+			bucket := splitFN[0]
+			key := filepath.Join(splitFN[1:]...)
+			coSandboxInput, err = GetCoSandboxInput(bucket, key, sp.LOCAL)
+			if err != nil {
+				db.DPrintf(db.ERROR, "Err GetCoSandboxInput: %v", err)
+				return nil, err
+			}
 		}
 	}
 
 	return &EtcdJob{
-		conf:            conf,
-		SigmaClnt:       sc,
-		EPCacheJob:      epcj,
+		conf:           conf,
+		SigmaClnt:      sc,
+		EPCacheJob:     epcj,
 		coSandbox:      coSandbox,
 		coSandboxInput: coSandboxInput,
-		stopEPCJ:        stopEPCJ,
+		stopEPCJ:       stopEPCJ,
 	}, nil
 }
 
 // Start starts the etcd shim process
 func (j *EtcdJob) Start(sigmaPath string) error {
 	// Create the etcd shim proc
+	snapPn := j.conf.SnapshotS3Path
+	if j.conf.UseUX {
+		snapPn = j.conf.SnapshotUXPath
+	}
 	p := proc.NewProc("etcd-shim", []string{
-		j.conf.SnapshotPath,
+		snapPn,
 		j.conf.Name,
 		fmt.Sprintf("http://127.0.0.1:%v", j.conf.PeerPort),
 		fmt.Sprintf("http://127.0.0.1:%v", j.conf.ClientPort),
@@ -114,8 +137,8 @@ func (j *EtcdJob) Start(sigmaPath string) error {
 	// Set MCPU
 	p.SetMcpu(j.conf.Mcpu)
 	// Configure proc environment
-	p.GetProcEnv().UseSPProxy = j.conf.UseCoSandbox
-	p.SetShmemMB(SHMEM_MB)
+	p.GetProcEnv().UseSPProxy = true
+	p.SetShmemMB(j.conf.ShmemMB)
 	p.SetCoSandbox(j.coSandbox, j.coSandboxInput)
 	p.SetRunCoSandbox(j.conf.UseCoSandbox)
 	// Set the proc's sigma path
@@ -168,6 +191,26 @@ func (j *EtcdJob) GetProc() *proc.Proc {
 }
 
 func (cfg *EtcdJobConfig) String() string {
-	return fmt.Sprintf("&{ job:%v snapshot:%v name:%v peerPort:%v clientPort:%v useCoSandbox:%v mcpu:%v }",
-		cfg.Job, cfg.SnapshotPath, cfg.Name, cfg.PeerPort, cfg.ClientPort, cfg.UseCoSandbox, cfg.Mcpu)
+	return fmt.Sprintf("&{ job:%v snapshotS3:%v snapshotUX:%v useUX:%v name:%v peerPort:%v clientPort:%v useCoSandbox:%v mcpu:%v shmemMB:%v }",
+		cfg.Job, cfg.SnapshotS3Path, cfg.SnapshotUXPath, cfg.UseUX, cfg.Name, cfg.PeerPort, cfg.ClientPort, cfg.UseCoSandbox, cfg.Mcpu, cfg.ShmemMB)
+}
+
+// DownloadSnapToAllUXs copies the snapshot from name/s3/~any/<srcPath> to
+// name/ux/<child>/<dstPath> for every child of name/ux/.
+func (j *EtcdJob) DownloadSnapToAllUXs(srcPath, dstPath string) error {
+	sts, err := j.GetDir(sp.UX)
+	if err != nil {
+		db.DPrintf(db.ERROR, "DownloadSnapToAllUXs: GetDir %v: %v", sp.UX, err)
+		return err
+	}
+	for _, st := range sts {
+		uxBase := filepath.Join(sp.UX, st.Name)
+		src := filepath.Join(sp.S3+sp.ANY, srcPath)
+		dst := filepath.Join(uxBase, dstPath)
+		if err := j.CopyFile(src, dst); err != nil {
+			db.DPrintf(db.ERROR, "DownloadSnapToAllUXs: CopyFile %v -> %v: %v", src, dst, err)
+			return err
+		}
+	}
+	return nil
 }

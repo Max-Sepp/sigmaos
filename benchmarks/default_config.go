@@ -146,23 +146,29 @@ var DefaultImgBenchConfig = &ImgBenchConfig{
 
 var DefaultEtcdBenchConfig = &EtcdBenchConfig{
 	JobCfg: &etcd.EtcdJobConfig{
-		Job:          "etcd-job",
-		SnapshotPath: "9ps3/snapshot.db",
-		Name:         "etcd-proc",
-		PeerPort:     6380,
-		ClientPort:   6379,
-		UseCoSandbox: true,
-		Mcpu:         proc.Tmcpu(1000),
+		Job:            "etcd-job",
+		SnapshotS3Path: "name/s3/~local/9ps3/snapshot.db",
+		SnapshotUXPath: "name/ux/~local/snapshot.db",
+		UseUX:          false,
+		Name:           "etcd-proc",
+		PeerPort:       6380,
+		ClientPort:     6379,
+		UseCoSandbox:   true,
+		Mcpu:           proc.Tmcpu(1000),
+		ShmemMB:        proc.Tmem(250),
 	},
 }
 
 var DefaultMemcachedBenchConfig = &MemcachedBenchConfig{
 	JobCfg: &memcached.MemcachedJobConfig{
-		Job:          "memcached-job",
-		SnapshotPath: "9ps3/memcached-snapshot-40M",
-		Port:         11211,
-		UseCoSandbox: false,
-		Mcpu:         proc.Tmcpu(1000),
+		Job:            "memcached-job",
+		SnapshotS3Path: "name/s3/~local/9ps3/memcached-snapshot-40M",
+		SnapshotUXPath: "name/ux/~local/memcached-snapshot-40M",
+		UseUX:          false,
+		Port:           11211,
+		UseCoSandbox:   false,
+		Mcpu:           proc.Tmcpu(1000),
+		ShmemMB:        proc.Tmem(250),
 	},
 	Cache: false,
 }

@@ -46,9 +46,9 @@ if [ $EXP != "all" ] && [ $EXP != "start-lat" ] && [ $EXP != "sebs" ] && [ $EXP 
   exit 1
 fi
 
-VERSION=EUROSYS2027-submit
+VERSION=EUROSYS2027-submit-2
 TAG=arielck
-BRANCH=serverless-bench
+BRANCH=master
 
 LOG_DIR=/tmp/sigmaos-experiment-logs
 

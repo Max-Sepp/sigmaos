@@ -215,11 +215,8 @@ for vm in $vms; do
   cd sigmaos
   sudo ./load-apparmor.sh
   if [ "${RELOAD_GVISOR}" = "true" ]; then
-    if docker pull arielszekely/sigmauser:$TAG | grep -q "Image is up to date"; then
-      echo "GVisor image already up-to-date"
-    else
-      sudo ./create-gvisor-bundle.sh --user_ctr arielszekely/sigmauser:${TAG}
-    fi
+    docker pull arielszekely/sigmauser:$TAG
+    sudo ./create-gvisor-bundle.sh --user_ctr arielszekely/sigmauser:${TAG}
   fi
 
   echo "$PWD $SIGMADEBUG"

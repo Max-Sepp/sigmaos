@@ -57,7 +57,7 @@ func TestGenSnapshot(t *testing.T) {
 	memcachedBinary := filepath.Join(projectRoot, "bin", "user", "memcached-v1.0")
 	args := []string{
 		"-p", PORT,
-		"-m", memcached.MEMCACHED_MEM_SZ,
+		"-m", memcached.MEMCACHED_MEM_SZ_DEFAULT,
 		"-c", "1024",
 		"-e", filepath.Join(memcached.TMPFS_MOUNT, memcached.SNAP_FILE), // Point memcached at the tmpfs mount snapshot file
 		"-v", // verbose mode
@@ -169,9 +169,11 @@ func copyFile(src, dst string) error {
 
 func TestMemcached(t *testing.T) {
 	const (
-		PORT           = 11211
-		SNAP_PATH      = "9ps3/memcached-snapshot-40M"
-		USE_INITSCRIPT = true
+		PORT             = 11211
+		SNAP_S3_PATH     = "name/s3/~local/9ps3/memcached-snapshot-40M"
+		SNAP_UX_PATH     = "name/ux/~local/memcached-snapshot-40M"
+		USE_INITSCRIPT   = true
+		USE_UX           = false
 	)
 
 	// Only works when running with gVisor
@@ -185,10 +187,10 @@ func TestMemcached(t *testing.T) {
 	}
 	defer mrts.Shutdown()
 
-	db.DPrintf(db.TEST, "Resolved snapshot pathname: %v", SNAP_PATH)
+	db.DPrintf(db.TEST, "Resolved snapshot pathnames: s3=%v ux=%v", SNAP_S3_PATH, SNAP_UX_PATH)
 
 	// Create memcached job config
-	conf := memcached.NewMemcachedJobConfig("memcached-job", SNAP_PATH, PORT, USE_INITSCRIPT, proc.Tmcpu(1000))
+	conf := memcached.NewMemcachedJobConfig("memcached-job", SNAP_S3_PATH, SNAP_UX_PATH, PORT, USE_INITSCRIPT, USE_UX, proc.Tmcpu(1000), proc.Tmem(250))
 	db.DPrintf(db.TEST, "Created memcached job config: %v", conf)
 
 	// Create memcached job
