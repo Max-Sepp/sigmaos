@@ -29,7 +29,7 @@ func Pagerank(args []string) {
 	// Third argument is damping factor
 	// Fourth argument is convergence criteria
 
-	db.DPrintf(db.TEST, "Pagerank called with args: %v", args)
+	db.DPrintf(db.PAGERANK, "Pagerank args: %v", args)
 
 	pe := proc.GetProcEnv()
 	sc, err := sigmaclnt.NewSigmaClnt(pe)
@@ -37,10 +37,20 @@ func Pagerank(args []string) {
 		db.DFatalf("Error %v", err)
 	}
 
+	db.DPrintf(db.PAGERANK, "Pagerank client created")
+
+	if err := sc.Started(); err != nil {
+		db.DFatalf("Started error %v", err)
+	}
+
+	db.DPrintf(db.PAGERANK, "Pagerank client started")
+
 	graphData, err := sc.GetFile(args[0])
 	if err != nil {
 		db.DFatalf("Error %v", err)
 	}
+
+	db.DPrintf(db.PAGERANK, "Graph data retrieved: %s", string(graphData))
 
 	graph := pagerank.NewGraph()
 
@@ -77,8 +87,14 @@ func Pagerank(args []string) {
 		db.DFatalf("Error %v", err)
 	}
 
+	db.DPrintf(db.PAGERANK, "Pagerank result: %s", string(resultData))
+
 	_, err = sc.PutFile(args[1], 0777, sp.OWRITE, resultData)
 	if err != nil {
 		db.DFatalf("Error %v", err)
 	}
+
+	db.DPrintf(db.PAGERANK, "Pagerank result written to %s", args[1])
+
+	sc.ClntExitOK()
 }
