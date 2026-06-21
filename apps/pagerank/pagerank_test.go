@@ -62,7 +62,7 @@ func TestBasicGraph(t *testing.T) {
 	db.DPrintf(db.TEST, "Directory created")
 
 	in := filepath.Join(sp.S3, sp.LOCAL, "9ps3/pagerank/graph.json")
-	_, err = mrts.GetRealm(test.REALM1).PutFile(in, 0777, sp.ORDWR, wikiGraphData)
+	_, err = mrts.GetRealm(test.REALM1).PutFile(in, 0777, sp.OWRITE, wikiGraphData)
 	if !assert.Nil(t, err, "Error putting graph file: %v", err) {
 		return
 	}
