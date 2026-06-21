@@ -23,18 +23,18 @@ func TestBasicGraph(t *testing.T) {
 	// A..K mapped to 1..11. Node 1 (A) has no outbound edges, so this graph
 	// also exercises dangling-node handling.
 	//
-	//	B↔C, D→{A,B}, E→{D,B,F}, F→{B,E}, G→{B,E}, H→{B,E}, I→{B,E}, J→E, K→E
+	//	B <-> C, D -> {A,B}, E -> {D,B,F}, F -> {B,E}, G -> {B,E}, H -> {B,E}, I -> {B,E}, J -> E, K -> E
 	wikiGraph := []*GraphNode{
-		{4, 1, 1}, {4, 2, 1}, // D → A, B
-		{3, 2, 1},                       // C → B
-		{2, 3, 1},                       // B → C
-		{5, 4, 1}, {5, 2, 1}, {5, 6, 1}, // E → D, B, F
-		{6, 2, 1}, {6, 5, 1}, // F → B, E
-		{7, 2, 1}, {7, 5, 1}, // G → B, E
-		{8, 2, 1}, {8, 5, 1}, // H → B, E
-		{9, 2, 1}, {9, 5, 1}, // I → B, E
-		{10, 5, 1}, // J → E
-		{11, 5, 1}, // K → E
+		{4, 1, 1}, {4, 2, 1}, // D -> A, B
+		{3, 2, 1},                       // C  ->  B
+		{2, 3, 1},                       // B  ->  C
+		{5, 4, 1}, {5, 2, 1}, {5, 6, 1}, // E  ->  D, B, F
+		{6, 2, 1}, {6, 5, 1}, // F  ->  B, E
+		{7, 2, 1}, {7, 5, 1}, // G  ->  B, E
+		{8, 2, 1}, {8, 5, 1}, // H  ->  B, E
+		{9, 2, 1}, {9, 5, 1}, // I  ->  B, E
+		{10, 5, 1}, // J  ->  E
+		{11, 5, 1}, // K  ->  E
 	}
 
 	db.DPrintf(db.TEST, "Wiki Graph created")
@@ -44,7 +44,7 @@ func TestBasicGraph(t *testing.T) {
 		return
 	}
 
-	db.DPrintf(db.TEST, "Marshalled to json")
+	db.DPrintf(db.TEST, "Marshalled to json: %s", string(wikiGraphData))
 
 	mrts, err1 := test.NewMultiRealmTstate(t, []sp.Trealm{test.REALM1})
 	if !assert.Nil(t, err1, "Error New Tstate: %v", err1) {
