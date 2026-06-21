@@ -71,7 +71,7 @@ func TestBasicGraph(t *testing.T) {
 
 	out := filepath.Join(sp.S3, sp.LOCAL, "9ps3/pagerank/ranks.json")
 
-	p := proc.NewProc("pagerank", []string{in, out, "0.85", "0.0001"})
+	p := proc.NewProc("pagerank", []string{in, out, "0.85", "0.0000001"})
 	err = mrts.GetRealm(test.REALM1).Spawn(p)
 	if !assert.Nil(t, err, "Spawn") {
 		return
@@ -95,4 +95,54 @@ func TestBasicGraph(t *testing.T) {
 	}
 
 	db.DPrintf(db.TEST, "Pagerank process exited OK")
+
+	ranksData, err := mrts.GetRealm(test.REALM1).GetFile(out)
+	if !assert.Nil(t, err, "Error getting ranks file: %v", err) {
+		return
+	}
+
+	db.DPrintf(db.TEST, "Ranks file retrieved: %s", string(ranksData))
+
+	var ranks []*PagerankResult
+	err = json.Unmarshal(ranksData, &ranks)
+	if !assert.Nil(t, err, "Error unmarshalling ranks: %v", err) {
+		return
+	}
+
+	db.DPrintf(db.TEST, "Unmarshalled %d ranks", len(ranks))
+	for _, r := range ranks {
+		db.DPrintf(db.TEST, "  node %v rank %v", r.Node, r.Rank)
+	}
+
+	// Expected ranks for the wikiGraph (canonical Wikipedia PageRank example)
+	// with damping factor 0.85. Values are the well-known reference results
+	// (A 3.3%, B 38.4%, C 34.3%, D 3.9%, E 8.1%, F 3.9%, G..K 1.6%), so the
+	// distribution sums to ~1.0. Nodes 1..11 map to A..K.
+	expectedRanks := map[uint32]float64{
+		1:  0.033, // A
+		2:  0.384, // B
+		3:  0.343, // C
+		4:  0.039, // D
+		5:  0.081, // E
+		6:  0.039, // F
+		7:  0.016, // G
+		8:  0.016, // H
+		9:  0.016, // I
+		10: 0.016, // J
+		11: 0.016, // K
+	}
+
+	// Tolerance of 0.001 accommodates the rounding in the reference values
+	// above while still catching a genuinely wrong distribution.
+	for _, rank := range ranks {
+		expectedRank, exists := expectedRanks[rank.Node]
+		if !assert.True(t, exists, "Unexpected node in ranks: %v", rank.Node) {
+			return
+		}
+		if !assert.InDelta(t, expectedRank, rank.Rank, 0.001, "Rank mismatch for node %v", rank.Node) {
+			return
+		}
+	}
+
+	db.DPrintf(db.TEST, "All ranks within tolerance")
 }
