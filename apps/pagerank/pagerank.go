@@ -29,6 +29,8 @@ func Pagerank(args []string) {
 	// Third argument is damping factor
 	// Fourth argument is convergence criteria
 
+	db.DPrintf(db.TEST, "Pagerank called with args: %v", args)
+
 	pe := proc.GetProcEnv()
 	sc, err := sigmaclnt.NewSigmaClnt(pe)
 	if err != nil {
