@@ -84,11 +84,12 @@ type HotelBenchConfig struct {
 	CachedUserFrac  int64                 `json:"cached_user_frac"`
 	CacheBenchCfg   *CacheBenchConfig     `json:"cache_bench_cfg"`
 	CosSimBenchCfg  *CosSimBenchConfig    `json:"cossim_bench_cfg"`
+	EvictBenchCfg   *EvictionBenchConfig  `json:"evict_bench_cfg"`
 }
 
 func (cfg *HotelBenchConfig) String() string {
-	return fmt.Sprintf("&{ JobCfg:%v Durs:%v MaxRPS:%v ScaleGeo:%v MatchUseCaching:%v CachedUserFrac:%v CacheBenchCfg:%v CosSimBenchCfg:%v }",
-		cfg.JobCfg, cfg.Durs, cfg.MaxRPS, cfg.ScaleGeo, cfg.MatchUseCaching, cfg.CachedUserFrac, cfg.CacheBenchCfg, cfg.CosSimBenchCfg)
+	return fmt.Sprintf("&{ JobCfg:%v Durs:%v MaxRPS:%v ScaleGeo:%v MatchUseCaching:%v CachedUserFrac:%v CacheBenchCfg:%v CosSimBenchCfg:%v EvictBenchCfg:%v }",
+		cfg.JobCfg, cfg.Durs, cfg.MaxRPS, cfg.ScaleGeo, cfg.MatchUseCaching, cfg.CachedUserFrac, cfg.CacheBenchCfg, cfg.CosSimBenchCfg, cfg.EvictBenchCfg)
 }
 
 func (cfg *HotelBenchConfig) GetJobConfig() *hotel.HotelJobConfig {
