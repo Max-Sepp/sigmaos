@@ -115,6 +115,7 @@ var DefaultHotelBenchConfig = &HotelBenchConfig{
 	},
 	CacheBenchCfg:  nil,
 	CosSimBenchCfg: nil,
+	EvictBenchCfg:  nil,
 }
 
 var DefaultMRBenchConfig = &MRBenchConfig{
