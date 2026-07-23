@@ -27,6 +27,14 @@ const (
 	// that it clearly dominates this environment's natural task-time
 	// variance (S3 read latency, local machine contention).
 	StragglerSlowdownMs = 180_000
+
+	// StragglerMRApp and StragglerMemReq keep the job small enough that every
+	// map and reduce task fits in memory at once (5 map + 3 reduce at 1.5GB
+	// each), so there's no admission queue and the only slow task is the
+	// injected straggler. The shared default (mr-wc-wiki1.8G at 4000MB) fits
+	// only ~3 tasks at a time, so queue wait would otherwise dominate.
+	StragglerMRApp  = "mr-wc-wiki512M.yml"
+	StragglerMemReq = 1500
 )
 
 // collectMRStats mirrors apps/mr/mr_test.go's collectStats: it decodes each
@@ -58,9 +66,9 @@ func runMRStragglerJob(mrts *test.MultiRealmTstate, slowdownMs int, specEnabled 
 
 	// Each call needs its own job name so that InitCoordFS's MkDir doesn't
 	// collide with a stale job dir from a previous run.
-	jobname := MR_APP + "-mr-straggler-" + rand.String(3) + "-" + mrts.GetRealm(REALM1).GetRealm().String()
-	ji := NewMRStragglerJobInstance(mrts.GetRealm(REALM1), p, MR_APP, chooseMRJobRoot(mrts.GetRealm(REALM1)),
-		jobname, proc.Tmem(MR_MEM_REQ), StragglerSlowTaskId, slowdownMs, specEnabled)
+	jobname := StragglerMRApp + "-mr-straggler-" + rand.String(3) + "-" + mrts.GetRealm(REALM1).GetRealm().String()
+	ji := NewMRStragglerJobInstance(mrts.GetRealm(REALM1), p, StragglerMRApp, chooseMRJobRoot(mrts.GetRealm(REALM1)),
+		jobname, proc.Tmem(StragglerMemReq), StragglerSlowTaskId, slowdownMs, specEnabled)
 	ji.PrepareMRJob()
 
 	start := time.Now()
