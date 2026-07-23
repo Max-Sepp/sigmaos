@@ -111,6 +111,11 @@ type Coord struct {
 	// attemptStart is when each attempt was built, so a loser's wall-time can
 	// be charged to the wasted-compute counters.
 	attemptStart map[sp.Tpid]time.Time
+	// backupPids marks which attempts are speculative backups (rather than a
+	// task's original attempt). Only a backup that loses its race is charged
+	// as wasted compute, so Nwasted measures speculations that didn't pay off
+	// -- see recordWasted.
+	backupPids map[sp.Tpid]bool
 }
 
 type AStat struct {
@@ -122,8 +127,10 @@ type AStat struct {
 	NrecoverMap    spstats.Tcounter
 	NrecoverReduce spstats.Tcounter
 	Nspeculate     spstats.Tcounter
-	// Duplicate attempts evicted or discarded after losing their task's race,
-	// and their summed wall-time before losing.
+	// Speculative backups that lost their race (fired but didn't produce the
+	// winning result), and their summed wall-time before losing. A backup that
+	// wins isn't wasted, so Nspeculate-Nwasted is the number of useful backups;
+	// Nwasted==0 with Nspeculate>0 means every backup that fired paid off.
 	Nwasted  spstats.Tcounter
 	MsWasted spstats.Tcounter
 }
@@ -227,6 +234,7 @@ func NewCoord(args []string) (*Coord, error) {
 	c.mAttempts = make(map[ftclnt.TaskId][]sp.Tpid)
 	c.rAttempts = make(map[ftclnt.TaskId][]sp.Tpid)
 	c.attemptStart = make(map[sp.Tpid]time.Time)
+	c.backupPids = make(map[sp.Tpid]bool)
 
 	return c, nil
 }
@@ -283,12 +291,21 @@ func (c *Coord) buildMapperProc(t ftclnt.Task[[]byte], isBackup bool) (*proc.Pro
 		slowdownMs = c.slowdownMs
 	}
 	proc := c.newTask(mapperbin, []string{c.jobRoot, c.job, strconv.Itoa(c.nreducetask), string(b), c.intOutdir, c.linesz, c.wordsz, strconv.Itoa(slowdownMs)}, c.memPerTask)
-	c.recordAttempt(t.Id, proc.GetPid(), true)
+	c.recordAttempt(t.Id, proc.GetPid(), true, isBackup)
 	return proc, nil
 }
 
-// reducerProc is mapperProc's mirror for the reduce phase.
+// reducerProc is mapperProc's mirror for the reduce phase; called for a
+// task's primary attempt (via fttaskmgr).
 func (c *Coord) reducerProc(t ftclnt.Task[[]byte]) (*proc.Proc, error) {
+	return c.buildReducerProc(t, false)
+}
+
+// buildReducerProc builds (but doesn't spawn) a reducer proc for task t.
+// isBackup is true when building a speculative backup (via runBackupReduce),
+// mirroring buildMapperProc, so wasted-compute accounting can tell a backup
+// from the original attempt.
+func (c *Coord) buildReducerProc(t ftclnt.Task[[]byte], isBackup bool) (*proc.Proc, error) {
 	data, err := ftclnt.Decode[TreduceTask](t.Data)
 	if err != nil {
 		db.DFatalf("reducerProc: failed to convert data to task %v %v", t.Data, err)
@@ -297,18 +314,22 @@ func (c *Coord) reducerProc(t ftclnt.Task[[]byte]) (*proc.Proc, error) {
 	outTarget := ReduceOutTarget(c.outdir, c.job) + data.Task
 	c.stat.Nreduce.Add(1)
 	p := c.newTask(c.reducerbin, []string{strconv.Itoa(int(t.Id)), string(c.rftclnt.ServiceId()), outlink, outTarget, strconv.Itoa(c.nmaptask)}, c.memPerTask)
-	c.recordAttempt(t.Id, p.GetPid(), false)
+	c.recordAttempt(t.Id, p.GetPid(), false, isBackup)
 	return p, nil
 }
 
 // recordAttempt notes that pid is (one of) the running attempt(s) for task
 // id -- used later to evict the loser once a winning result is known, and
 // (for the very first attempt) as the start time stragglers are measured
-// against.
-func (c *Coord) recordAttempt(id ftclnt.TaskId, pid sp.Tpid, isMap bool) {
+// against. isBackup marks a speculative backup (vs the task's original
+// attempt) so only a losing backup is charged as wasted compute.
+func (c *Coord) recordAttempt(id ftclnt.TaskId, pid sp.Tpid, isMap, isBackup bool) {
 	c.specMu.Lock()
 	defer c.specMu.Unlock()
 	c.attemptStart[pid] = time.Now()
+	if isBackup {
+		c.backupPids[pid] = true
+	}
 	if isMap {
 		if _, ok := c.mStart[id]; !ok {
 			c.mStart[id] = time.Now()
@@ -503,7 +524,7 @@ func (c *Coord) runBackupReduce(id ftclnt.TaskId, ch chan<- ftmgr.Tresult[[]byte
 	if err != nil || len(tasks) == 0 {
 		return
 	}
-	p, err := c.reducerProc(tasks[0])
+	p, err := c.buildReducerProc(tasks[0], true)
 	if err != nil {
 		return
 	}
@@ -534,28 +555,41 @@ func (c *Coord) runBackupReduce(id ftclnt.TaskId, ch chan<- ftmgr.Tresult[[]byte
 	}
 }
 
-// recordWasted charges the wall-time each attempt in pids ran to the
-// wasted-compute counters, at most once per pid. Caller must hold specMu.
+// recordWasted charges the wall-time a losing attempt ran to the
+// wasted-compute counters, at most once per pid. Only a speculative backup is
+// charged: a backup loses its race exactly when it turned out useless, so
+// Nwasted counts those. A losing original (beaten by its own winning backup)
+// is cleaned up but not charged -- that speculation paid off. Caller must hold
+// specMu.
 func (c *Coord) recordWasted(pids []sp.Tpid) {
 	now := time.Now()
 	for _, pid := range pids {
-		if start, ok := c.attemptStart[pid]; ok {
+		start, ok := c.attemptStart[pid]
+		if !ok {
+			continue
+		}
+		if c.backupPids[pid] {
 			c.stat.Nwasted.Add(1)
 			c.stat.MsWasted.Add(now.Sub(start).Milliseconds())
-			delete(c.attemptStart, pid)
 		}
+		delete(c.attemptStart, pid)
+		delete(c.backupPids, pid)
 	}
 }
 
-// recordWastedFinished charges an attempt that ran to completion but had its
-// result discarded, using its self-reported duration d.
+// recordWastedFinished charges a speculative backup that ran to completion but
+// had its result discarded (it lost the race), using its self-reported
+// duration d. A discarded original isn't charged -- see recordWasted.
 func (c *Coord) recordWastedFinished(pid sp.Tpid, d time.Duration) {
 	c.specMu.Lock()
 	defer c.specMu.Unlock()
 	if _, ok := c.attemptStart[pid]; ok {
-		c.stat.Nwasted.Add(1)
-		c.stat.MsWasted.Add(d.Milliseconds())
+		if c.backupPids[pid] {
+			c.stat.Nwasted.Add(1)
+			c.stat.MsWasted.Add(d.Milliseconds())
+		}
 		delete(c.attemptStart, pid)
+		delete(c.backupPids, pid)
 	}
 }
 
@@ -586,6 +620,7 @@ func (c *Coord) evictSiblings(id ftclnt.TaskId, exclude sp.Tpid, isMap bool) {
 	}
 	c.recordWasted(losers)
 	delete(c.attemptStart, exclude)
+	delete(c.backupPids, exclude)
 	c.specMu.Unlock()
 	for _, pid := range losers {
 		db.DPrintf(db.MR_COORD, "evictSiblings: evicting %v for task %v (exclude %v)", pid, id, exclude)
