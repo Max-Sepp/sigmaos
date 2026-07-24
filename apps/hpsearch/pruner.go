@@ -11,21 +11,19 @@ import (
 	sp "sigmaos/sigmap"
 )
 
-// SustainIters is how many consecutive iterations a config must trail the
-// best sibling score by more than the margin before RunPruningTrainer prunes
-// itself. It absorbs noise in the synthetic scores so a single bad iteration
-// doesn't trigger a prune.
+// Number of iters a specific hyperparameter configuration must trail the best sibling score (e.g. validation accuracy) by more than the margin before pruning occurs.
 const SustainIters = 3
 
-// progressPath returns the path a config publishes its latest score to, so
-// sibling trainers sharing the same progressDir can read it.
 func progressPath(progressDir string, configId int) string {
 	return path.Join(progressDir, strconv.Itoa(configId))
 }
 
 // publishProgress overwrites this config's progress file with its latest
-// iteration/score. Best-effort: a failed publish just means siblings won't
+// iteration/score.
+//
+// It is best effort. A failed publish just means siblings won't
 // see this iteration's score, not a fatal error for the trainer itself.
+// It will just keep more configs than it really should.
 func publishProgress(sc *fslib.FsLib, progressDir string, configId, iter int, score float64) {
 	pn := progressPath(progressDir, configId)
 	// Clear any previous iteration's file before writing the new one.
@@ -36,9 +34,7 @@ func publishProgress(sc *fslib.FsLib, progressDir string, configId, iter int, sc
 }
 
 // bestSiblingScore scans every other config's published progress and
-// returns the best (highest) score any sibling has reported so far: what a
-// live, causal policy can see, with no knowledge of how those siblings'
-// curves develop later.
+// returns the best (highest) score any sibling has reported so far.
 func bestSiblingScore(sc *fslib.FsLib, progressDir string, selfConfigId int) (best float64, found bool) {
 	// List every config that has published progress so far.
 	sts, err := sc.GetDir(progressDir)
@@ -70,14 +66,6 @@ func bestSiblingScore(sc *fslib.FsLib, progressDir string, selfConfigId int) (be
 	return best, found
 }
 
-// RunPruningTrainer is the entry point for the hp-trainer-pruned proc. It
-// generates the same synthetic curve as RunTrainer (same seeded
-// syntheticCurve, same Curve result type), but instead of always running to
-// completion, it publishes its score after every iteration and prunes
-// itself once it has trailed the best sibling score by more than margin for
-// SustainIters iterations in a row. That decision is online, with no
-// knowledge of the future, so it can prune a config that would have caught
-// up later.
 func RunPruningTrainer(args []string) {
 	if len(args) != 6 {
 		db.DFatalf("RunPruningTrainer: wrong number of args %v", args)
@@ -92,9 +80,7 @@ func RunPruningTrainer(args []string) {
 	if err != nil {
 		db.DFatalf("RunPruningTrainer: margin %v not a float: %v", args[5], err)
 	}
-	// Log the whole configuration of this run upfront, including the pruning
-	// policy's parameters, so a per-iteration log line (or a prune decision)
-	// can be traced back to the config that produced it.
+
 	db.DPrintf(db.HPSEARCH, "hp-trainer-pruned start config %d seed %d maxIters %d iterDur %v progressDir %v margin %f sustainIters %d args %v", configId, seed, maxIters, iterDur, progressDir, margin, SustainIters, args)
 
 	// Connect to SigmaOS and signal that this proc has started running.

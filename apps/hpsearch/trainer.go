@@ -1,7 +1,3 @@
-// Package hpsearch implements a minimal synthetic hyperparameter-search
-// trainer app, used to establish a baseline measurement of how much compute
-// today's SigmaOS wastes by running every configuration to completion with
-// no early-stopping/pruning policy.
 package hpsearch
 
 import (
@@ -30,12 +26,8 @@ const (
 	NoiseStd = 0.02
 )
 
-// Curve is the synthetic learning curve produced by a single hyperparameter
-// configuration's trainer proc. It is returned to the caller via
-// proc.Status's StatusData field (the same mechanism apps/mr uses for its
-// Result struct), so proc/status.go needs no changes.
-// Pruned/PrunedAtIter are left at their zero values (false/0) by RunTrainer;
-// only RunPruningTrainer (pruner.go) ever sets them.
+// Curve is the synthetic validation accuracy learning curve produced by a single hyperparameter
+// configuration's trainer proc.
 type Curve struct {
 	ConfigId     int
 	Seed         int64
@@ -45,9 +37,7 @@ type Curve struct {
 	PrunedAtIter int
 }
 
-// NewCurve decodes a Curve back out of a proc.Status's StatusData, which
-// arrives as a generic map[string]interface{} after the JSON round-trip
-// through sigmap.
+// NewCurve decodes a Curve back out of a proc.Status's StatusData.
 func NewCurve(data interface{}) (*Curve, error) {
 	c := &Curve{}
 	err := mapstructure.Decode(data, c)
@@ -69,9 +59,6 @@ func syntheticCurve(seed int64, maxIters int) (asymptote float64, scores []float
 	return asymptote, scores
 }
 
-// parseTrainerArgs parses the four args common to every hpsearch trainer
-// variant (RunTrainer and RunPruningTrainer alike): configId, seed,
-// maxIters, iterDurMs.
 func parseTrainerArgs(args []string) (configId int, seed int64, maxIters int, iterDur time.Duration, err error) {
 	// Each arg is parsed independently so a bad one names itself in the error.
 	configId, err = strconv.Atoi(args[0])
@@ -111,9 +98,7 @@ func newStartedSigmaClnt() (*sigmaclnt.SigmaClnt, error) {
 
 // RunTrainer is the entry point for the hp-trainer proc. Args are
 // [configId, seed, maxIters, iterDurMs]. It always runs all maxIters
-// iterations (no early stopping); that is the point of this baseline. See
-// RunPruningTrainer (pruner.go) for the live-pruning variant, which shares
-// syntheticCurve/Curve/parseTrainerArgs/newStartedSigmaClnt with this one.
+// iterations (no early stopping).
 func RunTrainer(args []string) {
 	if len(args) != 4 {
 		db.DFatalf("RunTrainer: wrong number of args %v", args)
@@ -131,7 +116,7 @@ func RunTrainer(args []string) {
 		db.DFatalf("RunTrainer: %v", err)
 	}
 
-	// Generate the full curve upfront; nothing is pruned in this baseline.
+	// Generate the full curve upfront.
 	asymptote, scores := syntheticCurve(seed, maxIters)
 	for i := range scores {
 		// Simulate one iteration of training.

@@ -2,7 +2,7 @@ package benchmarks_test
 
 // The two hpsearch benchmarks. Everything these tests do beyond booting a
 // realm and asserting lives in apps/hpsearch: starting and reaping a job
-// (StartJob, StartPruningJob, Job.Wait) and analyzing the curves it
+// (StartNoPruneJob, StartPruningJob, HPSearchJob.Wait) and analyzing the curves it
 // produces (Analyze, AnalyzeLive).
 
 import (
@@ -19,9 +19,9 @@ import (
 
 // runJob starts a baseline search and waits for it to finish. Neither
 // benchmark here adds contention while the search runs, so they use this
-// rather than driving StartJob/Job.Wait themselves.
+// rather than driving StartNoPruneJob/HPSearchJob.Wait themselves.
 func runJob(sc *sigmaclnt.SigmaClnt, cfg *hpsearch.Config) ([]*hpsearch.Curve, error) {
-	j, err := hpsearch.StartJob(sc, cfg)
+	j, err := hpsearch.StartNoPruneJob(sc, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -64,13 +64,6 @@ func TestHPSearchBaseline(t *testing.T) {
 	assert.True(t, res.ActualCoreSeconds > 0, "Expected the baseline run to use some compute, used %v", res.ActualCoreSeconds)
 }
 
-// TestHPSearchLivePruning compares two numbers for the same synthetic
-// hyperparameter search: the baseline (every config runs to completion,
-// TestHPSearchBaseline) and a real, causal live-pruning policy
-// (hp-trainer-pruned, via runPruningJob) that only ever sees scores siblings
-// have already published. The live policy has no knowledge of the future, so
-// it can prune a config that would have caught up later -- it's a real,
-// achievable number to set against the baseline.
 func TestHPSearchLivePruning(t *testing.T) {
 	mrts, err := test.NewMultiRealmTstate(t, []sp.Trealm{REALM1})
 	if !assert.Nil(t, err, "Error New Tstate: %v", err) {

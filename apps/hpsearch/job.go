@@ -17,12 +17,10 @@ const (
 	TrainerBin        = "hp-trainer"
 	PruningTrainerBin = "hp-trainer-pruned"
 
-	// ProgressDirTop is where StartPruningJob creates each job's shared,
-	// per-config progress directory (see pruner.go).
 	ProgressDirTop = sp.NAMED + "hpsearch-progress/"
 
 	// PruneMargin is how far behind the best config's score a config must
-	// fall (and stay) before the live policy in pruner.go prunes it.
+	// fall (and stay) before it is pruned.
 	PruneMargin = 0.1
 )
 
@@ -43,44 +41,36 @@ func DefaultConfig() *Config {
 		MaxIters: 20,
 		IterDur:  50 * time.Millisecond,
 		Mcpu:     1000,
-		Seed:     7159623, // Chosen to make the synthetic curves reproducible
+		Seed:     7159623, // Fixed to make the synthetic curves reproducible
 		Margin:   PruneMargin,
 	}
 }
 
-// Job is a search whose trainers have been spawned but not yet reaped, so a
-// caller can start the job with StartJob, add contention to the cluster
-// while it runs, and only then block on the results with Wait. Wait tears
-// down whatever shared state the job created, so callers never clean up
-// after it.
-type Job struct {
+// HPSearchJob represents a hyperparameter search job. The trainers have been
+// spawned but have not yet necessarily been started or exited. Callers can inspect the trainers
+// and wait for them to finish with Wait.
+type HPSearchJob struct {
 	sc    *sigmaclnt.SigmaClnt
 	cfg   *Config
 	procs []*proc.Proc
 	// progressDir is where the pruning trainers publish their scores; empty
 	// for a baseline job, which shares nothing.
 	progressDir string
+	waitedOn    bool
 }
 
 // Procs returns the job's trainer procs, in configId order, so a caller can
-// inspect or evict them between StartJob and Wait.
-func (j *Job) Procs() []*proc.Proc {
+// inspect or evict them between StartNoPruneJob and Wait.
+func (j *HPSearchJob) Procs() []*proc.Proc {
 	return j.procs
 }
 
-// ProgressDir returns the directory this job's trainers publish scores to,
-// or "" for a baseline job. Wait removes it; callers only need it to
-// observe a job's pruning decisions while it runs.
-func (j *Job) ProgressDir() string {
+// Only needed to observe a job's pruning decisions while it runs.
+func (j *HPSearchJob) ProgressDir() string {
 	return j.progressDir
 }
 
-// WaitStart blocks until every trainer is actually running, rather than
-// merely spawned; Wait subsumes it. Use it to hold contention back until
-// the whole search is scheduled. Note that with NConfigs larger than the
-// cluster has cores, later trainers cannot start until earlier ones exit,
-// so this can block until the job is nearly over.
-func (j *Job) WaitStart() error {
+func (j *HPSearchJob) WaitStart() error {
 	for _, p := range j.procs {
 		if err := j.sc.WaitStart(p.GetPid()); err != nil {
 			return err
@@ -90,16 +80,22 @@ func (j *Job) WaitStart() error {
 }
 
 // Wait blocks until every trainer has exited and returns each config's
-// learning curve, in configId order. It also tears down any state the job
-// created, so it must be called exactly once per started Job.
-func (j *Job) Wait() ([]*Curve, error) {
+// learning curve, in configId order.
+//
+// Should only be called once per job since it cleans up a job's resources (like the progress directory) and marks the job as waited on.
+func (j *HPSearchJob) Wait() ([]*Curve, error) {
+	if j.waitedOn {
+		return nil, fmt.Errorf("Wait called more than once on this job")
+	}
+	j.waitedOn = true
+
 	// Clean up the shared progress directory, if this job has one, once
 	// every trainer is done with it. Failing to remove it doesn't
 	// invalidate the curves, so just log it.
 	if j.progressDir != "" {
 		defer func() {
 			if err := j.sc.RmDir(j.progressDir); err != nil {
-				db.DPrintf(db.HPSEARCH, "Job.Wait: RmDir %v err %v", j.progressDir, err)
+				db.DPrintf(db.HPSEARCH, "HPSearchJob.Wait: RmDir %v err %v", j.progressDir, err)
 			}
 		}()
 	}
@@ -138,16 +134,7 @@ func StartTrainer(sc *sigmaclnt.SigmaClnt, configId int, seed int64, maxIters in
 	return p, nil
 }
 
-// StartJob spawns cfg.NConfigs independent hp-trainer procs, one per
-// hyperparameter configuration (configId 0..NConfigs-1), each seeded off
-// cfg.Seed so runs are reproducible. There is no coordinator process and no
-// pruning: every config runs to completion, which is exactly the baseline
-// behavior this benchmark measures.
-//
-// It returns as soon as every trainer is spawned, without waiting for them
-// to be scheduled, so the caller gets control back while the search is
-// still running. Call Job.Wait for the curves.
-func StartJob(sc *sigmaclnt.SigmaClnt, cfg *Config) (*Job, error) {
+func StartNoPruneJob(sc *sigmaclnt.SigmaClnt, cfg *Config) (*HPSearchJob, error) {
 	// Random number generator for seeds
 	rng := rand.New(rand.NewSource(cfg.Seed))
 
@@ -160,14 +147,9 @@ func StartJob(sc *sigmaclnt.SigmaClnt, cfg *Config) (*Job, error) {
 		}
 		procs[i] = p
 	}
-	return &Job{sc: sc, cfg: cfg, procs: procs}, nil
+	return &HPSearchJob{sc: sc, cfg: cfg, procs: procs, waitedOn: false}, nil
 }
 
-// SpawnPruningTrainer spawns a single hp-trainer-pruned proc for one
-// hyperparameter configuration, without waiting for it to start running.
-// Unlike SpawnTrainer, it also passes a shared progressDir and margin so
-// the trainer can prune itself against its siblings' live progress (see
-// RunPruningTrainer in pruner.go).
 func SpawnPruningTrainer(sc *sigmaclnt.SigmaClnt, configId int, seed int64, maxIters int, iterDur time.Duration, mcpu proc.Tmcpu, progressDir string, margin float64) (*proc.Proc, error) {
 	// Same argv as SpawnTrainer, plus the progressDir/margin the trainer
 	// needs to prune itself against its siblings.
@@ -200,13 +182,7 @@ func StartPruningTrainer(sc *sigmaclnt.SigmaClnt, configId int, seed int64, maxI
 	return p, nil
 }
 
-// StartPruningJob spawns cfg.NConfigs hp-trainer-pruned procs (configId
-// 0..NConfigs-1, seeded exactly like StartJob so the two are comparable),
-// sharing one freshly-created progress directory so they can prune
-// themselves against each other's live scores instead of always running to
-// completion. Like StartJob it returns as soon as the trainers are spawned;
-// Job.Wait collects the curves and removes the progress directory.
-func StartPruningJob(sc *sigmaclnt.SigmaClnt, cfg *Config) (*Job, error) {
+func StartPruningJob(sc *sigmaclnt.SigmaClnt, cfg *Config) (*HPSearchJob, error) {
 	// Give this run its own uniquely-named progress directory.
 	progressDir := ProgressDirTop + strconv.FormatInt(time.Now().UnixNano(), 10)
 	if err := sc.MkDirPath(sp.NAMED, strings.TrimPrefix(progressDir, sp.NAMED), 0777); err != nil {
@@ -225,7 +201,7 @@ func StartPruningJob(sc *sigmaclnt.SigmaClnt, cfg *Config) (*Job, error) {
 		}
 		procs[i] = p
 	}
-	return &Job{sc: sc, cfg: cfg, procs: procs, progressDir: progressDir}, nil
+	return &HPSearchJob{sc: sc, cfg: cfg, procs: procs, progressDir: progressDir, waitedOn: false}, nil
 }
 
 // WaitJobExit waits for every trainer proc of a job to exit and returns each
@@ -238,8 +214,9 @@ func WaitJobExit(sc *sigmaclnt.SigmaClnt, procs []*proc.Proc) ([]*Curve, error) 
 		if err != nil {
 			return nil, err
 		}
+
 		// A non-OK status means the trainer crashed rather than reporting a
-		// curve; surface that instead of silently decoding a zero-valued Curve.
+		// curve
 		if !status.IsStatusOK() {
 			return nil, fmt.Errorf("hp-trainer %v exited with non-OK status %v: %v", p.GetPid(), status.StatusCode, status.Msg())
 		}
