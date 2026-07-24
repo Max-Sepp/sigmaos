@@ -54,28 +54,23 @@ func TestHPSearchBaseline(t *testing.T) {
 	}
 	assert.Equal(t, cfg.NConfigs, len(curves))
 
-	// Compute, post-hoc, where an oracle would have pruned each config.
+	// Summarize what the baseline run cost and the quality it reached.
 	res := hpsearch.Analyze(curves, cfg)
 
-	db.DPrintf(db.ALWAYS, "HPSearch baseline: actual %.2f core-s, oracle %.2f core-s, wasted %.2f core-s (%.1f%%)",
-		res.ActualCoreSeconds, res.OracleCoreSeconds, res.WastedCoreSeconds, res.WastedFrac*100)
-	db.DPrintf(db.ALWAYS, "HPSearch baseline quality: best-all %.3f, best-kept-under-oracle %.3f, quality lost %.3f; time-to-target (%.0f%% of best) %d iters / %.2f core-s",
-		res.BestQualityAll, res.BestQualityKept, res.QualityLost, hpsearch.TargetFrac*100, res.ItersToTarget, res.SecsToTarget)
+	db.DPrintf(db.ALWAYS, "HPSearch baseline: actual %.2f core-s", res.ActualCoreSeconds)
+	db.DPrintf(db.ALWAYS, "HPSearch baseline quality: best-all %.3f; time-to-target (%.0f%% of best) %d iters / %.2f core-s",
+		res.BestQualityAll, hpsearch.TargetFrac*100, res.ItersToTarget, res.SecsToTarget)
 
-	assert.True(t, res.WastedFrac > 0, "Expected oracle pruning to save some compute, saved %v", res.WastedFrac)
-	assert.True(t, res.WastedFrac < 1, "Oracle saved 100%% of compute, which shouldn't be possible")
+	assert.True(t, res.ActualCoreSeconds > 0, "Expected the baseline run to use some compute, used %v", res.ActualCoreSeconds)
 }
 
-// TestHPSearchLivePruning compares three numbers for the same synthetic
+// TestHPSearchLivePruning compares two numbers for the same synthetic
 // hyperparameter search: the baseline (every config runs to completion,
-// TestHPSearchBaseline), the post-hoc oracle's ceiling (OraclePruneIters,
-// which gets to look at every config's completed curve), and a real,
-// causal live-pruning policy (hp-trainer-pruned, via runPruningJob) that
-// only ever sees scores siblings have already published. Unlike the oracle,
-// the live policy has no guarantee of never pruning a config that would
-// have caught up later, so it isn't expected to land between the baseline
-// and the oracle -- it's a real, achievable number to set against that
-// theoretical ceiling.
+// TestHPSearchBaseline) and a real, causal live-pruning policy
+// (hp-trainer-pruned, via runPruningJob) that only ever sees scores siblings
+// have already published. The live policy has no knowledge of the future, so
+// it can prune a config that would have caught up later -- it's a real,
+// achievable number to set against the baseline.
 func TestHPSearchLivePruning(t *testing.T) {
 	mrts, err := test.NewMultiRealmTstate(t, []sp.Trealm{REALM1})
 	if !assert.Nil(t, err, "Error New Tstate: %v", err) {
@@ -86,8 +81,8 @@ func TestHPSearchLivePruning(t *testing.T) {
 	cfg := hpsearch.DefaultConfig()
 	sc := mrts.GetRealm(REALM1).SigmaClnt
 
-	// Baseline run: gives the full curves needed to compute the oracle's
-	// ceiling, and the "actual" cost of running everything to completion.
+	// Baseline run: the "actual" cost of running everything to completion,
+	// and the full curves the live run is set against.
 	baseCurves, err := runJob(sc, cfg)
 	if !assert.Nil(t, err, "Error runJob (baseline): %v", err) {
 		return
@@ -109,9 +104,9 @@ func TestHPSearchLivePruning(t *testing.T) {
 	baseIters, _ := hpsearch.FirstIterToTarget(baseCurves, target)
 	liveIters, liveHit := hpsearch.FirstIterToTarget(liveCurves, target)
 
-	db.DPrintf(db.ALWAYS, "HPSearch live pruning: actual %.2f core-s, live-pruned %.2f core-s (saved %.1f%%), oracle %.2f core-s (saved %.1f%%), %d/%d configs pruned",
+	db.DPrintf(db.ALWAYS, "HPSearch live pruning: actual %.2f core-s, live-pruned %.2f core-s (saved %.1f%%), %d/%d configs pruned",
 		base.ActualCoreSeconds, live.CoreSeconds, (base.ActualCoreSeconds-live.CoreSeconds)/base.ActualCoreSeconds*100,
-		base.OracleCoreSeconds, base.WastedFrac*100, live.NPruned, cfg.NConfigs)
+		live.NPruned, cfg.NConfigs)
 	db.DPrintf(db.ALWAYS, "HPSearch live pruning quality: best-all %.3f, best-live-kept %.3f, quality lost %.3f; time-to-target (%.0f%% of best) baseline %d iters vs live %d iters (live reached target: %v)",
 		base.BestQualityAll, live.BestQuality, base.BestQualityAll-live.BestQuality, hpsearch.TargetFrac*100, baseIters, liveIters, liveHit)
 

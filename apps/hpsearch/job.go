@@ -22,8 +22,7 @@ const (
 	ProgressDirTop = sp.NAMED + "hpsearch-progress/"
 
 	// PruneMargin is how far behind the best config's score a config must
-	// fall (and stay) before it is pruned -- by the live policy in
-	// pruner.go, and by the post-hoc oracle in analysis.go alike.
+	// fall (and stay) before the live policy in pruner.go prunes it.
 	PruneMargin = 0.1
 )
 

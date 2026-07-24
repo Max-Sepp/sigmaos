@@ -38,8 +38,7 @@ func publishProgress(sc *fslib.FsLib, progressDir string, configId, iter int, sc
 // bestSiblingScore scans every other config's published progress and
 // returns the best (highest) score any sibling has reported so far: what a
 // live, causal policy can see, with no knowledge of how those siblings'
-// curves develop later. Contrast OraclePruneIters (analysis.go), which
-// looks at every config's completed curve.
+// curves develop later.
 func bestSiblingScore(sc *fslib.FsLib, progressDir string, selfConfigId int) (best float64, found bool) {
 	// List every config that has published progress so far.
 	sts, err := sc.GetDir(progressDir)
@@ -78,7 +77,7 @@ func bestSiblingScore(sc *fslib.FsLib, progressDir string, selfConfigId int) (be
 // itself once it has trailed the best sibling score by more than margin for
 // SustainIters iterations in a row. That decision is online, with no
 // knowledge of the future, so it can prune a config that would have caught
-// up later, unlike the post-hoc oracle.
+// up later.
 func RunPruningTrainer(args []string) {
 	if len(args) != 6 {
 		db.DFatalf("RunPruningTrainer: wrong number of args %v", args)
