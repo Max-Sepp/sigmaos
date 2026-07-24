@@ -13,10 +13,8 @@ import (
 // best score any config reaches.
 const TargetFrac = 0.9
 
-// Result summarizes a baseline hyperparameter search (no pruning): what the
-// run actually cost and the quality it reached, so a live-pruning run can be
-// set against it.
-type Result struct {
+// NoPruneResult summarizes a baseline (no-pruning) hyperparameter search.
+type NoPruneResult struct {
 	ActualCoreSeconds float64
 	// Best score with every config run to completion.
 	BestQualityAll float64
@@ -26,10 +24,8 @@ type Result struct {
 	PerConfigCurves []*Curve
 }
 
-// LiveResult summarizes a live-pruning run (StartPruningJob): the numbers the
-// causal policy actually achieved, to be set against a Result computed from a
-// baseline run of the same config.
-type LiveResult struct {
+// LivePruneResult summarizes a live-pruning run.
+type LivePruneResult struct {
 	CoreSeconds float64
 	NPruned     int
 	BestQuality float64
@@ -102,7 +98,7 @@ func FirstIterToTarget(curves []*Curve, target float64) (int, bool) {
 
 // Analyze computes the baseline summary for a completed baseline job (no
 // pruning): what the run actually cost and the quality it reached.
-func Analyze(curves []*Curve, cfg *Config) *Result {
+func Analyze(curves []*Curve, cfg *Config) *NoPruneResult {
 	iterSec := cfg.IterDur.Seconds()
 	for _, c := range curves {
 		db.DPrintf(db.HPSEARCH, "hpsearch config %d asymptote %f iters %d", c.ConfigId, c.Asymptote, len(c.Scores))
@@ -110,7 +106,7 @@ func Analyze(curves []*Curve, cfg *Config) *Result {
 	actual := CoreSeconds(curves, cfg.IterDur)
 	bestAll := BestQuality(curves)
 	itersToTarget, _ := FirstIterToTarget(curves, TargetFrac*bestAll)
-	return &Result{
+	return &NoPruneResult{
 		ActualCoreSeconds: actual,
 		BestQualityAll:    bestAll,
 		ItersToTarget:     itersToTarget,
@@ -121,12 +117,12 @@ func Analyze(curves []*Curve, cfg *Config) *Result {
 
 // AnalyzeLive tallies what a live-pruning run actually spent and how many
 // of its configs got pruned.
-func AnalyzeLive(curves []*Curve, cfg *Config) *LiveResult {
+func AnalyzeLive(curves []*Curve, cfg *Config) *LivePruneResult {
 	for _, c := range curves {
 		db.DPrintf(db.HPSEARCH, "hpsearch-live config %d asymptote %f pruned %v at %d/%d",
 			c.ConfigId, c.Asymptote, c.Pruned, c.PrunedAtIter, cfg.MaxIters)
 	}
-	return &LiveResult{
+	return &LivePruneResult{
 		CoreSeconds: CoreSeconds(curves, cfg.IterDur),
 		NPruned:     NumPruned(curves),
 		BestQuality: BestQuality(curves),
