@@ -32,6 +32,9 @@ const (
 	INT_OUTLINK = "intermediate-output"
 	JOBSEM      = "jobsem"
 	SPLITSZ     = 10 * sp.MBYTE
+
+	SlowTaskDisabled = -1
+	SlowdownOff      = 0
 )
 
 func JobOut(outDir, job string) string {
@@ -288,13 +291,7 @@ func CreateMapperIntOutDirUx(fsl *fslib.FsLib, job, intOutput string) error {
 	return nil
 }
 
-// slowTaskId (-1 to disable) and slowdownMs let the caller designate a
-// single map task as an artificial straggler, to measure how much a slow
-// task (as opposed to a failed one) hurts job completion time when nothing
-// detects or mitigates it. specEnabled turns on classic speculative
-// execution (apps/mr/coord.go's speculate/speculateMap/speculateReduce): the
-// coordinator backs up straggling map/reduce tasks once most of their phase
-// is done, letting whichever attempt finishes first win.
+// slowTaskId == SlowTaskDisabled means slow task is disabled
 func StartMRJob(sc *sigmaclnt.SigmaClnt, jobRoot, jobName string, job *Job, nmap int, memPerTask proc.Tmem, maliciousMapper int, mftid task.FtTaskSvcId, rftid task.FtTaskSvcId, slowTaskId int64, slowdownMs int, specEnabled bool) *procgroupmgr.ProcGroupMgr {
 	cfg := procgroupmgr.NewProcGroupConfig(NCOORD, "mr-coord",
 		[]string{
@@ -321,7 +318,7 @@ func StartMRJob(sc *sigmaclnt.SigmaClnt, jobRoot, jobName string, job *Job, nmap
 // StartMRJob with those two features' "off" sentinels for the common case
 // of callers that don't need either.
 func StartMRJobDefault(sc *sigmaclnt.SigmaClnt, jobRoot, jobName string, job *Job, nmap int, memPerTask proc.Tmem, maliciousMapper int, mftid task.FtTaskSvcId, rftid task.FtTaskSvcId) *procgroupmgr.ProcGroupMgr {
-	return StartMRJob(sc, jobRoot, jobName, job, nmap, memPerTask, maliciousMapper, mftid, rftid, -1, 0, false)
+	return StartMRJob(sc, jobRoot, jobName, job, nmap, memPerTask, maliciousMapper, mftid, rftid, SlowTaskDisabled, SlowdownOff, false)
 }
 
 // XXX run as a proc?

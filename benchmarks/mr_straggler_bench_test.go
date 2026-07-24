@@ -28,11 +28,6 @@ const (
 	// variance (S3 read latency, local machine contention).
 	StragglerSlowdownMs = 180_000
 
-	// StragglerMRApp and StragglerMemReq keep the job small enough that every
-	// map and reduce task fits in memory at once (5 map + 3 reduce at 1.5GB
-	// each), so there's no admission queue and the only slow task is the
-	// injected straggler. The shared default (mr-wc-wiki1.8G at 4000MB) fits
-	// only ~3 tasks at a time, so queue wait would otherwise dominate.
 	StragglerMRApp  = "mr-wc-wiki512M.yml"
 	StragglerMemReq = 1500
 )
@@ -94,7 +89,7 @@ func TestMRNoStraggler(t *testing.T) {
 	defer mrts.Shutdown()
 
 	rs := benchmarks.NewResults(1, benchmarks.E2E)
-	dur, mrst := runMRStragglerJob(mrts, 0, false)
+	dur, mrst := runMRStragglerJob(mrts, mr.SlowdownOff, false)
 	rs.Append(dur, 1.0)
 	printResultSummary(rs)
 

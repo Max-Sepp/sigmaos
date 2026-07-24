@@ -47,8 +47,8 @@ func DefaultConfig() *Config {
 }
 
 // HPSearchJob represents a hyperparameter search job. The trainers have been
-// spawned but have not yet necessarily been started or exited. Callers can inspect the trainers
-// and wait for them to finish with Wait.
+// spawned but have not yet necessarily been started or exited. Callers can
+// inspect the trainers and wait for them to finish with Wait.
 type HPSearchJob struct {
 	sc    *sigmaclnt.SigmaClnt
 	cfg   *Config
@@ -82,7 +82,8 @@ func (j *HPSearchJob) WaitStart() error {
 // Wait blocks until every trainer has exited and returns each config's
 // learning curve, in configId order.
 //
-// Should only be called once per job since it cleans up a job's resources (like the progress directory) and marks the job as waited on.
+// Should only be called once per job since it cleans up a job's resources
+// (like the progress directory) and marks the job as waited on.
 func (j *HPSearchJob) Wait() ([]*Curve, error) {
 	if j.waitedOn {
 		return nil, fmt.Errorf("Wait called more than once on this job")

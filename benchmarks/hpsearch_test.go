@@ -2,8 +2,8 @@ package benchmarks_test
 
 // The two hpsearch benchmarks. Everything these tests do beyond booting a
 // realm and asserting lives in apps/hpsearch: starting and reaping a job
-// (StartNoPruneJob, StartPruningJob, HPSearchJob.Wait) and analyzing the curves it
-// produces (Analyze, AnalyzeLive).
+// (StartNoPruneJob, StartPruningJob, HPSearchJob.Wait) and analyzing the
+// curves it produces (Analyze, AnalyzeLive).
 
 import (
 	"testing"

@@ -81,7 +81,7 @@ func NewMapper(sc *sigmaclnt.SigmaClnt, mapf mr.MapT, combinef mr.ReduceT, jobRo
 
 func newMapper(mapf mr.MapT, reducef mr.ReduceT, args []string, p *perf.Perf) (*Mapper, error) {
 	if len(args) != 7 && len(args) != 8 {
-		return nil, fmt.Errorf("NewMapper: too few arguments %v", args)
+		return nil, fmt.Errorf("NewMapper: wrong number of arguments %v", args)
 	}
 	nr, err := strconv.Atoi(args[2])
 	if err != nil {
@@ -97,7 +97,7 @@ func newMapper(mapf mr.MapT, reducef mr.ReduceT, args []string, p *perf.Perf) (*
 	}
 	// The straggler delay is an optional 8th arg, for callers (e.g. mr_test.go)
 	// that construct a Mapper directly without it.
-	slowdownMs := 0
+	slowdownMs := SlowdownOff
 	if len(args) == 8 {
 		slowdownMs, err = strconv.Atoi(args[7])
 		if err != nil {
@@ -286,7 +286,7 @@ func (m *Mapper) doSplit(s *mr.Split) (sp.Tlength, error) {
 }
 
 func (m *Mapper) DoMap() (sp.Tlength, sp.Tlength, Bin, error) {
-	if m.slowdownMs > 0 {
+	if m.slowdownMs > SlowdownOff {
 		// Artificially slow down this one task, to measure straggler impact.
 		db.DPrintf(db.MR, "doMap: straggler delay %dms", m.slowdownMs)
 		time.Sleep(time.Duration(m.slowdownMs) * time.Millisecond)

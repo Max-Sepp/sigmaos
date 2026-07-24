@@ -11,7 +11,9 @@ import (
 	sp "sigmaos/sigmap"
 )
 
-// Number of iters a specific hyperparameter configuration must trail the best sibling score (e.g. validation accuracy) by more than the margin before pruning occurs.
+// Number of iters a specific hyperparameter configuration must trail the best
+// sibling score (e.g. validation accuracy) by more than the margin before
+// pruning occurs.
 const SustainIters = 3
 
 func progressPath(progressDir string, configId int) string {

@@ -42,7 +42,10 @@ func PrintMRStats(fsl *fslib.FsLib, jobRoot, job string) error {
 	sort.Slice(results, func(i, j int) bool {
 		return test.Tput(results[i].In+results[i].Out, results[i].MsInner) > test.Tput(results[j].In+results[j].Out, results[j].MsInner)
 	})
-	// MsOuter-MsInner is time a task spent waiting for an admission slot.
+
+	// over is a task's overhead, MsOuter-MsInner, the wall time it existed
+	// but wasn't doing real work, i.e. time spent waiting for an admission slot.
+	// map/reduce slot-wait: Tot = summed, Max = worst.
 	var mOverTot, rOverTot, mOverMax, rOverMax int64
 	var nM, nR int
 	for _, r := range results {
@@ -64,6 +67,7 @@ func PrintMRStats(fsl *fslib.FsLib, jobRoot, job string) error {
 		humanize.Bytes(uint64(totWTmp)),
 		humanize.Bytes(uint64(totRTmp)),
 	)
+
 	mOverMean, rOverMean := int64(0), int64(0)
 	if nM > 0 {
 		mOverMean = mOverTot / int64(nM)
@@ -71,7 +75,7 @@ func PrintMRStats(fsl *fslib.FsLib, jobRoot, job string) error {
 	if nR > 0 {
 		rOverMean = rOverTot / int64(nR)
 	}
-	fmt.Printf("==== slot pressure (outer-inner queueing overhead): map tot %dms mean %dms max %dms (n=%d); reduce tot %dms mean %dms max %dms (n=%d)\n",
+	fmt.Printf("==== slot pressure (outer-inner queueing overhead): map total %dms mean %dms max %dms (n=%d); reduce total %dms mean %dms max %dms (n=%d)\n",
 		mOverTot, mOverMean, mOverMax, nM, rOverTot, rOverMean, rOverMax, nR)
 	return nil
 }

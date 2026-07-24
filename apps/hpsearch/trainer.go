@@ -26,8 +26,8 @@ const (
 	NoiseStd = 0.02
 )
 
-// Curve is the synthetic validation accuracy learning curve produced by a single hyperparameter
-// configuration's trainer proc.
+// Curve is the synthetic validation accuracy learning curve produced by a
+// single hyperparameter configuration's trainer proc.
 type Curve struct {
 	ConfigId     int
 	Seed         int64
