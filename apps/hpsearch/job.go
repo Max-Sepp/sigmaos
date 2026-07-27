@@ -37,7 +37,7 @@ type Config struct {
 
 func DefaultConfig() *Config {
 	return &Config{
-		NConfigs: 50,
+		NConfigs: 15,
 		MaxIters: 20,
 		IterDur:  50 * time.Millisecond,
 		Mcpu:     1000,

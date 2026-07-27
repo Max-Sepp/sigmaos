@@ -57,6 +57,13 @@ func TestHPSearchBaseline(t *testing.T) {
 	// Summarize what the baseline run cost and the quality it reached.
 	res := hpsearch.Analyze(curves, cfg)
 
+	curvesPath := "/tmp/" + t.Name() + "-curves.csv"
+	if err := hpsearch.DumpCurvesCSV(curves, curvesPath); err != nil {
+		db.DPrintf(db.ALWAYS, "HPSearch baseline: DumpCurvesCSV err %v", err)
+	} else {
+		db.DPrintf(db.ALWAYS, "HPSearch baseline: curves dumped to %v", curvesPath)
+	}
+
 	db.DPrintf(db.ALWAYS, "HPSearch baseline: actual %.2f core-s", res.ActualCoreSeconds)
 	db.DPrintf(db.ALWAYS, "HPSearch baseline quality: best-all %.3f; time-to-target (%.0f%% of best) %d iters / %.2f core-s",
 		res.BestQualityAll, hpsearch.TargetFrac*100, res.ItersToTarget, res.SecsToTarget)
@@ -91,6 +98,19 @@ func TestHPSearchLivePruning(t *testing.T) {
 	}
 	assert.Equal(t, cfg.NConfigs, len(liveCurves))
 	live := hpsearch.AnalyzeLive(liveCurves, cfg)
+
+	basePath := "/tmp/" + t.Name() + "-baseline-curves.csv"
+	if err := hpsearch.DumpCurvesCSV(baseCurves, basePath); err != nil {
+		db.DPrintf(db.ALWAYS, "HPSearch live pruning: DumpCurvesCSV (baseline) err %v", err)
+	} else {
+		db.DPrintf(db.ALWAYS, "HPSearch live pruning: baseline curves dumped to %v", basePath)
+	}
+	livePath := "/tmp/" + t.Name() + "-live-curves.csv"
+	if err := hpsearch.DumpCurvesCSV(liveCurves, livePath); err != nil {
+		db.DPrintf(db.ALWAYS, "HPSearch live pruning: DumpCurvesCSV (live) err %v", err)
+	} else {
+		db.DPrintf(db.ALWAYS, "HPSearch live pruning: live curves dumped to %v", livePath)
+	}
 
 	// Both runs use the same absolute target so their times are comparable.
 	target := hpsearch.TargetFrac * base.BestQualityAll
