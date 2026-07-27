@@ -7,9 +7,9 @@ import (
 	"gonum.org/v1/gonum/mat"
 )
 
-// Decode reconstructs C = A·B from any K finished worker results (keyed by
-// worker index). It uses the lowest-indexed K results, builds the K×K
-// submatrix G_S of their generator rows, and solves Y_sys = G_S^-1 · Y_S.
+// Decode reconstructs C = A*B from any K finished worker results (keyed by
+// worker index). It uses the lowest-indexed K results, builds the KxK submatrix
+// G_S of their generator rows, and solves Y_sys = G_S^-1 * Y_S.
 func Decode(g *Generator, results map[int]*mat.Dense) (*mat.Dense, error) {
 	if len(results) < g.K {
 		return nil, fmt.Errorf("mdscode: need %d results to decode, got %d", g.K, len(results))

@@ -3,8 +3,8 @@ package benchmarks_test
 // The coded-matmul benchmark's three arms. Everything beyond booting a realm
 // and asserting lives in apps/codedmatmul: starting and reaping a run
 // (StartJob, Job.Wait) and analyzing what it cost (Analyze). The reference C
-// used for the correctness check is computed once here, directly, via a
-// single gonum Mul over the same A/B apps/codedmatmul.GenBlocks reconstructs
+// used for the correctness check is computed once here, directly, via a single
+// gonum Mul over the same A/B apps/codedmatmul.GenBlocks reconstructs
 // deterministically from the shared seed.
 
 import (
@@ -20,9 +20,9 @@ import (
 	"sigmaos/test"
 )
 
-// runCodedMatMulArm starts one coded-matmul run, waits for it, and checks
-// the decoded result against the reference C. Returns nil (after recording a
-// test failure) if anything along the way didn't hold.
+// runCodedMatMulArm starts one coded-matmul run, waits for it, and checks the
+// decoded result against the reference C. Returns nil (after recording a test
+// failure) if anything along the way didn't hold.
 func runCodedMatMulArm(t *testing.T, sc *sigmaclnt.SigmaClnt, cfg *codedmatmul.Config, cancelSurplus bool, want *mat.Dense, name string) *codedmatmul.Result {
 	j, err := codedmatmul.StartJob(sc, cfg)
 	if !assert.Nil(t, err, "%s: StartJob err %v", name, err) {

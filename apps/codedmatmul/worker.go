@@ -15,9 +15,9 @@ import (
 	"sigmaos/sigmaclnt"
 )
 
-// WorkerResult is what a codedmatmul-worker proc reports back via
-// proc.Status: either its finished r x W block (Complete, StatusOK) or how
-// far it got before being evicted (!Complete, StatusEvicted).
+// WorkerResult is what a codedmatmul-worker proc reports back via proc.Status:
+// either its finished r x W block (Complete, StatusOK) or how far it got before
+// being evicted (!Complete, StatusEvicted).
 type WorkerResult struct {
 	Idx       int
 	Rows      int
@@ -66,10 +66,10 @@ func newStartedSigmaClnt() (*sigmaclnt.SigmaClnt, error) {
 }
 
 // RunWorker is the entry point for the codedmatmul-worker proc. Args are
-// [workerIdx, N, K, r, D, W, tiles, repeats, seed, progressDir]. It
-// regenerates its A/B blocks from seed, encodes its worker index's block,
-// tiled-multiplies it (repeated `repeats` times, straggler workers get
-// repeats > 1), and reports the result or how far it got before eviction.
+// [workerIdx, N, K, r, D, W, tiles, repeats, seed, progressDir]. It regenerates
+// its A/B blocks from seed, encodes its worker index's block, tiled-multiplies
+// it (repeated `repeats` times, straggler workers get repeats > 1), and reports
+// the result or how far it got before eviction.
 func RunWorker(args []string) {
 	if len(args) != 10 {
 		db.DFatalf("RunWorker: wrong number of args %v", args)

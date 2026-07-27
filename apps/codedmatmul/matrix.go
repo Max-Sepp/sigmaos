@@ -6,10 +6,10 @@ import (
 	"gonum.org/v1/gonum/mat"
 )
 
-// GenBlocks deterministically regenerates the K row-stripes of A (each r x
-// D) and B (D x W) from seed. Every worker (and the benchmark test, for its
-// reference C) calls this with the same seed, so they all reconstruct
-// identical matrices without sharing any state.
+// GenBlocks deterministically regenerates the K row-stripes of A (each r x D)
+// and B (D x W) from seed. Every worker (and the benchmark test, for its
+// reference C) calls this with the same seed, so they all reconstruct identical
+// matrices without sharing any state.
 func GenBlocks(seed int64, K, r, D, W int) (blocks []*mat.Dense, B *mat.Dense) {
 	rng := rand.New(rand.NewSource(seed))
 	blocks = make([]*mat.Dense, K)

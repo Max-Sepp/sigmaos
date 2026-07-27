@@ -2,7 +2,6 @@ package mdscode
 
 import (
 	"fmt"
-	"math"
 	"math/rand"
 	"sync/atomic"
 	"testing"
@@ -18,25 +17,9 @@ func randMatrix(r, c int, rng *rand.Rand) *mat.Dense {
 	return mat.NewDense(r, c, data)
 }
 
-func matEqual(a, b mat.Matrix, tol float64) bool {
-	ar, ac := a.Dims()
-	br, bc := b.Dims()
-	if ar != br || ac != bc {
-		return false
-	}
-	for i := 0; i < ar; i++ {
-		for j := 0; j < ac; j++ {
-			if math.Abs(a.At(i, j)-b.At(i, j)) > tol {
-				return false
-			}
-		}
-	}
-	return true
-}
-
 // checkRoundTrip generates a random A (K*r x D) / B (D x W), encodes and
-// tiled-multiplies it across N workers, and asserts Decode reconstructs
-// A·B exactly from both an all-systematic and a parity-including subset.
+// tiled-multiplies it across N workers, and asserts Decode reconstructs A*B
+// exactly from both an all-systematic and a parity-including subset.
 func checkRoundTrip(t *testing.T, N, K, r, D, W, tiles int) {
 	t.Helper()
 	rng := rand.New(rand.NewSource(1))
@@ -83,7 +66,7 @@ func checkRoundTrip(t *testing.T, N, K, r, D, W, tiles int) {
 		if err != nil {
 			t.Fatalf("decode subset %v: %v", s, err)
 		}
-		if !matEqual(got, &want, 1e-6) {
+		if !mat.EqualApprox(got, &want, 1e-6) {
 			t.Fatalf("decode subset %v: mismatch", s)
 		}
 	}
@@ -102,10 +85,10 @@ func TestRoundTrip(t *testing.T) {
 	}
 }
 
-// TestRoundTripLarge exercises the same encode/decode path at a scale
-// (roughly 1000x1000 matrices) closer to the benchmark's real defaults
-// (apps/codedmatmul, D=65536), to catch anything that only shows up with
-// large dimensions (e.g. Vandermonde conditioning, slicing bugs).
+// TestRoundTripLarge exercises the same encode/decode path at a scale (roughly
+// 1000x1000 matrices) closer to the benchmark's real defaults
+// (apps/codedmatmul, D=65536), to catch anything that only shows up with large
+// dimensions (e.g. Vandermonde conditioning, slicing bugs).
 func TestRoundTripLarge(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping large matmul round trip in -short mode")

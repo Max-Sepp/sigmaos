@@ -6,10 +6,10 @@ import (
 	"gonum.org/v1/gonum/mat"
 )
 
-// TiledMultiply computes Y (r×W) = Ahat (r×D) · B (D×W) in T slabs of width
-// D/T, publishing progress and checking cancellation between slabs. It
-// returns the (possibly partial) result and the number of slabs completed,
-// so a cancelled caller can still account for wasted work.
+// TiledMultiply computes Y (rxW) = Ahat (rxD) * B (DxW) in T slabs of width
+// D/T, publishing progress and checking cancellation between slabs. It returns
+// the (possibly partial) result and the number of slabs completed, so a
+// cancelled caller can still account for wasted work.
 func TiledMultiply(Ahat, B *mat.Dense, r, D, W, T int, cancelled *atomic.Bool,
 	publish func(frac float64)) (*mat.Dense, int) {
 	Y := mat.NewDense(r, W, nil)

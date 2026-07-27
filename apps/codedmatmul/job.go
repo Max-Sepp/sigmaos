@@ -22,21 +22,19 @@ const (
 	ProgressDirTop = sp.NAMED + "codedmatmul-progress/"
 )
 
-// Config is one coded-matmul run: C = A*B split into N workers, K of which
-// are needed to reconstruct C. A is M x D (M = K*r row-stripes of r x D),
-// B is D x W.
+// Config is one coded-matmul run: C = A*B split into N workers, K of which are
+// needed to reconstruct C. A is M x D (M = K*r row-stripes of r x D), B is D x
+// W.
 type Config struct {
 	M, D, W      int
 	N, K         int
 	Repeats      int   // recompute factor given to straggler workers
-	StragglerIdx []int // worker indices that get Repeats instead of 1
+	StragglerIdx []int // worker indices that get Repeats instead of 1 (i.e. list of workers which are made stragglers)
 	Tiles        int   // TiledMultiply slab count
 	Mcpu         proc.Tmcpu
 	Seed         int64
 }
 
-// DefaultConfig matches apps/codedmatmul/mdscode's worked example (N=9,
-// K=6, m=3) at a size that's genuinely compute-bound per worker.
 func DefaultConfig() *Config {
 	return &Config{
 		M: 384, D: 65536, W: 64,
@@ -49,8 +47,6 @@ func DefaultConfig() *Config {
 	}
 }
 
-// Job represents a coded-matmul run: the N workers have been spawned but
-// have not yet necessarily been started or exited. Wait reaps them.
 type Job struct {
 	sc          *sigmaclnt.SigmaClnt
 	cfg         *Config
@@ -74,8 +70,8 @@ func (j *Job) WaitStart() error {
 	return nil
 }
 
-// SpawnWorker spawns a single codedmatmul-worker proc, without waiting for
-// it to start running.
+// SpawnWorker spawns a single codedmatmul-worker proc, without waiting for it
+// to start running.
 func SpawnWorker(sc *sigmaclnt.SigmaClnt, idx, n, k, r, d, w, tiles, repeats int, seed int64, progressDir string, mcpu proc.Tmcpu) (*proc.Proc, error) {
 	args := []string{
 		strconv.Itoa(idx), strconv.Itoa(n), strconv.Itoa(k), strconv.Itoa(r),
@@ -90,11 +86,13 @@ func SpawnWorker(sc *sigmaclnt.SigmaClnt, idx, n, k, r, d, w, tiles, repeats int
 	return p, nil
 }
 
-// StartJob spawns cfg.N workers for one coded-matmul run. cfg.N == cfg.K
-// gives the uncoded-barrier arm (no redundancy); cfg.N > cfg.K gives a
-// coded arm, whose surplus is either left to run to completion or reaped
-// once a quorum finishes, depending on the cancelSurplus flag passed to
-// Wait.
+// StartJob spawns cfg.N workers for one coded-matmul run.
+//
+// cfg.N == cfg.K gives the uncoded-barrier arm (no redundancy).
+//
+// cfg.N > cfg.K gives a coded arm, whose surplus is either left to run to
+// completion or reaped once a quorum finishes, depending on the cancelSurplus
+// flag passed to Wait.
 func StartJob(sc *sigmaclnt.SigmaClnt, cfg *Config) (*Job, error) {
 	if cfg.M%cfg.K != 0 {
 		return nil, fmt.Errorf("codedmatmul: M (%d) not divisible by K (%d)", cfg.M, cfg.K)
@@ -132,9 +130,9 @@ func StartJob(sc *sigmaclnt.SigmaClnt, cfg *Config) (*Job, error) {
 //
 // Should only be called once per job since it cleans up the job's progress
 // directory and marks the job as waited on.
-func (j *Job) Wait(cancelSurplus bool) (*mat.Dense, []*Sample, RunStats, error) {
+func (j *Job) Wait(cancelSurplus bool) (*mat.Dense, []*Sample, QuorumStats, error) {
 	if j.waitedOn {
-		return nil, nil, RunStats{}, fmt.Errorf("Wait called more than once on this job")
+		return nil, nil, QuorumStats{}, fmt.Errorf("Wait called more than once on this job")
 	}
 	j.waitedOn = true
 	defer func() {
@@ -148,6 +146,9 @@ func (j *Job) Wait(cancelSurplus bool) (*mat.Dense, []*Sample, RunStats, error) 
 		wr  *WorkerResult
 		ok  bool
 	}
+
+	// One goroutine per worker, each blocked on its own WaitExit. ch is
+	// buffered so sends never block, even while the loop below is busy.
 	ch := make(chan workerDone, len(j.procs))
 	for i, p := range j.procs {
 		go func(i int, p *proc.Proc) {
@@ -166,9 +167,12 @@ func (j *Job) Wait(cancelSurplus bool) (*mat.Dense, []*Sample, RunStats, error) 
 	start := time.Now()
 	finishedBlocks := map[int]*mat.Dense{}
 	results := make(map[int]*WorkerResult, len(j.procs))
-	var stats RunStats
+	var stats QuorumStats
 	quorumReached, reaped := false, false
 
+	// Sole consumer of ch, so the state below needs no locking. Bounded by
+	// received count, not quorum size, so it terminates even though evicted
+	// workers never satisfy wd.ok.
 	for received := 0; received < len(j.procs); received++ {
 		wd := <-ch
 		if wd.wr != nil {
@@ -182,6 +186,8 @@ func (j *Job) Wait(cancelSurplus bool) (*mat.Dense, []*Sample, RunStats, error) 
 			stats.Makespan = time.Since(start)
 			if cancelSurplus && !reaped {
 				reaped = true
+				// Evict is synchronous but only blocks this
+				// loop, not the WaitExit goroutines above.
 				for i, p := range j.procs {
 					if _, ok := finishedBlocks[i]; !ok {
 						if err := j.sc.Evict(p.GetPid()); err == nil {
@@ -208,9 +214,9 @@ func (j *Job) Wait(cancelSurplus bool) (*mat.Dense, []*Sample, RunStats, error) 
 	return C, samples, stats, nil
 }
 
-// usedIndices mirrors mdscode.Decode's own selection (sorted ascending,
-// first K) so callers can tell which workers' compute actually contributed
-// to the decoded result.
+// usedIndices mirrors mdscode.Decode's own selection (sorted ascending, first
+// K) so callers can tell which workers' compute actually contributed to the
+// decoded result.
 func usedIndices(finishedBlocks map[int]*mat.Dense, k int) map[int]bool {
 	idxs := make([]int, 0, len(finishedBlocks))
 	for i := range finishedBlocks {

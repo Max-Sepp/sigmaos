@@ -19,7 +19,7 @@ func clamp(v, lo, hi int) int {
 }
 
 // FuzzRoundTrip checks that encode->TiledMultiply->Decode always reconstructs
-// A·B exactly, for arbitrary (clamped) problem sizes and RNG seeds.
+// A*B exactly, for arbitrary (clamped) problem sizes and RNG seeds.
 func FuzzRoundTrip(f *testing.F) {
 	f.Add(3, 3, 2, 4, 2, int64(1))
 	f.Add(9, 6, 4, 8, 5, int64(42))
@@ -57,7 +57,7 @@ func FuzzRoundTrip(f *testing.F) {
 		if err != nil {
 			t.Fatalf("decode: %v", err)
 		}
-		if !matEqual(got, &want, 1e-6) {
+		if !mat.EqualApprox(got, &want, 1e-6) {
 			t.Fatalf("mismatch: n=%d k=%d r=%d d=%d w=%d seed=%d", n, k, r, d, w, seed)
 		}
 	})

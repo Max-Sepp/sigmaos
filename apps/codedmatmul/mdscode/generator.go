@@ -1,11 +1,11 @@
 // Package mdscode implements a systematic maximum-distance-separable (MDS)
 // erasure code over Vandermonde parity rows, used to reconstruct the
-// distributed matrix product C = A·B from any K of N worker results. It has
-// no SigmaOS dependencies and is unit-testable with plain `go test`.
+// distributed matrix product C = A*B from any K of N worker results. It has no
+// SigmaOS dependencies and is unit-testable with plain `go test`.
 package mdscode
 
-// Generator is the N×K systematic MDS generator matrix G: rows 0..K-1 are
-// the identity (systematic workers), rows K..N-1 are Vandermonde parity rows
+// Generator is the NxK systematic MDS generator matrix G: rows 0..K-1 are the
+// identity (systematic workers), rows K..N-1 are Vandermonde parity rows
 // (parity workers).
 type Generator struct {
 	N, K   int

@@ -8,12 +8,9 @@ import (
 	"sigmaos/proc"
 )
 
-// RunStats is the coordinator-observed timing/reap info from one Job.Wait
-// call: when the K-quorum was reached, and how many surplus workers were
-// evicted at that point (0 unless Wait was called with cancelSurplus).
-type RunStats struct {
-	Makespan time.Duration
-	NEvicted int
+type QuorumStats struct {
+	Makespan time.Duration // Coordinator observed time to reach the K-quorum
+	NEvicted int           // Number of surplus workers evicted at the K-quorum
 }
 
 // Sample is one worker's reported result plus whether it was among the K
@@ -34,8 +31,8 @@ type Result struct {
 
 // Analyze computes core-seconds spent (total and wasted-on-surplus) from a
 // job's per-worker samples, given the Mcpu each worker was given and the
-// RunStats Wait observed.
-func Analyze(samples []*Sample, mcpu proc.Tmcpu, stats RunStats) *Result {
+// QuorumStats Wait observed.
+func Analyze(samples []*Sample, mcpu proc.Tmcpu, stats QuorumStats) *Result {
 	coreFrac := float64(mcpu) / 1000.0
 	total, wasted := 0.0, 0.0
 	for _, s := range samples {
