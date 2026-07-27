@@ -131,6 +131,11 @@ const (
 	HPSEARCH Tselector = "HPSEARCH"
 )
 
+// CodedMatmul
+const (
+	CODEDMATMUL Tselector = "CODEDMATMUL"
+)
+
 // Socialnet
 const (
 	SOCIAL_NETWORK          Tselector = "SOCIAL_NETWORK"
