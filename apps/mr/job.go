@@ -32,6 +32,9 @@ const (
 	INT_OUTLINK = "intermediate-output"
 	JOBSEM      = "jobsem"
 	SPLITSZ     = 10 * sp.MBYTE
+
+	SlowTaskDisabled = -1
+	SlowdownOff      = 0
 )
 
 func JobOut(outDir, job string) string {
@@ -288,7 +291,8 @@ func CreateMapperIntOutDirUx(fsl *fslib.FsLib, job, intOutput string) error {
 	return nil
 }
 
-func StartMRJob(sc *sigmaclnt.SigmaClnt, jobRoot, jobName string, job *Job, nmap int, memPerTask proc.Tmem, maliciousMapper int, mftid task.FtTaskSvcId, rftid task.FtTaskSvcId) *procgroupmgr.ProcGroupMgr {
+// slowTaskId == SlowTaskDisabled means slow task is disabled
+func StartMRJob(sc *sigmaclnt.SigmaClnt, jobRoot, jobName string, job *Job, nmap int, memPerTask proc.Tmem, maliciousMapper int, mftid task.FtTaskSvcId, rftid task.FtTaskSvcId, slowTaskId int64, slowdownMs int, specEnabled bool) *procgroupmgr.ProcGroupMgr {
 	cfg := procgroupmgr.NewProcGroupConfig(NCOORD, "mr-coord",
 		[]string{
 			jobRoot,
@@ -302,8 +306,19 @@ func StartMRJob(sc *sigmaclnt.SigmaClnt, jobRoot, jobName string, job *Job, nmap
 			strconv.Itoa(maliciousMapper),
 			string(mftid),
 			string(rftid),
+			strconv.FormatInt(slowTaskId, 10),
+			strconv.Itoa(slowdownMs),
+			strconv.FormatBool(specEnabled),
 		}, 1000, jobName)
 	return cfg.StartGrpMgr(sc)
+}
+
+// StartMRJobDefault is StartMRJob with straggler injection and speculative
+// execution both disabled -- Go has no default parameters, so this wraps
+// StartMRJob with those two features' "off" sentinels for the common case
+// of callers that don't need either.
+func StartMRJobDefault(sc *sigmaclnt.SigmaClnt, jobRoot, jobName string, job *Job, nmap int, memPerTask proc.Tmem, maliciousMapper int, mftid task.FtTaskSvcId, rftid task.FtTaskSvcId) *procgroupmgr.ProcGroupMgr {
+	return StartMRJob(sc, jobRoot, jobName, job, nmap, memPerTask, maliciousMapper, mftid, rftid, SlowTaskDisabled, SlowdownOff, false)
 }
 
 // XXX run as a proc?

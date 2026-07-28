@@ -28,6 +28,16 @@ const (
 	NCOORD               = 1
 	RESTART              = "restart" // restart message from reducer
 	MALICIOUS_MAPPER_BIN = "mr-m-malicious"
+
+	// How often the coordinator looks for stragglers
+	SpecCheckInterval = 500 * time.Millisecond
+	// the fraction of a phase's tasks that must already be
+	// DONE before any backups are allowed to fire
+	SpecMinProgress = 0.75
+	// a still-running task is a straggler once it has run
+	// longer than this factor times the average completion time of tasks
+	// that already finished in the same phase.
+	SpecSlowFactor = 1.5
 )
 
 // mr_test puts pathnames of input files (split into bins) in
@@ -64,6 +74,8 @@ type Coord struct {
 	nmaptask        int
 	nreducetask     int
 	maliciousMapper uint64
+	slowTaskId      int64
+	slowdownMs      int
 	linesz          string
 	wordsz          string
 	mapperbin       string
@@ -74,6 +86,29 @@ type Coord struct {
 	memPerTask      proc.Tmem
 	stat            AStat
 	perf            *perf.Perf
+
+	// Classic speculative execution: when specEnabled, the coordinator
+	// launches a backup execution of any map/reduce task that is running
+	// much slower than its peers, once most of the phase is done. Whichever
+	// attempt (original or backup) finishes first wins; the other is
+	// evicted. specMu guards every field below it.
+	specEnabled bool
+	specDone    chan struct{}
+	specMu      sync.Mutex
+	mStart      map[ftclnt.TaskId]time.Time
+	rStart      map[ftclnt.TaskId]time.Time
+	mBackedUp   map[ftclnt.TaskId]bool
+	rBackedUp   map[ftclnt.TaskId]bool
+	mAttempts   map[ftclnt.TaskId][]sp.Tpid
+	rAttempts   map[ftclnt.TaskId][]sp.Tpid
+	mDurations  []time.Duration
+	rDurations  []time.Duration
+	// attemptStart is when each attempt was built, so a loser's wall-time can
+	// be charged to the wasted-compute counters.
+	attemptStart map[sp.Tpid]time.Time
+	// backupPids marks which attempts are speculative backups (rather than a
+	// task's original attempt).
+	backupPids map[sp.Tpid]bool
 }
 
 type AStat struct {
@@ -84,16 +119,23 @@ type AStat struct {
 	Nrestart       spstats.Tcounter
 	NrecoverMap    spstats.Tcounter
 	NrecoverReduce spstats.Tcounter
+	Nspeculate     spstats.Tcounter
+	// Speculative backups that lost their race (fired but didn't produce the
+	// winning result), and their summed wall-time before losing. A backup that
+	// wins isn't wasted, so Nspeculate-Nwasted is the number of useful backups;
+	// Nwasted==0 with Nspeculate>0 means every backup that fired paid off.
+	Nwasted  spstats.Tcounter
+	MsWasted spstats.Tcounter
 }
 
 func (s *AStat) String() string {
-	return fmt.Sprintf("{nT %d nM %d nR %d nfail %d nrestart %d nrecoverM %d nrecoverR %d}", s.Ntask.Load(), s.Nmap.Load(), s.Nreduce.Load(), s.Nfail.Load(), s.Nrestart.Load(), s.NrecoverMap.Load(), s.NrecoverReduce.Load())
+	return fmt.Sprintf("{nT %d nM %d nR %d nfail %d nrestart %d nrecoverM %d nrecoverR %d nspec %d nwasted %d mswasted %d}", s.Ntask.Load(), s.Nmap.Load(), s.Nreduce.Load(), s.Nfail.Load(), s.Nrestart.Load(), s.NrecoverMap.Load(), s.NrecoverReduce.Load(), s.Nspeculate.Load(), s.Nwasted.Load(), s.MsWasted.Load())
 }
 
 type NewProc func(ftclnt.Task[[]byte]) (*proc.Proc, error)
 
 func NewCoord(args []string) (*Coord, error) {
-	if len(args) != 12 {
+	if len(args) != 15 {
 		return nil, errors.New("NewCoord: wrong number of arguments")
 	}
 	c := &Coord{}
@@ -158,6 +200,35 @@ func NewCoord(args []string) (*Coord, error) {
 	c.mftid = task.FtTaskSvcId(args[10])
 	c.rftid = task.FtTaskSvcId(args[11])
 
+	// Parse straggler-injection args (SlowTaskDisabled slowTaskId disables it).
+	slowTaskId, err := strconv.ParseInt(args[12], 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("NewCoord: slowTaskId %v isn't int64", args[12])
+	}
+	c.slowTaskId = slowTaskId
+
+	slowdownMs, err := strconv.Atoi(args[13])
+	if err != nil {
+		return nil, fmt.Errorf("NewCoord: slowdownMs %v isn't int", args[13])
+	}
+	c.slowdownMs = slowdownMs
+
+	// Parse the speculative-execution toggle and initialize its bookkeeping.
+	specEnabled, err := strconv.ParseBool(args[14])
+	if err != nil {
+		return nil, fmt.Errorf("NewCoord: specEnabled %v isn't bool", args[14])
+	}
+	c.specEnabled = specEnabled
+	c.specDone = make(chan struct{})
+	c.mStart = make(map[ftclnt.TaskId]time.Time)
+	c.rStart = make(map[ftclnt.TaskId]time.Time)
+	c.mBackedUp = make(map[ftclnt.TaskId]bool)
+	c.rBackedUp = make(map[ftclnt.TaskId]bool)
+	c.mAttempts = make(map[ftclnt.TaskId][]sp.Tpid)
+	c.rAttempts = make(map[ftclnt.TaskId][]sp.Tpid)
+	c.attemptStart = make(map[sp.Tpid]time.Time)
+	c.backupPids = make(map[sp.Tpid]bool)
+
 	return c, nil
 }
 
@@ -171,7 +242,16 @@ func (c *Coord) newTask(bin string, args []string, mb proc.Tmem) *proc.Proc {
 	return p
 }
 
+// mapperProc builds (but doesn't spawn) a mapper proc for task t;
 func (c *Coord) mapperProc(t ftclnt.Task[[]byte]) (*proc.Proc, error) {
+	return c.buildMapperProc(t, false)
+}
+
+// buildMapperProc builds (but doesn't spawn) a mapper proc for task t.
+// isBackup is true when building a speculative backup: the straggler-
+// injection delay (when t is the designated straggler task) is only applied
+// to the primary attempt.
+func (c *Coord) buildMapperProc(t ftclnt.Task[[]byte], isBackup bool) (*proc.Proc, error) {
 	bin, err := ftclnt.Decode[Bin](t.Data)
 	if err != nil {
 		db.DFatalf("mapperProc: failed to convert data to bin %v %v", t.Data, err)
@@ -193,11 +273,27 @@ func (c *Coord) mapperProc(t ftclnt.Task[[]byte]) (*proc.Proc, error) {
 	if err != nil {
 		db.DFatalf("mapperProc: %v err %v", bin, err)
 	}
-	proc := c.newTask(mapperbin, []string{c.jobRoot, c.job, strconv.Itoa(c.nreducetask), string(b), c.intOutdir, c.linesz, c.wordsz}, c.memPerTask)
+	// Delay only the primary attempt at the one task designated as the
+	// straggler; every other task/attempt gets no delay.
+	slowdownMs := SlowdownOff
+	if !isBackup && int64(t.Id) == c.slowTaskId {
+		slowdownMs = c.slowdownMs
+	}
+	proc := c.newTask(mapperbin, []string{c.jobRoot, c.job, strconv.Itoa(c.nreducetask), string(b), c.intOutdir, c.linesz, c.wordsz, strconv.Itoa(slowdownMs)}, c.memPerTask)
+	c.recordAttempt(t.Id, proc.GetPid(), true, isBackup)
 	return proc, nil
 }
 
+// reducerProc is mapperProc's mirror for the reduce phase
 func (c *Coord) reducerProc(t ftclnt.Task[[]byte]) (*proc.Proc, error) {
+	return c.buildReducerProc(t, false)
+}
+
+// buildReducerProc builds (but doesn't spawn) a reducer proc for task t.
+// isBackup is true when building a speculative backup (via runBackupReduce),
+// mirroring buildMapperProc, so wasted-compute accounting can tell a backup
+// from the original attempt.
+func (c *Coord) buildReducerProc(t ftclnt.Task[[]byte], isBackup bool) (*proc.Proc, error) {
 	data, err := ftclnt.Decode[TreduceTask](t.Data)
 	if err != nil {
 		db.DFatalf("reducerProc: failed to convert data to task %v %v", t.Data, err)
@@ -205,7 +301,358 @@ func (c *Coord) reducerProc(t ftclnt.Task[[]byte]) (*proc.Proc, error) {
 	outlink := ReduceOut(c.jobRoot, c.job) + data.Task
 	outTarget := ReduceOutTarget(c.outdir, c.job) + data.Task
 	c.stat.Nreduce.Add(1)
-	return c.newTask(c.reducerbin, []string{strconv.Itoa(int(t.Id)), string(c.rftclnt.ServiceId()), outlink, outTarget, strconv.Itoa(c.nmaptask)}, c.memPerTask), nil
+	p := c.newTask(c.reducerbin, []string{strconv.Itoa(int(t.Id)), string(c.rftclnt.ServiceId()), outlink, outTarget, strconv.Itoa(c.nmaptask)}, c.memPerTask)
+	c.recordAttempt(t.Id, p.GetPid(), false, isBackup)
+	return p, nil
+}
+
+// recordAttempt notes that pid is (one of) the running attempt(s) for task
+// id -- used later to evict the loser once a winning result is known, and
+// (for the very first attempt) as the start time stragglers are measured
+// against. isBackup marks a speculative backup (vs the task's original
+// attempt) so only a losing backup is charged as wasted compute.
+func (c *Coord) recordAttempt(id ftclnt.TaskId, pid sp.Tpid, isMap, isBackup bool) {
+	c.specMu.Lock()
+	defer c.specMu.Unlock()
+	c.attemptStart[pid] = time.Now()
+	if isBackup {
+		c.backupPids[pid] = true
+	}
+	if isMap {
+		if _, ok := c.mStart[id]; !ok {
+			c.mStart[id] = time.Now()
+		}
+		c.mAttempts[id] = append(c.mAttempts[id], pid)
+	} else {
+		if _, ok := c.rStart[id]; !ok {
+			c.rStart[id] = time.Now()
+		}
+		c.rAttempts[id] = append(c.rAttempts[id], pid)
+	}
+}
+
+// speculate periodically checks for straggling map/reduce tasks and
+// launches a backup execution for each one, implementing classic MapReduce
+// speculative execution. It runs for the lifetime of the job and returns
+// once c.specDone is closed.
+func (c *Coord) speculate(ch chan<- ftmgr.Tresult[[]byte, []byte]) {
+	ticker := time.NewTicker(SpecCheckInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-c.specDone:
+			return
+		case <-ticker.C:
+			c.speculateMap(ch)
+			c.speculateReduce(ch)
+		}
+	}
+}
+
+// speculateMap looks for map tasks running much slower than the average of
+// already-completed map tasks, once most of the map phase is done, and
+// launches one backup execution for each (at most once per task).
+func (c *Coord) speculateMap(ch chan<- ftmgr.Tresult[[]byte, []byte]) {
+	// Only consider speculation once enough of the map phase has completed.
+	done, err := c.mftclnt.GetNTasks(ftclnt.DONE)
+	if err != nil || float64(done) < SpecMinProgress*float64(c.nmaptask) {
+		return
+	}
+
+	// Get the currently running map tasks (WIP). If none, return early.
+	wip, err := c.mftclnt.GetTasksByStatus(ftclnt.WIP)
+	if err != nil || len(wip) == 0 {
+		return
+	}
+
+	// Average duration of completed map tasks. If none completed, return early.
+	avg := c.avgDuration(true)
+	if avg <= 0 {
+		return
+	}
+
+	// Claim a backup for each running map task past the straggler threshold.
+	threshold := time.Duration(float64(avg) * SpecSlowFactor)
+	now := time.Now()
+	for _, id := range wip {
+		if c.claimMapBackup(id, now, threshold) {
+			go c.runBackupMap(id, ch)
+		}
+	}
+}
+
+// speculateReduce is speculateMap's mirror for the reduce phase.
+func (c *Coord) speculateReduce(ch chan<- ftmgr.Tresult[[]byte, []byte]) {
+	// Only consider speculation once enough of the reduce phase has completed.
+	done, err := c.rftclnt.GetNTasks(ftclnt.DONE)
+	if err != nil || float64(done) < SpecMinProgress*float64(c.nreducetask) {
+		return
+	}
+
+	// Get the currently running reduce tasks (WIP). If none, return early.
+	wip, err := c.rftclnt.GetTasksByStatus(ftclnt.WIP)
+	if err != nil || len(wip) == 0 {
+		return
+	}
+
+	// Average duration of completed reduce tasks. If none completed, return early.
+	avg := c.avgDuration(false)
+	if avg <= 0 {
+		return
+	}
+
+	// Claim a backup for each running reduce task past the straggler threshold.
+	threshold := time.Duration(float64(avg) * SpecSlowFactor)
+	now := time.Now()
+	for _, id := range wip {
+		if c.claimReduceBackup(id, now, threshold) {
+			go c.runBackupReduce(id, ch)
+		}
+	}
+}
+
+// claimMapBackup reports whether map task id has been running longer than
+// threshold and doesn't already have a backup in flight, atomically marking
+// it as backed-up if so (so at most one backup is ever launched per task).
+func (c *Coord) claimMapBackup(id ftclnt.TaskId, now time.Time, threshold time.Duration) bool {
+	c.specMu.Lock()
+	defer c.specMu.Unlock()
+
+	start, ok := c.mStart[id]
+	if !ok || c.mBackedUp[id] || now.Sub(start) <= threshold {
+		return false
+	}
+	c.mBackedUp[id] = true
+	return true
+}
+
+// claimReduceBackup is claimMapBackup's mirror for the reduce phase.
+func (c *Coord) claimReduceBackup(id ftclnt.TaskId, now time.Time, threshold time.Duration) bool {
+	c.specMu.Lock()
+	defer c.specMu.Unlock()
+
+	start, ok := c.rStart[id]
+	if !ok || c.rBackedUp[id] || now.Sub(start) <= threshold {
+		return false
+	}
+	c.rBackedUp[id] = true
+	return true
+}
+
+// avgDuration returns the average completion time of map (isMap) or reduce
+// (!isMap) tasks that have finished so far in this job, or 0 if none have.
+func (c *Coord) avgDuration(isMap bool) time.Duration {
+	c.specMu.Lock()
+	defer c.specMu.Unlock()
+
+	durs := c.mDurations
+	if !isMap {
+		durs = c.rDurations
+	}
+	if len(durs) == 0 {
+		return 0
+	}
+
+	var sum time.Duration
+	for _, d := range durs {
+		sum += d
+	}
+	return sum / time.Duration(len(durs))
+}
+
+// runBackupMap spawns a second, backup execution of an already in-progress
+// map task directly (bypassing the normal claim-from-TODO flow, since the
+// task is still legitimately WIP under its original attempt), and reports
+// its result on ch exactly like fttaskmgr's own runTask/waitForTask would.
+func (c *Coord) runBackupMap(id ftclnt.TaskId, ch chan<- ftmgr.Tresult[[]byte, []byte]) {
+	// Read the task from the raw client. If it can't be read, return early.
+	raw := c.mftclnt.AsRawClnt()
+	tasks, err := raw.ReadTasks([]ftclnt.TaskId{id})
+	if err != nil || len(tasks) == 0 {
+		return
+	}
+
+	// Build the backup mapper proc. If this fails, return early.
+	p, err := c.buildMapperProc(tasks[0], true)
+	if err != nil {
+		return
+	}
+
+	c.stat.Nspeculate.Add(1)
+	db.DPrintf(db.ALWAYS, "speculate: backup mapper for task %v", id)
+	start := time.Now()
+
+	// Spawn the backup and wait for it to start. If either fails, return early.
+	if err := c.Spawn(p); err != nil {
+		return
+	}
+	if err := c.WaitStart(p.GetPid()); err != nil {
+		return
+	}
+	// Wait for the backup map task to exit and collect its status and error.
+	status, err := c.WaitExit(p.GetPid())
+	if err != nil {
+		return
+	}
+	// Report the result on ch exactly like fttaskmgr's runTask/waitForTask would.
+	ch <- ftmgr.Tresult[[]byte, []byte]{
+		Ms:     time.Since(start),
+		Err:    err,
+		Status: status,
+		Proc:   p,
+		Id:     id,
+		Ftclnt: raw,
+	}
+}
+
+// runBackupReduce is runBackupMap's mirror for the reduce phase.
+func (c *Coord) runBackupReduce(id ftclnt.TaskId, ch chan<- ftmgr.Tresult[[]byte, []byte]) {
+	raw := c.rftclnt.AsRawClnt()
+	tasks, err := raw.ReadTasks([]ftclnt.TaskId{id})
+	if err != nil || len(tasks) == 0 {
+		return
+	}
+	p, err := c.buildReducerProc(tasks[0], true)
+	if err != nil {
+		return
+	}
+	c.stat.Nspeculate.Add(1)
+	db.DPrintf(db.ALWAYS, "speculate: backup reducer for task %v", id)
+	start := time.Now()
+	if err := c.Spawn(p); err != nil {
+		return
+	}
+
+	// Wait for the backup reduce task to start. If this fails, return early.
+	if err := c.WaitStart(p.GetPid()); err != nil {
+		return
+	}
+
+	// Wait for the backup reduce task to exit and collect its status and error.
+	status, err := c.WaitExit(p.GetPid())
+	if err != nil {
+		return
+	}
+	ch <- ftmgr.Tresult[[]byte, []byte]{
+		Ms:     time.Since(start),
+		Err:    err,
+		Status: status,
+		Proc:   p,
+		Id:     id,
+		Ftclnt: raw,
+	}
+}
+
+// recordWasted charges the wall-time a losing attempt ran to the
+// wasted-compute counters, at most once per pid. Only a speculative backup is
+// charged: a backup loses its race exactly when it turned out useless, so
+// Nwasted counts those. Caller must hold
+// specMu.
+func (c *Coord) recordWasted(pids []sp.Tpid) {
+	now := time.Now()
+	for _, pid := range pids {
+		start, ok := c.attemptStart[pid]
+		if !ok {
+			continue
+		}
+		if c.backupPids[pid] {
+			c.stat.Nwasted.Add(1)
+			c.stat.MsWasted.Add(now.Sub(start).Milliseconds())
+		}
+		delete(c.attemptStart, pid)
+		delete(c.backupPids, pid)
+	}
+}
+
+// recordWastedFinished charges a speculative backup that ran to completion but
+// had its result discarded (it lost the race), using its self-reported
+// duration d. A discarded original isn't charged -- see recordWasted.
+func (c *Coord) recordWastedFinished(pid sp.Tpid, d time.Duration) {
+	c.specMu.Lock()
+	defer c.specMu.Unlock()
+	if _, ok := c.attemptStart[pid]; ok {
+		if c.backupPids[pid] {
+			c.stat.Nwasted.Add(1)
+			c.stat.MsWasted.Add(d.Milliseconds())
+		}
+		delete(c.attemptStart, pid)
+		delete(c.backupPids, pid)
+	}
+}
+
+// evictSiblings kills every other recorded attempt for task id and clears
+// its speculation bookkeeping, so a stale attempt can't later report
+// success once the task's fate (win, restart, or failure) is decided.
+func (c *Coord) evictSiblings(id ftclnt.TaskId, exclude sp.Tpid, isMap bool) {
+	c.specMu.Lock()
+	var losers []sp.Tpid
+	if isMap {
+		for _, pid := range c.mAttempts[id] {
+			if pid != exclude {
+				losers = append(losers, pid)
+			}
+		}
+		delete(c.mAttempts, id)
+		delete(c.mStart, id)
+		delete(c.mBackedUp, id)
+	} else {
+		for _, pid := range c.rAttempts[id] {
+			if pid != exclude {
+				losers = append(losers, pid)
+			}
+		}
+		delete(c.rAttempts, id)
+		delete(c.rStart, id)
+		delete(c.rBackedUp, id)
+	}
+	c.recordWasted(losers)
+	delete(c.attemptStart, exclude)
+	delete(c.backupPids, exclude)
+	c.specMu.Unlock()
+	for _, pid := range losers {
+		db.DPrintf(db.MR_COORD, "evictSiblings: evicting %v for task %v (exclude %v)", pid, id, exclude)
+		if err := c.Evict(pid); err != nil {
+			db.DPrintf(db.MR_COORD, "evictSiblings: Evict %v err %v", pid, err)
+		}
+	}
+}
+
+// taskWon records that pid won task id (recording its duration for the
+// straggler-detection average), and evicts any other attempt (speculative
+// backup or original) still running for the same task.
+func (c *Coord) taskWon(id ftclnt.TaskId, winner sp.Tpid, dur time.Duration, isMap bool) {
+	c.specMu.Lock()
+	if isMap {
+		c.mDurations = append(c.mDurations, dur)
+	} else {
+		c.rDurations = append(c.rDurations, dur)
+	}
+	c.specMu.Unlock()
+	c.evictSiblings(id, winner, isMap)
+}
+
+// resetSpeculation clears map-side speculation bookkeeping (including
+// mDurations, now stale) and evicts any recorded attempt, since all
+// previously-done mappers are about to be redone (see doRestart). Reducers
+// aren't bulk-restarted this way, so reduce-side state is left alone.
+func (c *Coord) resetSpeculation() {
+	c.specMu.Lock()
+	var losers []sp.Tpid
+	for _, pids := range c.mAttempts {
+		losers = append(losers, pids...)
+	}
+	c.mStart = make(map[ftclnt.TaskId]time.Time)
+	c.mBackedUp = make(map[ftclnt.TaskId]bool)
+	c.mAttempts = make(map[ftclnt.TaskId][]sp.Tpid)
+	c.mDurations = nil
+	c.recordWasted(losers)
+	c.specMu.Unlock()
+	for _, pid := range losers {
+		db.DPrintf(db.MR_COORD, "resetSpeculation: evicting stale attempt %v", pid)
+		if err := c.Evict(pid); err != nil {
+			db.DPrintf(db.MR_COORD, "resetSpeculation: Evict %v err %v", pid, err)
+		}
+	}
 }
 
 func newStringSlice(data []interface{}) []string {
@@ -391,8 +838,6 @@ func (c *Coord) makeReduceBins() error {
 	} else {
 		return c.createReducers(reduceBinIn)
 	}
-
-	return nil
 }
 
 func (c *Coord) Work() {
@@ -480,10 +925,25 @@ func (c *Coord) Work() {
 			spstats.Inc(&c.stat.Ntask, int64(n))
 		}()
 
+		// Consume results as they arrive, and (if enabled) watch for
+		// stragglers to back up in parallel with the two phases above.
 		go c.processResult(ch, m, r)
+		if c.specEnabled {
+			go c.speculate(ch)
+		}
 
+		// Wait for both phases to finish, then stop the speculation loop.
 		wg.Wait()
-		close(ch)
+		close(c.specDone)
+		// Deliberately not closing ch: a task can now be marked DONE by
+		// whichever of {original, speculative backup} finishes first, while
+		// the other attempt's own result (from fttaskmgr's internal
+		// runTask/waitForTask, for the original, or runBackupMap/Reduce
+		// above, for a backup) may still arrive afterwards. processResult
+		// discards those late/duplicate results safely; closing ch here
+		// could instead panic on a send-after-close race. The leaked
+		// processResult goroutine is harmless -- it's reclaimed when this
+		// proc exits below.
 
 		// double check we are done
 		m, err = c.mftclnt.GetNTasks(ftclnt.DONE)
@@ -526,6 +986,7 @@ func (c *Coord) processResult(ch <-chan ftmgr.Tresult[[]byte, []byte], m, r int3
 		}
 	}
 	ts := make(map[ftclnt.TaskId]bool)
+	tsR := make(map[ftclnt.TaskId]bool)
 	for res := range ch {
 		db.DPrintf(db.MR_COORD, "processResult: res %v", res)
 		if res.Err == nil && res.Status.IsStatusOK() {
@@ -545,6 +1006,17 @@ func (c *Coord) processResult(ch <-chan ftmgr.Tresult[[]byte, []byte], m, r int3
 			}
 			r.MsOuter = res.Ms.Milliseconds()
 			db.DPrintf(db.MR_COORD, "Task results %v", r)
+
+			// If a sibling attempt (a speculative backup, or -- for map
+			// tasks -- an earlier completion before a restart-triggered
+			// redo) already won this task, this is a late loser: discard it
+			// instead of overwriting the winner's stored output.
+			if (r.IsM && ts[res.Id]) || (!r.IsM && tsR[res.Id]) {
+				db.DPrintf(db.MR_COORD, "processResult: discarding late/speculative result for already-finished task %v", res.Id)
+				c.recordWastedFinished(res.Proc.GetPid(), res.Ms)
+				continue
+			}
+
 			// mark task as done
 			start := time.Now()
 			encoded, err := ftclnt.Encode(r.OutBin)
@@ -559,10 +1031,8 @@ func (c *Coord) processResult(ch <-chan ftmgr.Tresult[[]byte, []byte], m, r int3
 				db.DFatalf("Appendfile %v err %v", MRstats(c.jobRoot, c.job), err)
 			}
 			if r.IsM {
-				if _, ok := ts[res.Id]; ok {
-					db.DFatalf("task id already finished %v", res.Id)
-				}
 				ts[res.Id] = true
+				c.taskWon(res.Id, res.Proc.GetPid(), res.Ms, true)
 				nM += 1
 				if nM >= c.nmaptask { // kick off reducers?
 					if err := c.makeReduceBins(); err != nil {
@@ -570,6 +1040,8 @@ func (c *Coord) processResult(ch <-chan ftmgr.Tresult[[]byte, []byte], m, r int3
 					}
 				}
 			} else {
+				tsR[res.Id] = true
+				c.taskWon(res.Id, res.Proc.GetPid(), res.Ms, false)
 				nR += 1
 				if nR >= c.nreducetask {
 					db.DPrintf(db.MR_COORD, "processResult: SubmittedLastTask")
@@ -585,10 +1057,12 @@ func (c *Coord) processResult(ch <-chan ftmgr.Tresult[[]byte, []byte], m, r int3
 				s := newStringSlice(res.Status.Data().([]interface{}))
 				c.restart(s, res.Id)
 				nRestart += 1
+				c.evictSiblings(res.Id, res.Proc.GetPid(), false)
 			} else { // if failure but not restart, rerun task immediately again
 				if err := res.Ftclnt.MoveTasks([]ftclnt.TaskId{res.Id}, ftclnt.TODO); err != nil {
 					db.DFatalf("MarkRunnable %v err %v", res.Id, err)
 				}
+				c.evictSiblings(res.Id, res.Proc.GetPid(), res.Ftclnt == c.mftclnt.AsRawClnt())
 			}
 			c.stat.Nfail.Add(1)
 		}
@@ -596,6 +1070,7 @@ func (c *Coord) processResult(ch <-chan ftmgr.Tresult[[]byte, []byte], m, r int3
 			nM = 0
 			nRestart = 0
 			ts = make(map[ftclnt.TaskId]bool)
+			c.resetSpeculation()
 			c.doRestart()
 		}
 	}
