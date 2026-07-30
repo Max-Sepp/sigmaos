@@ -44,6 +44,14 @@ type Gate struct {
 	now  func() time.Time
 	tick time.Duration
 
+	// logs is the append-only record of what each tree produced, and epoch
+	// identifies this incarnation of it. Both live here rather than a layer
+	// out because an entry has to be appended inside the same step that told
+	// the scheduler: were they two critical sections, a reader could observe
+	// a tree finished before it had been handed the tree's last result.
+	logs  map[policy.TreeID][]LeafResult
+	epoch uint64
+
 	done chan struct{}
 	wg   sync.WaitGroup
 }
@@ -62,12 +70,23 @@ func WithTick(d time.Duration) Opt {
 	return func(g *Gate) { g.tick = d }
 }
 
+// WithEpoch identifies this incarnation of the gate's state.
+//
+// The gate never invents the value, because a number that must differ across
+// restarts has to come from something that outlives one — a process
+// identifier, a start time, a stored counter. Which of those is available is
+// a property of the platform, so the platform supplies it.
+func WithEpoch(e uint64) Opt {
+	return func(g *Gate) { g.epoch = e }
+}
+
 // New returns a Gate wrapping sched. The caller must not retain sched.
 func New(sched *policy.Scheduler, opts ...Opt) *Gate {
 	g := &Gate{
 		sched: sched,
 		now:   time.Now,
 		tick:  DefaultTick,
+		logs:  make(map[policy.TreeID][]LeafResult),
 		done:  make(chan struct{}),
 	}
 	g.cond = sync.NewCond(&g.mu)
@@ -159,7 +178,14 @@ func (g *Gate) OnRunStarted(ref policy.RunRef) {
 // OnRunCompleted reports that an attempt finished its work.
 func (g *Gate) OnRunCompleted(ref policy.RunRef, result []byte) {
 	g.step(func(s *policy.Scheduler, now time.Time) policy.Effect {
-		return s.OnRunCompleted(now, ref, result)
+		eff := s.OnRunCompleted(now, ref, result)
+		// Only what the scheduler accepted is recorded. An event naming a
+		// superseded attempt is dropped there, and logging it anyway would
+		// hand a reader a result for work the tree does not consider done.
+		if s.Succeeded(ref) {
+			g.appendResultL(s, ref, result)
+		}
+		return eff
 	})
 }
 

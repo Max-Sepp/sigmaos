@@ -237,6 +237,19 @@ func (s *Scheduler) requeue(l *leafState) {
 	l.startedAt = time.Time{}
 }
 
+// Succeeded reports whether this exact attempt is its leaf's current run and
+// finished successfully.
+//
+// It exists so that a caller can tell whether a completion it reported was
+// applied or dropped as superseded, which the entry points cannot say for
+// themselves: they return the work a decision implies, and a dropped event
+// implies none, which is indistinguishable from a decision that changed
+// nothing. Anything recording completions on the side has to know which.
+func (s *Scheduler) Succeeded(ref RunRef) bool {
+	n := s.leafFor(ref)
+	return n != nil && n.leaf.rs == RSucceeded
+}
+
 // leafFor resolves a reference, requiring an exact run match so that an event
 // about an attempt that has already been superseded is ignored.
 func (s *Scheduler) leafFor(ref RunRef) *node {
@@ -345,10 +358,7 @@ func (s *Scheduler) retarget(n *node) {
 		n.target = want
 		n.lastTargetAt = s.now
 	}
-	n.racers = want - base
-	if n.racers < 0 {
-		n.racers = 0
-	}
+	n.racers = max(want-base, 0)
 }
 
 // assign marks which children a node keeps running, best first.

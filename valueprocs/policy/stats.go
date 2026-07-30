@@ -27,6 +27,11 @@ type NodeView struct {
 	Gradient   Gradient
 	HasScore   bool
 	ScoreStale bool
+
+	// Result is what a succeeded attempt reported, and is nil until then. It
+	// is opaque here: this package stores it so that whoever asked for the
+	// work can collect it, and never inspects it.
+	Result []byte
 }
 
 // TreeView is one tree's reportable state. It is also what an Arbiter divides
@@ -91,6 +96,19 @@ func (s *Scheduler) Trees() []TreeView {
 	return out
 }
 
+// NodeView returns one node's state, or false if no such node exists.
+func (s *Scheduler) NodeView(t TreeID, id NodeID) (NodeView, bool) {
+	tr, ok := s.trees[t]
+	if !ok {
+		return NodeView{}, false
+	}
+	n, ok := tr.nodes[id]
+	if !ok {
+		return NodeView{}, false
+	}
+	return s.nodeView(n), true
+}
+
 // TreeView returns one tree's state, or false if no such tree is registered.
 func (s *Scheduler) TreeView(id TreeID) (TreeView, bool) {
 	t, ok := s.trees[id]
@@ -140,6 +158,7 @@ func (s *Scheduler) nodeView(n *node) NodeView {
 		v.Gradient = l.gradient
 		v.HasScore = l.hasScore
 		v.ScoreStale = s.stale(l)
+		v.Result = l.result
 	}
 	return v
 }
