@@ -82,7 +82,10 @@ func epochOf(pe *proc.ProcEnv) uint64 {
 
 // Run starts the service and blocks until it is told to stop.
 func (s *Srv) Run(sc *sigmaclnt.SigmaClnt) error {
-	ssrv, err := sigmasrv.NewSigmaSrv(valueprocs.VALUESCHED, s, sc.ProcEnv())
+	// The client is handed over rather than left to be created here. A proc
+	// gets exactly one: the dial proxy is initialised per process, and a
+	// second client aborts the process on the spot.
+	ssrv, err := sigmasrv.NewSigmaSrvClnt(valueprocs.VALUESCHED, sc, s)
 	if err != nil {
 		return err
 	}
