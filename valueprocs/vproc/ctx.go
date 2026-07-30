@@ -140,6 +140,16 @@ func (c *Ctx) readIdentity() {
 // SigmaClnt returns the underlying client.
 func (c *Ctx) SigmaClnt() *sigmaclnt.SigmaClnt { return c.sc }
 
+// NodeID is which leaf of its tree this proc is running, or empty when
+// nothing scheduled it. It is for log lines: an application should not need
+// to know, since results come back already keyed by it.
+func (c *Ctx) NodeID() string {
+	if c.ref == nil {
+		return ""
+	}
+	return c.ref.NodeID
+}
+
 // --- the value channel -----------------------------------------------------
 
 // Score reports how the work is going.
