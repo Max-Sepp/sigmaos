@@ -10,6 +10,7 @@ import (
 	sp "sigmaos/sigmap"
 	procapi "sigmaos/api/proc"
 	"sigmaos/util/spstats"
+	"sigmaos/valueprocs"
 	"sigmaos/valueprocs/gate"
 	"sigmaos/valueprocs/policy"
 )
@@ -144,6 +145,26 @@ func (f *fakeProcAPI) pidOf(t *testing.T, i int) sp.Tpid {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.spawned[i].GetPid()
+}
+
+// procForNode finds the proc spawned for a node, by the identity the adapter
+// injected into its environment. Spawn order does not follow tree order, so
+// an index is the wrong way to ask.
+func (f *fakeProcAPI) procForNode(t *testing.T, node string) *proc.Proc {
+	t.Helper()
+	var found *proc.Proc
+	eventually(t, func() bool {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		for _, p := range f.spawned {
+			if p.Env[valueprocs.ENV_NODE] == node {
+				found = p
+				return true
+			}
+		}
+		return false
+	}, "a proc was spawned for node "+node)
+	return found
 }
 
 func (f *fakeProcAPI) procOf(t *testing.T, i int) *proc.Proc {

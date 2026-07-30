@@ -383,3 +383,18 @@ func (e *Exec) Runs() int {
 	defer e.mu.Unlock()
 	return len(e.runs)
 }
+
+// PidOf returns the proc running an attempt, if it is still in flight.
+//
+// It exists because a pid is the handle an operator needs to go and look at
+// something -- logs, a container, a stack -- and nothing above this package
+// knows one. Reporting it is the only reason it leaves here.
+func (e *Exec) PidOf(ref policy.RunRef) (sp.Tpid, bool) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	r, ok := e.runs[ref]
+	if !ok {
+		return "", false
+	}
+	return r.pid, true
+}

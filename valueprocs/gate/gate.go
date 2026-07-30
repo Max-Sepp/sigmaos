@@ -28,6 +28,11 @@ import (
 var (
 	ErrClosed      = errors.New("gate: closed")
 	ErrUnknownTree = errors.New("gate: unknown tree")
+
+	// ErrStaleEpoch means a reader's position belongs to an incarnation of
+	// this state that no longer exists. Everything it knows about the tree is
+	// void, and the only recovery is to start over.
+	ErrStaleEpoch = errors.New("gate: stale epoch")
 )
 
 // DefaultTick is how often the scheduler is given the current time. It is the

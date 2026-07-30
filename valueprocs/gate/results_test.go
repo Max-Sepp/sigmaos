@@ -24,7 +24,7 @@ func finish(g *Gate, node string, result []byte) {
 // read is the non-blocking read, which is what most assertions want.
 func read(t *testing.T, g *Gate, since uint64) Batch {
 	t.Helper()
-	b, err := g.Results("t", since, 0)
+	b, err := g.Results("t", Cursor{Since: since}, 0)
 	assert.NoError(t, err)
 	return b
 }
@@ -139,7 +139,7 @@ func TestResultsBlockUntilSomethingLands(t *testing.T) {
 
 	got := make(chan Batch, 1)
 	go func() {
-		b, err := g.Results("t", 0, 2*time.Second)
+		b, err := g.Results("t", Cursor{}, 2*time.Second)
 		assert.NoError(t, err)
 		got <- b
 	}()
@@ -171,7 +171,7 @@ func TestResultsWakeWhenTheTreeFinishesWithoutResults(t *testing.T) {
 
 	got := make(chan Batch, 1)
 	go func() {
-		b, err := g.Results("t", 0, 2*time.Second)
+		b, err := g.Results("t", Cursor{}, 2*time.Second)
 		assert.NoError(t, err)
 		got <- b
 	}()
@@ -202,7 +202,7 @@ func TestResultsGiveUpAfterTheWait(t *testing.T) {
 	// A bounded wait, so a reader parked over a transport with its own
 	// timeouts comes back empty rather than being cut off mid-call.
 	start := time.Now()
-	b, err := g.Results("t", 0, 30*time.Millisecond)
+	b, err := g.Results("t", Cursor{}, 30*time.Millisecond)
 	assert.NoError(t, err)
 	assert.GreaterOrEqual(t, time.Since(start), 30*time.Millisecond)
 	assert.Empty(t, b.Results)
@@ -262,7 +262,7 @@ func TestCloseWakesAParkedReader(t *testing.T) {
 
 	got := make(chan error, 1)
 	go func() {
-		_, err := g.Results("t", 0, 5*time.Second)
+		_, err := g.Results("t", Cursor{}, 5*time.Second)
 		got <- err
 	}()
 	time.Sleep(20 * time.Millisecond)
@@ -279,7 +279,7 @@ func TestCloseWakesAParkedReader(t *testing.T) {
 func TestResultsUnknownTree(t *testing.T) {
 	g, _, _ := newGate(t)
 	defer g.Close()
-	_, err := g.Results("nope", 0, 0)
+	_, err := g.Results("nope", Cursor{}, 0)
 	assert.ErrorIs(t, err, ErrUnknownTree)
 }
 
@@ -296,6 +296,34 @@ func TestEpochIsReportedWithEveryBatch(t *testing.T) {
 	// every answer says which state that was.
 	assert.EqualValues(t, 42, g.Epoch())
 	assert.EqualValues(t, 42, read(t, g, 0).Epoch)
+	assert.Equal(t, Cursor{Epoch: 42, Since: 0}, read(t, g, 0).Cursor())
+}
+
+func TestPositionFromAnotherIncarnationIsRefused(t *testing.T) {
+	e, c := newExec(), newClock()
+	s := policy.NewScheduler(policy.DefaultConfig(), e, nil, nil)
+	g := New(s, WithClock(c.now), WithEpoch(9))
+	defer g.Close()
+
+	_, err := g.Submit(policy.TreeSpec{ID: "t", Root: tree(t, 1, 1)})
+	assert.NoError(t, err)
+	eventually(t, func() bool { return e.nStarts() == 1 }, "started")
+	finish(g, "r.0", []byte("a"))
+
+	// A reader that held a position across a restart. Refusing is the whole
+	// point: this incarnation has a real entry 1, and it is a different
+	// entry 1 from the one that reader already consumed.
+	_, err = g.Results("t", Cursor{Epoch: 8, Since: 1}, 0)
+	assert.ErrorIs(t, err, ErrStaleEpoch)
+
+	// Zero asserts nothing, which is what a first read sends.
+	b, err := g.Results("t", Cursor{Since: 0}, 0)
+	assert.NoError(t, err)
+	assert.Len(t, b.Results, 1)
+
+	// And the cursor it hands back is accepted straight away.
+	_, err = g.Results("t", b.Cursor(), 0)
+	assert.NoError(t, err)
 }
 
 func TestConcurrentReadersAndWriters(t *testing.T) {
@@ -312,13 +340,13 @@ func TestConcurrentReadersAndWriters(t *testing.T) {
 	}
 	for range 4 {
 		wg.Go(func() {
-			cur := uint64(0)
+			cur := Cursor{}
 			for range 50 {
 				b, err := g.Results("t", cur, 0)
 				assert.NoError(t, err)
 				// A cursor only ever moves forward.
-				assert.GreaterOrEqual(t, b.Next, cur)
-				cur = b.Next
+				assert.GreaterOrEqual(t, b.Next, cur.Since)
+				cur = b.Cursor()
 			}
 		})
 	}

@@ -23,13 +23,26 @@ type LeafResult struct {
 	Data []byte
 }
 
+// Cursor is a reader's place in a tree's log.
+//
+// It is a pair and not a number on purpose. A position counts within one
+// numbering, and the numbering restarts from nothing when the gate's state
+// does -- so a bare position from a previous incarnation is not stale data
+// but a different meaning wearing the same digits, and answering it would
+// hand back an unrelated result the reader believes it has already passed.
+// Carrying the epoch alongside is what makes that detectable instead of
+// silent.
+type Cursor struct {
+	// Epoch is zero on a first read, which asserts nothing and is always
+	// accepted. Anything else is checked.
+	Epoch uint64
+	Since uint64
+}
+
 // Batch is the answer to one read: everything after the position the caller
 // asked from, plus where that leaves them.
 type Batch struct {
-	// Epoch identifies this incarnation of the gate's state. A reader stores
-	// it beside Next and sends both back; whoever accepts reads is
-	// responsible for rejecting a position from a different epoch, since the
-	// numbering restarts from nothing when the state does.
+	// Epoch identifies this incarnation of the gate's state.
 	Epoch uint64
 
 	Results []LeafResult
@@ -44,6 +57,9 @@ type Batch struct {
 	Done  bool
 	State policy.NodeState
 }
+
+// Cursor is where this batch leaves the reader.
+func (b Batch) Cursor() Cursor { return Cursor{Epoch: b.Epoch, Since: b.Next} }
 
 // results returns a tree's log, creating it on first use.
 func (g *Gate) resultsL(id policy.TreeID) []LeafResult { return g.logs[id] }
@@ -65,22 +81,33 @@ func (g *Gate) appendResultL(s *policy.Scheduler, ref policy.RunRef, data []byte
 	})
 }
 
-// Results returns everything a tree produced after position since.
+// Results returns everything a tree produced after the caller's cursor.
 //
 // The caller holds the position and the gate holds the log, so this keeps no
 // per-reader state: nothing to register, nothing to clean up when a reader
 // disappears, and any number of readers may sit at different positions
-// without affecting each other. The same since twice gives the same answer,
+// without affecting each other. The same cursor twice gives the same answer,
 // so a call that fails halfway can simply be made again.
+//
+// The epoch is checked here rather than by whoever accepts reads, because a
+// transport that forgot to check would not fail -- it would quietly serve one
+// incarnation's results against another's numbering, which is the exact harm
+// the epoch exists to prevent. An invariant that fails silently belongs where
+// it cannot be skipped.
 //
 // A positive wait parks until something lands, the tree finishes, or the wait
 // elapses, whichever comes first. It is wall-clock and deliberately not the
 // injected clock: that clock exists to make policy deterministic under test,
 // whereas this bounds a caller that is genuinely waiting. A wait of zero
 // returns whatever is available immediately.
-func (g *Gate) Results(id policy.TreeID, since uint64, wait time.Duration) (Batch, error) {
+func (g *Gate) Results(id policy.TreeID, cur Cursor, wait time.Duration) (Batch, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
+
+	if cur.Epoch != 0 && cur.Epoch != g.epoch {
+		return Batch{}, ErrStaleEpoch
+	}
+	since := cur.Since
 
 	expired := wait <= 0
 	if !expired {
