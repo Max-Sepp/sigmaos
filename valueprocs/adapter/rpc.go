@@ -23,8 +23,10 @@ const MaxWait = 30 * time.Second
 // lives in policy, and everything that touches SigmaOS lives in the rest of
 // this package.
 type Srv struct {
-	gate *gate.Gate
-	exec *Exec
+	gate   *gate.Gate
+	exec   *Exec
+	probe  *Probe
+	period time.Duration
 }
 
 // --- demand ----------------------------------------------------------------

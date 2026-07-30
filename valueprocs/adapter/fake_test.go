@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
+	procapi "sigmaos/api/proc"
 	"sigmaos/proc"
 	sp "sigmaos/sigmap"
-	procapi "sigmaos/api/proc"
 	"sigmaos/util/spstats"
 	"sigmaos/valueprocs"
 	"sigmaos/valueprocs/gate"

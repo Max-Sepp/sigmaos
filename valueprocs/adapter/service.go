@@ -49,7 +49,12 @@ func NewSrv(sc *sigmaclnt.SigmaClnt, cfg Config) *Srv {
 	g = gate.New(sd, gate.WithEpoch(epochOf(sc.ProcEnv())))
 	ex.ev = g
 
-	return &Srv{gate: g, exec: ex}
+	return &Srv{
+		gate:   g,
+		exec:   ex,
+		probe:  NewProbe(sc, cfg.Adapter.Oversubscribe, cfg.Adapter.QueueSamples),
+		period: cfg.Adapter.ProbePeriod,
+	}
 }
 
 // epochOf identifies this incarnation of the service's state.
@@ -82,10 +87,15 @@ func (s *Srv) Run(sc *sigmaclnt.SigmaClnt) error {
 		return err
 	}
 	s.gate.Run()
+	// The probe pushes; it is not consulted on the scheduling tick. A machine
+	// that answers slowly therefore makes the occupancy reading late rather
+	// than making every decision late.
+	s.probe.Run(s.period, s.gate.OnOccupancy)
 	db.DPrintf(db.VALUEPROC, "valuesched serving at %v, epoch %v",
 		valueprocs.VALUESCHED, s.gate.Epoch())
 
 	err = ssrv.RunServer()
+	s.probe.Close()
 
 	// Stop accepting work and let the attempts still in flight go. Whether
 	// they should outlive the service is not this layer's call: an

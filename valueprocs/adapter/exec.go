@@ -57,13 +57,29 @@ type Policy struct {
 	// the grounds that a slot the scheduler can never reclaim is worse than a
 	// slot it reclaims optimistically.
 	StopTimeout time.Duration
+
+	// ProbePeriod is how often the cluster is measured.
+	ProbePeriod time.Duration
+
+	// Oversubscribe turns cores into slots. One slot per core is the honest
+	// default; above it the scheduler will charge itself for concurrency the
+	// machines do not have, which is sometimes what you want for work that
+	// spends its time waiting rather than computing.
+	Oversubscribe float64
+
+	// QueueSamples is how many besched shards to ask for queue depth. The
+	// answer is diagnostic only, so this is small on purpose.
+	QueueSamples int
 }
 
 func DefaultPolicy() Policy {
 	return Policy{
-		StopRetries: 3,
-		StopBackoff: 500 * time.Millisecond,
-		StopTimeout: 60 * time.Second,
+		StopRetries:   3,
+		StopBackoff:   500 * time.Millisecond,
+		StopTimeout:   60 * time.Second,
+		ProbePeriod:   time.Second,
+		Oversubscribe: 1.0,
+		QueueSamples:  2,
 	}
 }
 
