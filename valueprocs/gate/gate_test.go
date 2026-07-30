@@ -196,18 +196,16 @@ func TestStepSerializesConcurrentCallers(t *testing.T) {
 	// The scheduler is not safe for concurrent use, so this is only sound if
 	// step is doing its job. Run under -race to mean anything.
 	var wg sync.WaitGroup
-	for i := 0; i < 8; i++ {
-		wg.Add(1)
-		go func(i int) {
-			defer wg.Done()
+	for i := range 8 {
+		wg.Go(func() {
 			ref := policy.RunRef{Tree: "t", Node: policy.NodeID("r." + string(rune('0'+i%4))), Run: 0}
-			for j := 0; j < 50; j++ {
+			for j := range 50 {
 				g.OnScore(ref, policy.Score(j), 0)
 				g.Tick()
 				g.Stats()
 				_, _ = g.Status("t")
 			}
-		}(i)
+		})
 	}
 	wg.Wait()
 }

@@ -1,6 +1,9 @@
 package policy
 
-import "time"
+import (
+	"maps"
+	"time"
+)
 
 // NodeView is one node's reportable state.
 type NodeView struct {
@@ -73,18 +76,9 @@ func (s *Scheduler) Stats() Stats {
 	st.NCharged = s.nCharged
 	st.Slots = s.occ.Slots
 
-	st.Components = make(map[string]float64, len(s.occ.Components))
-	for k, v := range s.occ.Components {
-		st.Components[k] = v
-	}
-	st.NStarts = make(map[StartReasonKind]int, len(s.stats.NStarts))
-	for k, v := range s.stats.NStarts {
-		st.NStarts[k] = v
-	}
-	st.NStops = make(map[StopReasonKind]int, len(s.stats.NStops))
-	for k, v := range s.stats.NStops {
-		st.NStops[k] = v
-	}
+	st.Components = maps.Clone(s.occ.Components)
+	st.NStarts = maps.Clone(s.stats.NStarts)
+	st.NStops = maps.Clone(s.stats.NStops)
 	return st
 }
 

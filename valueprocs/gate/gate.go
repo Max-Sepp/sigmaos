@@ -98,11 +98,7 @@ func (g *Gate) step(f func(*policy.Scheduler, time.Time) policy.Effect) {
 	// One goroutine for the whole effect rather than one per call inside it:
 	// the calls run in the order they were decided, which is what lets a stop
 	// reach the platform before the start waiting on its slot.
-	g.wg.Add(1)
-	go func() {
-		defer g.wg.Done()
-		eff()
-	}()
+	g.wg.Go(eff)
 }
 
 // --- demand ----------------------------------------------------------------
@@ -238,9 +234,7 @@ func (g *Gate) Wait(id policy.TreeID) (policy.TreeView, error) {
 
 // Run starts the ticker. It returns immediately.
 func (g *Gate) Run() {
-	g.wg.Add(1)
-	go func() {
-		defer g.wg.Done()
+	g.wg.Go(func() {
 		t := time.NewTicker(g.tick)
 		defer t.Stop()
 		for {
@@ -251,7 +245,7 @@ func (g *Gate) Run() {
 				g.Tick()
 			}
 		}
-	}()
+	})
 }
 
 // Close stops accepting work, wakes every waiter and drains outstanding
