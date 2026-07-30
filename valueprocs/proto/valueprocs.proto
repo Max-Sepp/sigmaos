@@ -123,6 +123,16 @@ message NextResultsRep {
   // tree produced.
   bool treeDone = 4;
   string treeState = 5;
+
+  // staleEpoch reports that the position sent belongs to an incarnation of
+  // the service that no longer exists, so everything the caller knows about
+  // this tree is void and it must start over.
+  //
+  // A field rather than an error, because an error's identity does not
+  // survive an RPC -- it arrives as a string, and a caller that has to branch
+  // on this must not be left matching text to decide whether its whole view
+  // is invalid.
+  bool staleEpoch = 6;
 }
 
 // ========== reporting ==========

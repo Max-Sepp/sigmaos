@@ -124,13 +124,21 @@ func TestNextResultsRefusesAPositionFromAnotherIncarnation(t *testing.T) {
 	s, _ := newSrv(t)
 	assert.NoError(t, s.SubmitTree(newCtx("app", "r1"), submitSpec("t", 1, 1), &proto.SubmitTreeRep{}))
 
-	err := s.NextResults(newCtx("app", "r1"),
-		proto.NextResultsReq{TID: "t", Since: 3, Epoch: testEpoch + 1}, &proto.NextResultsRep{})
-	assert.ErrorIs(t, err, gate.ErrStaleEpoch)
+	// Answered, not refused. The caller must act on this -- throw away its
+	// position and start over -- and an error's identity does not survive an
+	// RPC, so refusing would leave it matching text to decide whether its
+	// whole view of the tree is void.
+	rep := &proto.NextResultsRep{}
+	assert.NoError(t, s.NextResults(newCtx("app", "r1"),
+		proto.NextResultsReq{TID: "t", Since: 3, Epoch: testEpoch + 1}, rep))
+	assert.True(t, rep.StaleEpoch)
+	assert.EqualValues(t, testEpoch, rep.Epoch, "the caller is told which epoch is current")
+	assert.Empty(t, rep.Results)
 
 	// Zero asserts nothing, which is what a first read sends.
-	assert.NoError(t, s.NextResults(newCtx("app", "r1"),
-		proto.NextResultsReq{TID: "t"}, &proto.NextResultsRep{}))
+	rep = &proto.NextResultsRep{}
+	assert.NoError(t, s.NextResults(newCtx("app", "r1"), proto.NextResultsReq{TID: "t"}, rep))
+	assert.False(t, rep.StaleEpoch)
 }
 
 func TestNextResultsWaitIsBounded(t *testing.T) {

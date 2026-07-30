@@ -1,6 +1,7 @@
 package adapter
 
 import (
+	"errors"
 	"time"
 
 	"sigmaos/api/fs"
@@ -118,6 +119,16 @@ func (s *Srv) NextResults(ctx fs.CtxI, req proto.NextResultsReq, rep *proto.Next
 	// against another's numbering by forgetting to look.
 	cur := gate.Cursor{Epoch: req.Epoch, Since: req.Since}
 	b, err := s.gate.Results(policy.TreeID(req.TID), cur, wait)
+	if errors.Is(err, gate.ErrStaleEpoch) {
+		// Answered rather than refused. The caller has to act on this -- throw
+		// away its position and start over -- and an error's identity does not
+		// survive an RPC, so it would arrive as text to be matched.
+		db.DPrintf(db.VALUEPROC_ERR, "NextResults %v: %v is not epoch %v",
+			req.TID, req.Epoch, s.gate.Epoch())
+		rep.StaleEpoch = true
+		rep.Epoch = s.gate.Epoch()
+		return nil
+	}
 	if err != nil {
 		db.DPrintf(db.VALUEPROC_ERR, "NextResults %v from %v: %v", req.TID, cur, err)
 		return err
