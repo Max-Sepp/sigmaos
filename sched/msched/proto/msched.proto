@@ -74,3 +74,19 @@ message GetMSchedStatsReq {
 message GetMSchedStatsRep {
   map<string, RealmStats> mSchedStats = 1;
 }
+
+message GetMSchedLoadReq {
+}
+
+// GetMSchedLoadRep reports how loaded this machine is. msched already
+// maintains all of it; none of it was reachable from outside.
+//
+// cpuUtil is here because memory alone cannot see a busy machine. Best-effort
+// admission gates on free memory, and best-effort procs routinely reserve
+// none, so a fleet pinning every core can still report all its memory free.
+message GetMSchedLoadRep {
+  uint32 memFreeMB = 1;
+  uint32 memTotalMB = 2;
+  int64 cpuUtil = 3;    // 0-100, machine-wide
+  int32 nCores = 4;
+}

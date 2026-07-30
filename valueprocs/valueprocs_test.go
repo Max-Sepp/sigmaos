@@ -9,6 +9,7 @@ import (
 
 	db "sigmaos/debug"
 	"sigmaos/proc"
+	mschedclnt "sigmaos/sched/msched/clnt"
 	sp "sigmaos/sigmap"
 	"sigmaos/test"
 )
@@ -106,4 +107,42 @@ func TestEvictionIsInertWithoutIt(t *testing.T) {
 	}
 	assert.Greater(t, elapsed, time.Duration(runBriefly/2)*time.Millisecond,
 		"the proc ran on after being evicted rather than stopping")
+}
+
+// TestMSchedLoad checks the contention signal the layer scales on. Memory
+// alone cannot see the workload this layer exists to schedule -- best-effort
+// admission gates on free memory, and best-effort procs routinely reserve
+// none -- so machine-wide CPU is the term that sees a busy cluster at all.
+//
+// It runs from inside a realm on purpose. The probe is an ordinary proc with
+// no kernel privilege, and this is the fact it depends on.
+func TestMSchedLoad(t *testing.T) {
+	mrts, err := test.NewMultiRealmTstate(t, []sp.Trealm{test.REALM1})
+	if !assert.Nil(t, err, "Error New Tstate: %v", err) {
+		return
+	}
+	defer mrts.Shutdown()
+	ts := mrts.GetRealm(test.REALM1)
+
+	msc := mschedclnt.NewMSchedClnt(ts.FsLib, sp.NOT_SET)
+	loads, err := msc.MSchedLoad()
+	if !assert.Nil(t, err, "MSchedLoad: %v", err) {
+		return
+	}
+	assert.NotEmpty(t, loads, "no machine reported")
+
+	for id, l := range loads {
+		db.DPrintf(db.TEST, "%v: memFree %vMB of %vMB, cpu %v%%, %v cores",
+			id, l.MemFreeMB, l.MemTotalMB, l.CpuUtil, l.NCores)
+
+		assert.Greater(t, l.MemTotalMB, uint32(0), "%v total memory", id)
+		assert.LessOrEqual(t, l.MemFreeMB, l.MemTotalMB, "%v free exceeds total", id)
+		assert.Greater(t, l.NCores, int32(0), "%v cores", id)
+
+		// Utilization is a percentage. It may legitimately read zero: it is
+		// refreshed on a ticker and the first sample is discarded, so a
+		// freshly booted kernel has not measured anything yet.
+		assert.GreaterOrEqual(t, l.CpuUtil, int64(0), "%v cpu", id)
+		assert.LessOrEqual(t, l.CpuUtil, int64(100), "%v cpu", id)
+	}
 }
