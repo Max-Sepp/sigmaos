@@ -136,6 +136,12 @@ const (
 	CODEDMATMUL Tselector = "CODEDMATMUL"
 )
 
+// Value procs
+const (
+	VALUEPROC     Tselector = "VALUEPROC"
+	VALUEPROC_ERR Tselector = VALUEPROC + ERR
+)
+
 // Socialnet
 const (
 	SOCIAL_NETWORK          Tselector = "SOCIAL_NETWORK"
