@@ -9,6 +9,7 @@ import (
 	sp "sigmaos/sigmap"
 	"sigmaos/valueprocs"
 	"sigmaos/valueprocs/policy"
+	"sigmaos/valueprocs/proto"
 )
 
 // Template is a leaf's workload: the proc an application wants run, held as a
@@ -86,6 +87,53 @@ func (t *Template) Build(ref policy.RunRef, l policy.Launch) *proc.Proc {
 	p.SetMcpu(t.mcpu)
 	p.SetMem(t.mem)
 	return p
+}
+
+// GroupFromProto builds a schedulable group out of a submitted tree.
+//
+// This is where a submission stops being a message and becomes work: past
+// here nothing is a proto, and the scheduler sees only groups and workloads.
+// Every way a client can describe a tree that cannot be run is rejected here
+// rather than deeper in, so that a bad submission fails at the caller instead
+// of halfway through a job.
+func GroupFromProto(n *proto.NodeSpec) (policy.Group, error) {
+	if n == nil {
+		return nil, fmt.Errorf("valueprocs: nil node")
+	}
+	var (
+		g   policy.Group
+		err error
+	)
+	if len(n.Children) == 0 {
+		if n.LeafProc == nil {
+			return nil, fmt.Errorf("valueprocs: leaf %q has no proc", n.Label)
+		}
+		var t *Template
+		if t, err = NewTemplate(proc.NewProcFromProto(n.LeafProc)); err != nil {
+			return nil, err
+		}
+		g, err = policy.Leaf(t)
+	} else {
+		if n.LeafProc != nil {
+			return nil, fmt.Errorf("valueprocs: node %q has both children and a proc", n.Label)
+		}
+		cs := make([]policy.Group, 0, len(n.Children))
+		for _, c := range n.Children {
+			var cg policy.Group
+			if cg, err = GroupFromProto(c); err != nil {
+				return nil, err
+			}
+			cs = append(cs, cg)
+		}
+		g, err = policy.Select(int(n.K), cs...)
+	}
+	if err != nil {
+		return nil, err
+	}
+	if n.Label != "" {
+		g = policy.WithLabel(g, n.Label)
+	}
+	return g, nil
 }
 
 // templateFor recovers the Template a Launch carries. The policy engine never
