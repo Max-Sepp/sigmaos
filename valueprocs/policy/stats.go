@@ -88,6 +88,15 @@ func (s *Scheduler) Stats() Stats {
 	return st
 }
 
+// Trees returns every registered tree in submission order.
+func (s *Scheduler) Trees() []TreeView {
+	out := make([]TreeView, 0, len(s.order))
+	for _, id := range s.order {
+		out = append(out, s.treeView(s.trees[id]))
+	}
+	return out
+}
+
 // TreeView returns one tree's state, or false if no such tree is registered.
 func (s *Scheduler) TreeView(id TreeID) (TreeView, bool) {
 	t, ok := s.trees[id]
