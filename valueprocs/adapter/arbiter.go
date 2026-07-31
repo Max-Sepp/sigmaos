@@ -34,10 +34,8 @@ func (f FairShare) Arbitrate(trees []policy.TreeView, c policy.Capacity) []polic
 		return nil
 	}
 
-	floor := f.Floor
-	if floor < 1 {
-		floor = 1
-	}
+	// An unset (or negative) Floor means one slot: a share of zero is not a share.
+	floor := max(f.Floor, 1)
 
 	share := c.Slots / len(trees)
 	extra := c.Slots % len(trees)
@@ -48,9 +46,9 @@ func (f FairShare) Arbitrate(trees []policy.TreeView, c policy.Capacity) []polic
 		if i < extra {
 			n++
 		}
-		if n < floor {
-			n = floor
-		}
+		// Clamped up only: the floor outranks the even split, so with more trees
+		// than slots the shares deliberately sum to more than c.Slots.
+		n = max(n, floor)
 		out = append(out, policy.TreeShare{Tree: t.ID, Slots: n})
 	}
 	return out

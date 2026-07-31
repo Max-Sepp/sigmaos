@@ -239,29 +239,29 @@ func (s *sink) count(kind string) int {
 	return n
 }
 
-func testPolicy() Policy {
-	return Policy{
+func testTuning() SigmaOSTuning {
+	return SigmaOSTuning{
 		StopRetries: 2,
 		StopBackoff: time.Millisecond,
 		StopTimeout: 50 * time.Millisecond,
 	}
 }
 
-func newExec(t *testing.T, pol Policy) (*Exec, *fakeProcAPI, *sink) {
+func newExec(t *testing.T, tuning SigmaOSTuning) (*Exec, *fakeProcAPI, *sink) {
 	t.Helper()
 	f, s := newFakeProcAPI(), &sink{}
-	e := NewExec(f, s, pol)
+	e := NewExec(f, s, tuning)
 	t.Cleanup(e.Close)
 	return e, f, s
 }
 
 // template returns a workload the adapter will accept.
-func template(t *testing.T, program string, args ...string) *Template {
+func template(t *testing.T, program string, args ...string) *ProcTemplate {
 	t.Helper()
 	p := proc.NewProc(program, args)
-	tm, err := NewTemplate(p)
+	tm, err := NewProcTemplate(p)
 	if err != nil {
-		t.Fatalf("NewTemplate: %v", err)
+		t.Fatalf("NewProcTemplate: %v", err)
 	}
 	return tm
 }

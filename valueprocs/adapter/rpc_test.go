@@ -38,7 +38,7 @@ const testEpoch = 7
 func newSrv(t *testing.T) (*Srv, *fakeProcAPI) {
 	t.Helper()
 	f := newFakeProcAPI()
-	ex := NewExec(f, nil, testPolicy())
+	ex := NewExec(f, nil, testTuning())
 	sd := policy.NewScheduler(policy.DefaultConfig(), ex, FairShare{}, nil)
 	g := gate.New(sd, gate.WithEpoch(testEpoch))
 	ex.ev = g

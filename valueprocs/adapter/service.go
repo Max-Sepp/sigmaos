@@ -13,16 +13,16 @@ import (
 )
 
 // Config is everything the service is tuned by. The two halves are kept apart
-// on purpose: Policy is how the scheduler decides, Adapter is how long
-// SigmaOS takes to do things, and only the first would mean anything on
+// on purpose: Policy is how the scheduler decides, SigmaOS is how long the
+// platform takes to do things, and only the first would mean anything on
 // another platform.
 type Config struct {
 	Policy  policy.Config
-	Adapter Policy
+	SigmaOS SigmaOSTuning
 }
 
 func DefaultServiceConfig() Config {
-	return Config{Policy: policy.DefaultConfig(), Adapter: DefaultPolicy()}
+	return Config{Policy: policy.DefaultConfig(), SigmaOS: DefaultSigmaOSTuning()}
 }
 
 // NewSrv assembles the layer.
@@ -44,7 +44,7 @@ func NewSrv(sc *sigmaclnt.SigmaClnt, cfg Config) *Srv {
 	// needs Exec, so one of the three is filled in after the fact. It is Exec,
 	// because it is the only one whose reference is not used until an attempt
 	// actually starts.
-	ex = NewExec(sc, nil, cfg.Adapter)
+	ex = NewExec(sc, nil, cfg.SigmaOS)
 	sd = policy.NewScheduler(cfg.Policy, ex, FairShare{}, logf)
 	g = gate.New(sd, gate.WithEpoch(epochOf(sc.ProcEnv())))
 	ex.ev = g
@@ -52,8 +52,8 @@ func NewSrv(sc *sigmaclnt.SigmaClnt, cfg Config) *Srv {
 	return &Srv{
 		gate:   g,
 		exec:   ex,
-		probe:  NewProbe(sc, cfg.Adapter.Oversubscribe, cfg.Adapter.QueueSamples),
-		period: cfg.Adapter.ProbePeriod,
+		probe:  NewProbe(sc, cfg.SigmaOS.Oversubscribe, cfg.SigmaOS.QueueSamples),
+		period: cfg.SigmaOS.ProbePeriod,
 	}
 }
 

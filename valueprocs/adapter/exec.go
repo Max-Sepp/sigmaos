@@ -40,10 +40,11 @@ type EventSink interface {
 	OnRunFailed(ref policy.RunRef, k policy.FailureKind, msg string)
 }
 
-// Policy is the adapter's own tuning. None of it is scheduling policy — these
-// are all facts about how long SigmaOS takes to do things, which is why they
-// live here rather than in policy.Config.
-type Policy struct {
+// SigmaOSTuning is the adapter's own tuning. None of it is scheduling policy —
+// these are all facts about how long SigmaOS takes to do things and how much
+// of it there is, which is why they live here rather than in policy.Config,
+// and why they would mean nothing on another platform.
+type SigmaOSTuning struct {
 	// StopRetries is how many times to re-issue an eviction that failed
 	// outright, beyond the first attempt.
 	StopRetries int
@@ -72,8 +73,8 @@ type Policy struct {
 	QueueSamples int
 }
 
-func DefaultPolicy() Policy {
-	return Policy{
+func DefaultSigmaOSTuning() SigmaOSTuning {
+	return SigmaOSTuning{
 		StopRetries:   3,
 		StopBackoff:   500 * time.Millisecond,
 		StopTimeout:   60 * time.Second,
@@ -89,9 +90,9 @@ var _ policy.RunStartStopper = (*Exec)(nil)
 
 // Exec implements policy.RunStartStopper over the SigmaOS proc API.
 type Exec struct {
-	papi procapi.ProcAPI
-	ev   EventSink
-	pol  Policy
+	papi   procapi.ProcAPI
+	ev     EventSink
+	tuning SigmaOSTuning
 
 	mu   sync.Mutex
 	runs map[policy.RunRef]*run
@@ -120,20 +121,20 @@ type run struct {
 }
 
 // NewExec returns an Exec that spawns through papi and reports to ev.
-func NewExec(papi procapi.ProcAPI, ev EventSink, pol Policy) *Exec {
+func NewExec(papi procapi.ProcAPI, ev EventSink, tuning SigmaOSTuning) *Exec {
 	return &Exec{
-		papi: papi,
-		ev:   ev,
-		pol:  pol,
-		runs: make(map[policy.RunRef]*run),
-		quit: make(chan struct{}),
+		papi:   papi,
+		ev:     ev,
+		tuning: tuning,
+		runs:   make(map[policy.RunRef]*run),
+		quit:   make(chan struct{}),
 	}
 }
 
 // Start launches one attempt. It returns as soon as the attempt is
 // registered; everything slow happens on the attempt's own goroutine.
 func (e *Exec) Start(ref policy.RunRef, l policy.Launch, why policy.StartReason) {
-	t, err := templateFor(l)
+	t, err := procTemplateFor(l)
 	if err != nil {
 		// Nothing about a retry would change this, so it is permanent: the
 		// leaf is unrunnable as submitted.
@@ -251,7 +252,7 @@ func (e *Exec) classify(r *run, st *proc.Status, err error) {
 // on the placement. And delivery succeeding proves only that a flag was set:
 // a proc that never waits on it runs to completion holding its slot.
 func (e *Exec) stop(r *run) {
-	deadline := time.NewTimer(e.pol.StopTimeout)
+	deadline := time.NewTimer(e.tuning.StopTimeout)
 	defer deadline.Stop()
 
 	// On its own goroutine because the call itself may block past the
@@ -259,11 +260,14 @@ func (e *Exec) stop(r *run) {
 	sent := make(chan error, 1)
 	go func() { sent <- e.evict(r.pid) }()
 
+	// First half: wait for the eviction to be delivered.
 	select {
 	case <-r.endedCh:
+		// It ended on its own; the terminal event has already gone out.
 		return
 	case err := <-sent:
 		if err != nil {
+			// Undeliverable even after retries, so nothing will end this attempt.
 			db.DPrintf(db.VALUEPROC_ERR, "Evict %v pid %v: %v", r.ref, r.pid, err)
 			e.synthesizeStop(r, err)
 			return
@@ -272,9 +276,11 @@ func (e *Exec) stop(r *run) {
 		e.synthesizeStop(r, errStopTimedOut)
 		return
 	case <-e.quit:
+		// Shutting down; the attempt is abandoned, not reclaimed.
 		return
 	}
 
+	// Second half: delivered, now wait for the proc to actually act on it.
 	select {
 	case <-r.endedCh:
 	case <-deadline.C:
@@ -287,9 +293,9 @@ func (e *Exec) stop(r *run) {
 // at all. It does not retry on the proc failing to die, which is not an error
 // SigmaOS reports.
 func (e *Exec) evict(pid sp.Tpid) error {
-	backoff := e.pol.StopBackoff
+	backoff := e.tuning.StopBackoff
 	var err error
-	for i := 0; i <= e.pol.StopRetries; i++ {
+	for i := 0; i <= e.tuning.StopRetries; i++ {
 		if i > 0 {
 			e.stats.evictRetries.Add(1)
 			t := time.NewTimer(backoff)

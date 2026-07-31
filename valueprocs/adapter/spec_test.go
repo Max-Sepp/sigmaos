@@ -17,18 +17,18 @@ func TestTemplateRejectsWhatCannotBeRerun(t *testing.T) {
 	// be best-effort work that holds no reservation of its own.
 	lc := proc.NewProc("sleeper", nil)
 	lc.SetType(proc.T_LC)
-	_, err := NewTemplate(lc)
+	_, err := NewProcTemplate(lc)
 	assert.Error(t, err)
 
 	reserved := proc.NewProc("sleeper", nil)
 	reserved.SetMcpu(1000)
-	_, err = NewTemplate(reserved)
+	_, err = NewProcTemplate(reserved)
 	assert.Error(t, err)
 
-	_, err = NewTemplate(nil)
+	_, err = NewProcTemplate(nil)
 	assert.Error(t, err)
 
-	ok, err := NewTemplate(proc.NewProc("sleeper", []string{"a"}))
+	ok, err := NewProcTemplate(proc.NewProc("sleeper", []string{"a"}))
 	assert.NoError(t, err)
 	assert.Equal(t, "sleeper", ok.Name())
 }
@@ -36,7 +36,7 @@ func TestTemplateRejectsWhatCannotBeRerun(t *testing.T) {
 func TestTemplateOutlivesTheProcItCaptured(t *testing.T) {
 	p := proc.NewProc("sleeper", []string{"a"})
 	p.AppendEnv("K", "v")
-	tm, err := NewTemplate(p)
+	tm, err := NewProcTemplate(p)
 	assert.NoError(t, err)
 
 	// The submitter still holds its proc and may do anything with it.
@@ -49,7 +49,7 @@ func TestTemplateOutlivesTheProcItCaptured(t *testing.T) {
 func TestBuildCarriesResourcesFromTheTemplate(t *testing.T) {
 	p := proc.NewProc("sleeper", nil)
 	p.SetMem(256)
-	tm, err := NewTemplate(p)
+	tm, err := NewProcTemplate(p)
 	assert.NoError(t, err)
 
 	built := tm.Build(policy.RunRef{Tree: "t", Node: "r", Run: 3}, policy.Launch{})

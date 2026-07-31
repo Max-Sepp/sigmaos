@@ -12,14 +12,14 @@ import (
 	"sigmaos/valueprocs/proto"
 )
 
-// Template is a leaf's workload: the proc an application wants run, held as a
-// pattern rather than as a thing to run.
+// ProcTemplate is a leaf's workload: the proc an application wants run, held
+// as a pattern rather than as a thing to run.
 //
 // It cannot be run directly, because SigmaOS keys a parent's child state on
 // pid and deletes the entry when the child exits, so a leaf that is stopped
 // and later restarted must arrive as a different pid. Build mints one per
 // attempt.
-type Template struct {
+type ProcTemplate struct {
 	program string
 	args    []string
 	env     map[string]string
@@ -28,14 +28,14 @@ type Template struct {
 	mem     proc.Tmem
 }
 
-// NewTemplate captures p as a leaf's workload.
+// NewProcTemplate captures p as a leaf's workload.
 //
 // It rejects the two things about idempotence that are checkable here. A leaf
 // may be stopped for capacity and re-run from scratch, so it must not hold a
 // reservation the scheduler is unaware of (mcpu) and must be best-effort,
 // which is the class of work this layer exists to schedule. Everything else
 // about idempotence is a contract with the application.
-func NewTemplate(p *proc.Proc) (*Template, error) {
+func NewProcTemplate(p *proc.Proc) (*ProcTemplate, error) {
 	if p == nil {
 		return nil, fmt.Errorf("valueprocs: nil proc")
 	}
@@ -45,7 +45,7 @@ func NewTemplate(p *proc.Proc) (*Template, error) {
 	if m := p.GetMcpu(); m != 0 {
 		return nil, fmt.Errorf("valueprocs: leaf %v reserves %v mcpu, must be 0", p.GetProgram(), m)
 	}
-	return &Template{
+	return &ProcTemplate{
 		program: p.GetProgram(),
 		args:    p.Args,
 		env:     maps.Clone(p.Env),
@@ -57,14 +57,14 @@ func NewTemplate(p *proc.Proc) (*Template, error) {
 
 // Name satisfies policy.Workload. It is the program, since that is what makes
 // a log line about a leaf legible.
-func (t *Template) Name() string { return t.program }
+func (t *ProcTemplate) Name() string { return t.program }
 
 // Build mints the proc for one attempt.
 //
 // The reference and any partial progress go into the environment, which is
 // how a running proc learns which attempt it is and how the shim can quote
 // that back when it reports a score. The pid is fresh every time.
-func (t *Template) Build(ref policy.RunRef, l policy.Launch) *proc.Proc {
+func (t *ProcTemplate) Build(ref policy.RunRef, l policy.Launch) *proc.Proc {
 	p := proc.NewProcPid(sp.GenPid(t.program), t.program, t.args)
 
 	// The template's environment first, then the identity, so a stale
@@ -108,8 +108,8 @@ func GroupFromProto(n *proto.NodeSpec) (policy.Group, error) {
 		if n.LeafProc == nil {
 			return nil, fmt.Errorf("valueprocs: leaf %q has no proc", n.Label)
 		}
-		var t *Template
-		if t, err = NewTemplate(proc.NewProcFromProto(n.LeafProc)); err != nil {
+		var t *ProcTemplate
+		if t, err = NewProcTemplate(proc.NewProcFromProto(n.LeafProc)); err != nil {
 			return nil, err
 		}
 		g, err = policy.Leaf(t)
@@ -136,14 +136,14 @@ func GroupFromProto(n *proto.NodeSpec) (policy.Group, error) {
 	return g, nil
 }
 
-// templateFor recovers the Template a Launch carries. The policy engine never
-// inspects a workload beyond its name, so this is the only place the concrete
-// type is needed, and a workload from somewhere else is a programming error
-// rather than a runtime condition.
-func templateFor(l policy.Launch) (*Template, error) {
-	t, ok := l.Workload.(*Template)
+// procTemplateFor recovers the ProcTemplate a Launch carries. The policy
+// engine never inspects a workload beyond its name, so this is the only place
+// the concrete type is needed, and a workload from somewhere else is a
+// programming error rather than a runtime condition.
+func procTemplateFor(l policy.Launch) (*ProcTemplate, error) {
+	t, ok := l.Workload.(*ProcTemplate)
 	if !ok {
-		return nil, fmt.Errorf("valueprocs: workload %T is not a *Template", l.Workload)
+		return nil, fmt.Errorf("valueprocs: workload %T is not a *ProcTemplate", l.Workload)
 	}
 	return t, nil
 }

@@ -274,8 +274,10 @@ func (mc *MSchedClnt) MSchedLoad() (map[string]*proto.GetMSchedLoadRep, error) {
 			db.DPrintf(db.ALWAYS, "MSchedLoad %v: GetRPCClnt err %v", sd, err)
 			continue
 		}
+		// The request carries no arguments: each msched reports only its own load.
 		req := &proto.GetMSchedLoadReq{}
 		res := &proto.GetMSchedLoadRep{}
+		// One round-trip per machine, issued serially, so cost grows with cluster size.
 		if err := rpcc.RPC("MSched.GetMSchedLoad", req, res); err != nil {
 			db.DPrintf(db.ALWAYS, "MSchedLoad %v: RPC err %v", sd, err)
 			continue

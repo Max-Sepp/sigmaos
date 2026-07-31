@@ -13,7 +13,7 @@ import (
 )
 
 func TestStartReportsStartedThenCompleted(t *testing.T) {
-	e, f, s := newExec(t, testPolicy())
+	e, f, s := newExec(t, testTuning())
 
 	r := ref("r.0", 0)
 	e.Start(r, policy.Launch{Workload: template(t, "sleeper")}, policy.StartReason{})
@@ -36,7 +36,7 @@ func TestStartReportsStartedThenCompleted(t *testing.T) {
 }
 
 func TestEachAttemptGetsAFreshPid(t *testing.T) {
-	e, f, s := newExec(t, testPolicy())
+	e, f, s := newExec(t, testTuning())
 
 	tmpl := template(t, "sleeper")
 	e.Start(ref("r.0", 0), policy.Launch{Workload: tmpl}, policy.StartReason{})
@@ -62,7 +62,7 @@ func TestEachAttemptGetsAFreshPid(t *testing.T) {
 }
 
 func TestLaunchIdentityAndResumeReachTheProc(t *testing.T) {
-	e, f, _ := newExec(t, testPolicy())
+	e, f, _ := newExec(t, testTuning())
 
 	r := ref("r.1.0", 7)
 	e.Start(r, policy.Launch{Workload: template(t, "sleeper"), Resume: []byte("half")}, policy.StartReason{})
@@ -82,7 +82,7 @@ func TestLaunchIdentityAndResumeReachTheProc(t *testing.T) {
 }
 
 func TestFirstAttemptCarriesNoResume(t *testing.T) {
-	e, f, _ := newExec(t, testPolicy())
+	e, f, _ := newExec(t, testTuning())
 	e.Start(ref("r.0", 0), policy.Launch{Workload: template(t, "sleeper")}, policy.StartReason{})
 
 	p := f.procOf(t, 0)
@@ -108,9 +108,9 @@ func TestClassification(t *testing.T) {
 		{name: "no status at all", kind: "failed", failure: policy.FailTransient},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			pol := testPolicy()
-			pol.StopTimeout = time.Hour // the stop must not resolve this
-			e, f, s := newExec(t, pol)
+			tuning := testTuning()
+			tuning.StopTimeout = time.Hour // the stop must not resolve this
+			e, f, s := newExec(t, tuning)
 
 			r := ref("r.0", 0)
 			e.Start(r, policy.Launch{Workload: template(t, "sleeper")}, policy.StartReason{})
@@ -133,7 +133,7 @@ func TestClassification(t *testing.T) {
 }
 
 func TestUnrequestedEvictionIsCounted(t *testing.T) {
-	e, f, s := newExec(t, testPolicy())
+	e, f, s := newExec(t, testTuning())
 
 	e.Start(ref("r.0", 0), policy.Launch{Workload: template(t, "sleeper")}, policy.StartReason{})
 	f.exit(f.pidOf(t, 0), proc.NewStatus(proc.StatusEvicted), nil)
@@ -143,7 +143,7 @@ func TestUnrequestedEvictionIsCounted(t *testing.T) {
 }
 
 func TestSpawnFailureIsTransient(t *testing.T) {
-	e, f, s := newExec(t, testPolicy())
+	e, f, s := newExec(t, testTuning())
 	f.spawnErr = errPlatform
 
 	e.Start(ref("r.0", 0), policy.Launch{Workload: template(t, "sleeper")}, policy.StartReason{})
@@ -160,7 +160,7 @@ func TestSpawnFailureIsTransient(t *testing.T) {
 }
 
 func TestUnrunnableWorkloadIsPermanent(t *testing.T) {
-	e, f, s := newExec(t, testPolicy())
+	e, f, s := newExec(t, testTuning())
 
 	// A workload from somewhere other than this adapter. Retrying cannot help.
 	e.Start(ref("r.0", 0), policy.Launch{Workload: otherWorkload{}}, policy.StartReason{})
@@ -175,10 +175,10 @@ type otherWorkload struct{}
 func (otherWorkload) Name() string { return "other" }
 
 func TestStopRetriesUndeliverableEvictionsThenSynthesizes(t *testing.T) {
-	pol := testPolicy()
-	pol.StopRetries = 2
-	pol.StopTimeout = time.Hour // the retry budget must be what ends this
-	e, f, s := newExec(t, pol)
+	tuning := testTuning()
+	tuning.StopRetries = 2
+	tuning.StopTimeout = time.Hour // the retry budget must be what ends this
+	e, f, s := newExec(t, tuning)
 
 	r := ref("r.0", 0)
 	e.Start(r, policy.Launch{Workload: template(t, "sleeper")}, policy.StartReason{})
@@ -206,7 +206,7 @@ func TestStopRetriesUndeliverableEvictionsThenSynthesizes(t *testing.T) {
 }
 
 func TestStopTimesOutWhenAProcIgnoresIt(t *testing.T) {
-	e, f, s := newExec(t, testPolicy())
+	e, f, s := newExec(t, testTuning())
 
 	r := ref("r.0", 0)
 	e.Start(r, policy.Launch{Workload: template(t, "sleeper")}, policy.StartReason{})
@@ -229,9 +229,9 @@ func TestStopTimesOutWhenAProcIgnoresIt(t *testing.T) {
 }
 
 func TestRealExitBeatsTheSynthesizedOne(t *testing.T) {
-	pol := testPolicy()
-	pol.StopTimeout = time.Hour
-	e, f, s := newExec(t, pol)
+	tuning := testTuning()
+	tuning.StopTimeout = time.Hour
+	e, f, s := newExec(t, tuning)
 
 	r := ref("r.0", 0)
 	e.Start(r, policy.Launch{Workload: template(t, "sleeper")}, policy.StartReason{})
@@ -252,9 +252,9 @@ func TestRealExitBeatsTheSynthesizedOne(t *testing.T) {
 }
 
 func TestStartedNeverFollowsTheTerminalEvent(t *testing.T) {
-	pol := testPolicy()
-	pol.StopTimeout = time.Millisecond
-	e, f, s := newExec(t, pol)
+	tuning := testTuning()
+	tuning.StopTimeout = time.Millisecond
+	e, f, s := newExec(t, tuning)
 
 	// The attempt is stopped while the goroutine that would report it started
 	// is still parked in WaitStart.
@@ -272,7 +272,7 @@ func TestStartedNeverFollowsTheTerminalEvent(t *testing.T) {
 }
 
 func TestStopOfAnEndedAttemptIsSilent(t *testing.T) {
-	e, f, s := newExec(t, testPolicy())
+	e, f, s := newExec(t, testTuning())
 
 	r := ref("r.0", 0)
 	e.Start(r, policy.Launch{Workload: template(t, "sleeper")}, policy.StartReason{})
@@ -288,7 +288,7 @@ func TestStopOfAnEndedAttemptIsSilent(t *testing.T) {
 }
 
 func TestTrackingIsDroppedOnTermination(t *testing.T) {
-	e, f, s := newExec(t, testPolicy())
+	e, f, s := newExec(t, testTuning())
 
 	for i := range 3 {
 		e.Start(ref("r.0", policy.RunID(i)), policy.Launch{Workload: template(t, "sleeper")}, policy.StartReason{})
@@ -304,7 +304,7 @@ func TestTrackingIsDroppedOnTermination(t *testing.T) {
 }
 
 func TestClosedExecStartsNothing(t *testing.T) {
-	e, f, s := newExec(t, testPolicy())
+	e, f, s := newExec(t, testTuning())
 	e.Close()
 
 	e.Start(ref("r.0", 0), policy.Launch{Workload: template(t, "sleeper")}, policy.StartReason{})
