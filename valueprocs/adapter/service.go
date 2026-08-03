@@ -97,6 +97,12 @@ func (s *Srv) Run(sc *sigmaclnt.SigmaClnt) error {
 	db.DPrintf(db.VALUEPROC, "valuesched serving at %v, epoch %v",
 		valueprocs.VALUESCHED, s.gate.Epoch())
 
+	// This is where the service sits for its whole life. Despite the name,
+	// RunServer is not a serve loop: NewSigmaSrvClnt started the listener
+	// above, and every call is dispatched on its own goroutine -- which is
+	// what the gate exists to serialize. RunServer marks the proc started
+	// and then parks in WaitEvict on its own pid, so reaching the next line
+	// means this proc has been evicted and the service is shutting down.
 	err = ssrv.RunServer()
 	s.probe.Close()
 
