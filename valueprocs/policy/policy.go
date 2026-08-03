@@ -288,34 +288,39 @@ func (s *Scheduler) reconcile(now time.Time) Effect {
 // by the time they are reached.
 func (s *Scheduler) walk(t *tree, budget int) []func() {
 	var fs []func()
-	active := make(map[NodeID]bool, len(t.order))
-	sel := make(map[NodeID]bool, len(t.order))
-	why := make(map[NodeID]StartReasonKind, len(t.order))
+	active := make(map[NodeID]bool, len(t.order))         // ancestry still wants it
+	sel := make(map[NodeID]bool, len(t.order))            // parent kept it among its top target children
+	why := make(map[NodeID]StartReasonKind, len(t.order)) // on what grounds
 
 	for _, n := range t.order {
-		a := false
+		// Wantedness flows down: the root decides its own, a child inherits it.
+		isActive := false
 		if n.parent == nil {
-			a = !t.cancelled && n.state == NodePending
+			isActive = !t.cancelled && n.state == NodePending
 			why[n.id] = StartRequiredForQuorum
 		} else {
-			a = active[n.parent.id] && sel[n.id] && n.state == NodePending
+			isActive = active[n.parent.id] && sel[n.id] && n.state == NodePending
 		}
-		active[n.id] = a
+		active[n.id] = isActive
 
+		// An interior node spends no capacity; it only sizes and ranks children.
 		if !n.isLeaf() {
-			if a {
+			if isActive {
 				s.retarget(n)
 				s.assign(n, sel, why)
 			}
 			continue
 		}
 
+		// Leaves are the only place capacity is claimed or released.
 		l := n.leaf
 		switch {
-		case !a && l.rs.Charged() && l.rs != RStopping:
+		// Charged but unwanted; RStopping is skipped, it was asked once already.
+		case !isActive && l.rs.Charged() && l.rs != RStopping:
 			kind, best := s.stopReason(t, n)
 			fs = append(fs, s.stop(t, n, kind, best))
-		case a && l.rs == RIdle && budget > 0 && s.free() > 0:
+		// Wanted and idle, if the tree's share and the cluster both allow it.
+		case isActive && l.rs == RIdle && budget > 0 && s.free() > 0:
 			k := why[n.id]
 			if k == 0 {
 				k = StartSlackRedundancy
@@ -544,6 +549,8 @@ func (s *Scheduler) free() int {
 
 // budgets asks the arbiter how many further starts each tree may make.
 func (s *Scheduler) budgets() map[TreeID]int {
+	// Unlimited until an arbiter says otherwise, so every early return below
+	// leaves the cluster-wide ceiling as the only one.
 	b := make(map[TreeID]int, len(s.trees))
 	for _, id := range s.order {
 		b[id] = math.MaxInt
@@ -551,6 +558,7 @@ func (s *Scheduler) budgets() map[TreeID]int {
 	if s.arb == nil {
 		return b
 	}
+	// Only trees that could still use capacity are worth dividing between.
 	views := make([]TreeView, 0, len(s.order))
 	for _, id := range s.order {
 		if t := s.trees[id]; !t.cancelled && !t.done() {
@@ -561,10 +569,13 @@ func (s *Scheduler) budgets() map[TreeID]int {
 		return b
 	}
 	for _, sh := range s.arb.Arbitrate(views, Capacity{Slots: s.occ.Slots}) {
+		// An arbiter is not trusted to name only trees that exist.
 		t, ok := s.trees[sh.Tree]
 		if !ok {
 			continue
 		}
+		// A share is a total, but walk spends a remainder, so subtract what the
+		// tree already holds. Over its share it gets nothing, never a negative.
 		if n := sh.Slots - t.root.charged(); n > 0 {
 			b[sh.Tree] = n
 		} else {

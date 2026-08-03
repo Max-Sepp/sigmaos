@@ -88,6 +88,9 @@ type leafState struct {
 	w      Workload
 	resume []byte
 
+	// run identifies the current attempt at this leaf and rs is its state.
+	// Every requeue bumps run, which is what makes a late event about the
+	// previous attempt resolve to nothing in leafFor.
 	run RunID
 	rs  RunState
 
