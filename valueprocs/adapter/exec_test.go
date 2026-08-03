@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	procapi "sigmaos/api/proc"
 	"sigmaos/proc"
 	"sigmaos/valueprocs"
 	"sigmaos/valueprocs/policy"
@@ -203,6 +204,42 @@ func TestStopRetriesUndeliverableEvictionsThenSynthesizes(t *testing.T) {
 	assert.EqualValues(t, 1, st.NSynthesizedStopped)
 	assert.EqualValues(t, 2, st.NEvictRetries)
 	assert.EqualValues(t, 0, st.NSynthesizedFailed)
+}
+
+func TestStopDoesNotSynthesizeOverAnAlreadyExitedProc(t *testing.T) {
+	tuning := testTuning()
+	tuning.StopTimeout = time.Hour // only the exit may end this
+	e, f, s := newExec(t, tuning)
+
+	r := ref("r.0", 0)
+	e.Start(r, policy.Launch{Workload: template(t, "sleeper")}, policy.StartReason{})
+	pid := f.pidOf(t, 0)
+
+	// SigmaOS deletes a parent's child state when it collects the exit, so
+	// every later Evict fails this way. It says the attempt is over, not that
+	// the eviction failed, and the exit is still on its way to us.
+	f.mu.Lock()
+	f.evictErr = procapi.ErrUnknownChild
+	f.mu.Unlock()
+
+	e.Stop(r, policy.StopReason{})
+
+	eventually(t, func() bool { return f.nEvicted() >= 1 }, "the eviction was issued")
+	consistently(t, 50*time.Millisecond, func() bool {
+		return f.nEvicted() == 1 && len(s.terminals()) == 0
+	}, "an unknown child is permanent: it is not retried, and not synthesized over")
+
+	// The real outcome arrives and must be the one reported. Synthesizing a
+	// stop here would requeue a leaf that had in fact succeeded, and throw
+	// its result away.
+	f.exit(pid, proc.NewStatusInfo(proc.StatusOK, "", "done"), nil)
+
+	eventually(t, func() bool { return len(s.terminals()) == 1 }, "a terminal event")
+	term := s.terminals()[0]
+	assert.Equal(t, "completed", term.kind)
+	assert.Equal(t, "done", proc.NewStatusFromBytes(term.data).Data())
+	assert.EqualValues(t, 0, e.Stats().NSynthesizedStopped)
+	assert.EqualValues(t, 0, e.Stats().NEvictRetries)
 }
 
 func TestStopTimesOutWhenAProcIgnoresIt(t *testing.T) {

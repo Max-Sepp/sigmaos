@@ -247,10 +247,12 @@ func (e *Exec) classify(r *run, st *proc.Status, err error) {
 // stop delivers an eviction and then bounds how long the attempt may take to
 // act on it.
 //
-// Both halves need bounding for different reasons. Delivery can block
-// indefinitely, because evicting a proc that besched has not placed yet waits
-// on the placement. And delivery succeeding proves only that a flag was set:
-// a proc that never waits on it runs to completion holding its slot.
+// Delivering and ending are separate waits for different reasons. Delivery can
+// block indefinitely, because evicting a proc that besched has not placed yet
+// waits on the placement. And delivery succeeding proves only that a flag was
+// set: a proc that never waits on it runs to completion holding its slot. The
+// two share every way of finishing, though, so they are one loop, and which
+// wait we are in is just whether sent is still live.
 func (e *Exec) stop(r *run) {
 	deadline := time.NewTimer(e.tuning.StopTimeout)
 	defer deadline.Stop()
@@ -260,42 +262,54 @@ func (e *Exec) stop(r *run) {
 	sent := make(chan error, 1)
 	go func() { sent <- e.evict(r.pid) }()
 
-	// First half: wait for the eviction to be delivered.
-	select {
-	case <-r.endedCh:
-		// It ended on its own; the terminal event has already gone out.
-		return
-	case err := <-sent:
-		if err != nil {
-			// Undeliverable even after retries, so nothing will end this attempt.
-			db.DPrintf(db.VALUEPROC_ERR, "Evict %v pid %v: %v", r.ref, r.pid, err)
-			e.synthesizeStop(r, err)
+	for {
+		select {
+		case <-r.endedCh:
+			// It ended, on its own or because it was asked to. Either way the
+			// terminal event has already gone out.
+			return
+
+		case err := <-sent:
+			// Delivery reports itself once. Nil the channel so the same
+			// result is not read again, and keep waiting for the end.
+			sent = nil
+			switch {
+			case err == nil:
+				// Delivered. Only the proc can end it now.
+			case errors.Is(err, procapi.ErrUnknownChild):
+				// Not a delivery failure: SigmaOS forgets a child once its
+				// exit is collected, so this says the attempt has already
+				// ended and WaitExit is on its way with the real event.
+				// Synthesizing here would overwrite it.
+				db.DPrintf(db.VALUEPROC, "Evict %v pid %v: already exited", r.ref, r.pid)
+			default:
+				// Undeliverable even after retries, so nothing is going to
+				// carry the request to the proc.
+				db.DPrintf(db.VALUEPROC_ERR, "Evict %v pid %v: %v", r.ref, r.pid, err)
+				e.synthesizeStop(r, err)
+				return
+			}
+
+		case <-deadline.C:
+			e.synthesizeStop(r, errStopTimedOut)
+			return
+
+		case <-e.quit:
+			// Shutting down; the attempt is abandoned, not reclaimed.
 			return
 		}
-	case <-deadline.C:
-		e.synthesizeStop(r, errStopTimedOut)
-		return
-	case <-e.quit:
-		// Shutting down; the attempt is abandoned, not reclaimed.
-		return
-	}
-
-	// Second half: delivered, now wait for the proc to actually act on it.
-	select {
-	case <-r.endedCh:
-	case <-deadline.C:
-		e.synthesizeStop(r, errStopTimedOut)
-	case <-e.quit:
 	}
 }
 
 // evict issues the eviction, retrying a request that could not be delivered
 // at all. It does not retry on the proc failing to die, which is not an error
-// SigmaOS reports.
+// SigmaOS reports, nor on the child being unknown, which is permanent.
 func (e *Exec) evict(pid sp.Tpid) error {
 	backoff := e.tuning.StopBackoff
 	var err error
 	for i := 0; i <= e.tuning.StopRetries; i++ {
+		// If this is a retry, back off before trying again. The first
+		// attempt goes immediately.
 		if i > 0 {
 			e.stats.evictRetries.Add(1)
 			t := time.NewTimer(backoff)
@@ -308,8 +322,16 @@ func (e *Exec) evict(pid sp.Tpid) error {
 			t.Stop()
 			backoff *= 2
 		}
+
+		// Attempt the eviction. A failure falls through to another round,
+		// unless the retry budget is spent or the error below says that
+		// asking again cannot help.
 		if err = e.papi.Evict(pid); err == nil {
 			return nil
+		}
+		if errors.Is(err, procapi.ErrUnknownChild) {
+			// The child is gone for good; asking again cannot change that.
+			return err
 		}
 	}
 	return err
