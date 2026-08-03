@@ -29,16 +29,19 @@ var ErrStaleEpoch = errors.New("valueprocs: the scheduler restarted; resubmit")
 
 // --- describing work -------------------------------------------------------
 
-// Node is one node of a tree of work.
-type Node struct{ spec *proto.NodeSpec }
+// WorkNode is one node of a tree of work, as an application describes it.
+//
+// It is a description and nothing more: the scheduler keeps its own node once
+// a tree is submitted, and the two are related only by position in the tree.
+type WorkNode struct{ spec *proto.NodeSpec }
 
 // Leaf wraps one proc as a unit of work.
 //
 // The proc must be idempotent: the scheduler may stop it to reclaim capacity
 // and run it again from scratch, so anything it does must be safe to do
 // twice. That cannot be checked, and is a promise the application makes.
-func Leaf(p *proc.Proc) *Node {
-	return &Node{spec: &proto.NodeSpec{LeafProc: p.GetProto()}}
+func Leaf(p *proc.Proc) *WorkNode {
+	return &WorkNode{spec: &proto.NodeSpec{LeafProc: p.GetProto()}}
 }
 
 // Select builds a node satisfied once k of its children are.
@@ -53,7 +56,7 @@ func Leaf(p *proc.Proc) *Node {
 //
 // Children may themselves be Selects, which is how work that has no slack at
 // the top gets some further down.
-func Select(k int, children ...*Node) (*Node, error) {
+func Select(k int, children ...*WorkNode) (*WorkNode, error) {
 	if len(children) == 0 {
 		return nil, fmt.Errorf("valueprocs: Select with no children")
 	}
@@ -67,15 +70,15 @@ func Select(k int, children ...*Node) (*Node, error) {
 		}
 		cs = append(cs, c.spec)
 	}
-	return &Node{spec: &proto.NodeSpec{K: int32(k), Children: cs}}, nil
+	return &WorkNode{spec: &proto.NodeSpec{K: int32(k), Children: cs}}, nil
 }
 
 // WithLabel names a node.
 //
-// Node identity is derived from position in the tree, which no application
-// wants to read. A label is how a report about "r.1.0" becomes a report about
-// "trial-7".
-func (n *Node) WithLabel(s string) *Node {
+// A node's identity is derived from position in the tree, which no
+// application wants to read. A label is how a report about "r.1.0" becomes a
+// report about "trial-7".
+func (n *WorkNode) WithLabel(s string) *WorkNode {
 	n.spec.Label = s
 	return n
 }
@@ -103,7 +106,7 @@ func (c *Clnt) call(method string, req, rep protobuf.Message) error {
 // tid is the caller's to choose, and submitting one twice is an error rather
 // than a second tree. That is deliberate: it makes a submission safe to retry
 // over a connection that may have dropped after the service already acted.
-func (c *Clnt) Submit(tid, label string, root *Node) error {
+func (c *Clnt) Submit(tid, label string, root *WorkNode) error {
 	if root == nil {
 		return fmt.Errorf("valueprocs: Submit with no root")
 	}

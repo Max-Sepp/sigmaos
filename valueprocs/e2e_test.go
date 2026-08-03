@@ -45,7 +45,7 @@ func (ts *tstate) shutdown() {
 
 // leaf builds a workload node. The client never sees a scheduling concept:
 // it hands over a proc and a label, and that is all.
-func leaf(mode string, ms int, score, grad float64, label string) *clnt.Node {
+func leaf(mode string, ms int, score, grad float64, label string) *clnt.WorkNode {
 	p := proc.NewProc("valueprocs-test", []string{
 		mode, strconv.Itoa(ms),
 		strconv.FormatFloat(score, 'f', -1, 64),

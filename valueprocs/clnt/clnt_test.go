@@ -11,7 +11,7 @@ import (
 	"sigmaos/valueprocs/policy"
 )
 
-func leaf(program string) *Node { return Leaf(proc.NewProc(program, nil)) }
+func leaf(program string) *WorkNode { return Leaf(proc.NewProc(program, nil)) }
 
 func TestSelectRejectsWhatCannotBeScheduled(t *testing.T) {
 	_, err := Select(1)
