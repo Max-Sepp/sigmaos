@@ -38,9 +38,12 @@ message NodeSpec {
 
 // SubmitTreeReq registers a tree.
 //
-// The caller chooses tID, and resubmitting one that is already registered is
-// an error rather than a second tree. That is what makes a submission safe to
-// retry over a connection that may have dropped after the service acted.
+// The caller chooses tID, and sending the same tree under it twice registers
+// one tree and reports the second as a repeat. That is what makes a submission
+// safe to retry over a connection that may have dropped after the service
+// already acted -- the caller cannot tell those apart, so the service has to.
+// A *different* tree under a tID already in use is still an error, since the
+// two callers cannot both be right about what it names.
 //
 // The attributes an arbiter divides capacity on are not here on purpose. They
 // come from the identity of the caller, which the service reads from the RPC
@@ -54,6 +57,8 @@ message SubmitTreeReq {
 
 message SubmitTreeRep {
   string tID = 1;
+  // created is false when this request was a repeat of one already accepted.
+  bool created = 2;
 }
 
 message CancelTreeReq {

@@ -109,6 +109,51 @@ func TestEvictionIsInertWithoutIt(t *testing.T) {
 		"the proc ran on after being evicted rather than stopping")
 }
 
+// TestGracefulEvictReturnsPartial is the other half of the eviction story. A
+// proc whose partial progress is worth consuming opts out of dying on the
+// spot, and what it hands back has to survive the exit: reported as EVICTED so
+// the attempt is not charged as a failure, and carrying its own payload so the
+// work is not simply repeated.
+func TestGracefulEvictReturnsPartial(t *testing.T) {
+	mrts, err := test.NewMultiRealmTstate(t, []sp.Trealm{test.REALM1})
+	if !assert.Nil(t, err, "Error New Tstate: %v", err) {
+		return
+	}
+	defer mrts.Shutdown()
+	ts := mrts.GetRealm(test.REALM1)
+
+	pid, ok := spawnEvictee(t, ts, "graceful", runForever)
+	if !ok {
+		return
+	}
+
+	// Long enough to get somewhere, so that an empty hand is a real failure
+	// rather than a race with the proc's first iteration.
+	time.Sleep(time.Second)
+
+	start := time.Now()
+	assert.Nil(t, ts.Evict(pid), "Evict")
+
+	status, err := ts.WaitExit(pid)
+	elapsed := time.Since(start)
+	if !assert.Nil(t, err, "WaitExit: %v", err) {
+		return
+	}
+	db.DPrintf(db.TEST, "graceful: exited after %v with %v", elapsed, status)
+
+	if !assert.NotNil(t, status, "no status") {
+		return
+	}
+	assert.True(t, status.IsStatusEvicted(), "status was %v, want EVICTED", status)
+	assert.Less(t, elapsed, 20*time.Second, "the proc stopped when it was asked to")
+
+	d, ok := status.Data().(map[string]any)
+	if assert.True(t, ok, "no payload: %T", status.Data()) {
+		assert.Greater(t, d["iters"], float64(0),
+			"the proc reported what it had, not an empty hand")
+	}
+}
+
 // TestMSchedLoad checks the contention signal the layer scales on. Memory
 // alone cannot see the workload this layer exists to schedule -- best-effort
 // admission gates on free memory, and best-effort procs routinely reserve

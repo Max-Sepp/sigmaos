@@ -103,16 +103,21 @@ func (c *Clnt) call(method string, req, rep protobuf.Message) error {
 // Submit registers a tree and returns once the scheduler has accepted it, not
 // once the work is done.
 //
-// tid is the caller's to choose, and submitting one twice is an error rather
-// than a second tree. That is deliberate: it makes a submission safe to retry
-// over a connection that may have dropped after the service already acted.
-func (c *Clnt) Submit(tid, label string, root *WorkNode) error {
+// tid is the caller's to choose, and sending the same tree under it twice
+// registers one tree: created reports whether this call is the one that did
+// it. That is what makes a submission safe to retry, since a call that fails
+// on the way back is indistinguishable from one that never arrived. A
+// different tree under a tid already in use is an error.
+func (c *Clnt) Submit(tid, label string, root *WorkNode) (created bool, err error) {
 	if root == nil {
-		return fmt.Errorf("valueprocs: Submit with no root")
+		return false, fmt.Errorf("valueprocs: Submit with no root")
 	}
 	req := &proto.SubmitTreeReq{TID: tid, Label: label, Root: root.spec}
 	rep := &proto.SubmitTreeRep{}
-	return c.call("Srv.SubmitTree", req, rep)
+	if err := c.call("Srv.SubmitTree", req, rep); err != nil {
+		return false, err
+	}
+	return rep.Created, nil
 }
 
 // Cancel stops everything a tree is running.

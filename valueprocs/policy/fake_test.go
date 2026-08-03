@@ -85,6 +85,50 @@ func newSched(cfg Config) (*Scheduler, *fake) {
 	return NewScheduler(cfg, f, nil, nil), f
 }
 
+// evenSplit is the smallest arbiter that divides anything, so that a test of
+// what the scheduler does with a share does not also depend on how a real
+// arbiter decides one. The remainder goes to the trees named first.
+type evenSplit struct{}
+
+func (evenSplit) Arbitrate(trees []TreeView, c Capacity) []TreeShare {
+	if len(trees) == 0 || c.Slots <= 0 {
+		return nil
+	}
+	share, extra := c.Slots/len(trees), c.Slots%len(trees)
+	out := make([]TreeShare, 0, len(trees))
+	for i, t := range trees {
+		n := share
+		if i < extra {
+			n++
+		}
+		out = append(out, TreeShare{Tree: t.ID, Slots: n})
+	}
+	return out
+}
+
+func newSchedArb(cfg Config, arb Arbiter) (*Scheduler, *fake) {
+	f := &fake{}
+	return NewScheduler(cfg, f, arb, nil), f
+}
+
+// sized reports a cluster of a stated size that is not otherwise busy, so a
+// test can put a ceiling on capacity without also raising pressure.
+func sized(s *Scheduler, now time.Time, slots int) {
+	apply(s.OnOccupancy(now, Occupancy{Slots: slots}))
+}
+
+// stopped delivers the terminal event for every outstanding stop, which is
+// what the adapter would do once the platform confirmed them.
+func stopped(s *Scheduler, f *fake, now time.Time) {
+	refs := make([]RunRef, 0, len(f.calls))
+	for _, c := range f.stops() {
+		refs = append(refs, c.ref)
+	}
+	for _, r := range refs {
+		apply(s.OnRunStopped(now, r, nil))
+	}
+}
+
 func apply(e Effect) {
 	if e != nil {
 		e()

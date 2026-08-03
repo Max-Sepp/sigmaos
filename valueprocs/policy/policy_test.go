@@ -485,6 +485,75 @@ func TestUnknownTreeCancelErrors(t *testing.T) {
 	assert.ErrorIs(t, err, ErrUnknownTree)
 }
 
+// --- cross-tree arbitration ------------------------------------------------
+
+// TestOverShareIsGivenBackToANewTree is what makes arbitration mean anything.
+// A tree that arrived first holds the whole cluster, and the only capacity
+// there is to give a second one is capacity the first is already using -- so a
+// budget that could merely withhold starts would leave the newcomer waiting on
+// work that has no reason to end.
+func TestOverShareIsGivenBackToANewTree(t *testing.T) {
+	s, f := newSchedArb(testConfig(), evenSplit{})
+	sized(s, t0, 4)
+
+	submit(t, s, t0, "first", selG(t, 1, leavesG(t, 4)...))
+	startQueued(s, f, t0)
+	assert.Len(t, f.starts(), 4, "an idle cluster is one tree's until another wants it")
+
+	// Scored out of positional order, so that what gets shed can only have
+	// been chosen by rank.
+	for i, sc := range []Score{0.1, 0.9, 0.5, 0.7} {
+		apply(s.OnScore(t0, refOf("first", NodeID(fmt.Sprintf("r.%d", i)), 0), sc, 0))
+	}
+	f.reset()
+
+	submit(t, s, t0, "second", selG(t, 1, leavesG(t, 2)...))
+
+	// Half the cluster belongs to the newcomer, so the incumbent hands back
+	// two: its two worst, in the order the walk reaches them.
+	if assert.Len(t, f.stops(), 2) {
+		for _, c := range f.stops() {
+			assert.Equal(t, TreeID("first"), c.ref.Tree)
+			assert.Equal(t, StopCapacityForHigherTree, c.stop.Kind)
+		}
+		assert.Equal(t, []NodeID{"r.0", "r.2"},
+			[]NodeID{f.stops()[0].ref.Node, f.stops()[1].ref.Node})
+	}
+	assert.Empty(t, f.starts(), "a stop in flight is not yet a free slot")
+
+	// Only once the stops land is there anything to hand over.
+	stopped(s, f, t0)
+	starts := f.starts()
+	if assert.Len(t, starts, 2) {
+		for _, c := range starts {
+			assert.Equal(t, TreeID("second"), c.ref.Tree)
+		}
+	}
+	assert.Equal(t, 2, s.Stats().NStops[StopCapacityForHigherTree])
+}
+
+// TestArbiterNeverShedsBelowQuorum draws the line the share cannot cross. A
+// tree stopped short of its own k has spent everything it still holds for
+// nothing, so there is no share small enough to make that trade worth taking.
+func TestArbiterNeverShedsBelowQuorum(t *testing.T) {
+	s, f := newSchedArb(testConfig(), evenSplit{})
+	sized(s, t0, 4)
+
+	submit(t, s, t0, "first", selG(t, 4, leavesG(t, 4)...))
+	startQueued(s, f, t0)
+	f.reset()
+
+	submit(t, s, t0, "second", selG(t, 1, leavesG(t, 2)...))
+
+	assert.Empty(t, f.stops(), "a tree with no surplus has nothing to give back")
+	assert.Empty(t, f.starts(), "and a full cluster has nothing to give either")
+
+	// The newcomer waits for the incumbent to finish rather than for a share
+	// it can never be handed. Stating it as a test is what stops a future
+	// reading of "its share is two" as licence to break the first tree.
+	assert.Equal(t, 4, nodeView(t, s, "first", "r").NRunning)
+}
+
 // --- reporting -------------------------------------------------------------
 
 func TestStatsCountByReason(t *testing.T) {

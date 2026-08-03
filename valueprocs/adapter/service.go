@@ -7,6 +7,7 @@ import (
 	"sigmaos/proc"
 	"sigmaos/sigmaclnt"
 	"sigmaos/sigmasrv"
+	"sigmaos/util/crash"
 	"sigmaos/valueprocs"
 	"sigmaos/valueprocs/gate"
 	"sigmaos/valueprocs/policy"
@@ -50,10 +51,11 @@ func NewSrv(sc *sigmaclnt.SigmaClnt, cfg Config) *Srv {
 	ex.ev = g
 
 	return &Srv{
-		gate:   g,
-		exec:   ex,
-		probe:  NewProbe(sc, cfg.SigmaOS.Oversubscribe, cfg.SigmaOS.QueueSamples),
-		period: cfg.SigmaOS.ProbePeriod,
+		gate:      g,
+		exec:      ex,
+		probe:     NewProbe(sc, cfg.SigmaOS.Oversubscribe, cfg.SigmaOS.QueueSamples),
+		period:    cfg.SigmaOS.ProbePeriod,
+		submitted: make(map[policy.TreeID]string),
 	}
 }
 
@@ -89,6 +91,20 @@ func (s *Srv) Run(sc *sigmaclnt.SigmaClnt) error {
 	if err != nil {
 		return err
 	}
+
+	// The service is supervised and holds every tree in memory, so losing it
+	// is a scenario rather than a hypothetical: a restart cannot collect the
+	// exits of procs the previous incarnation spawned, and every client's
+	// position in its results becomes meaningless. The epoch is how they find
+	// that out, and these are what let a test make it happen on purpose.
+	crash.Failer(sc.FsLib, crash.VALUESCHED_CRASH, func(e crash.Tevent) {
+		crash.Crash()
+	})
+	crash.Failer(sc.FsLib, crash.VALUESCHED_PARTITION, func(e crash.Tevent) {
+		db.DPrintf(db.VALUEPROC, "valuesched partitioned, delay %v", e.Delay)
+		crash.PartitionAll(sc.FsLib)
+	})
+
 	s.gate.Run()
 	// The probe pushes; it is not consulted on the scheduling tick. A machine
 	// that answers slowly therefore makes the occupancy reading late rather

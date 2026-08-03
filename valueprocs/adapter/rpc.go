@@ -1,11 +1,18 @@
 package adapter
 
 import (
+	"crypto/sha256"
 	"errors"
+	"fmt"
+	"io"
+	"maps"
+	"slices"
+	"sync"
 	"time"
 
 	"sigmaos/api/fs"
 	db "sigmaos/debug"
+	"sigmaos/proc"
 	"sigmaos/valueprocs"
 	"sigmaos/valueprocs/gate"
 	"sigmaos/valueprocs/policy"
@@ -20,6 +27,10 @@ import (
 // the same position, which costs a round trip and nothing else.
 const MaxWait = 30 * time.Second
 
+// ErrTreeIDInUse means a tID already names a different tree. It is not a
+// retry, so accepting it would silently hand the caller somebody else's work.
+var ErrTreeIDInUse = errors.New("valueprocs: tree id already names another tree")
+
 // Srv is the RPC surface. It translates and nothing else: every judgment
 // lives in policy, and everything that touches SigmaOS lives in the rest of
 // this package.
@@ -28,17 +39,44 @@ type Srv struct {
 	exec   *Exec
 	probe  *Probe
 	period time.Duration
+
+	// mu guards submitted, which fingerprints what each tID was registered
+	// with. It is separate from the gate's lock and never held across it in
+	// the other direction, because it protects a different question: not what
+	// the scheduler should do, but whether this request has been asked before.
+	mu        sync.Mutex
+	submitted map[policy.TreeID]string
 }
 
 // --- demand ----------------------------------------------------------------
 
 // SubmitTree registers a tree and starts whatever its quorum requires.
+//
+// Sending the same tree under the same tID twice registers one tree and
+// reports the repeat, because a caller whose connection dropped cannot tell
+// whether the service acted, and its only safe move is to ask again.
 func (s *Srv) SubmitTree(ctx fs.CtxI, req proto.SubmitTreeReq, rep *proto.SubmitTreeRep) error {
+	// Validated before anything else, so that a tree that cannot run is
+	// reported as such rather than as a collision with one that can.
 	root, err := GroupFromProto(req.Root)
 	if err != nil {
 		db.DPrintf(db.VALUEPROC_ERR, "SubmitTree %v: %v", req.TID, err)
 		return err
 	}
+	key := submitKey(ctx, req.Label, req.Root)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if prev, dup := s.submitted[policy.TreeID(req.TID)]; dup {
+		if prev != key {
+			db.DPrintf(db.VALUEPROC_ERR, "SubmitTree %v: %v", req.TID, ErrTreeIDInUse)
+			return ErrTreeIDInUse
+		}
+		db.DPrintf(db.VALUEPROC, "SubmitTree %v: already registered", req.TID)
+		rep.TID, rep.Created = req.TID, false
+		return nil
+	}
+
 	id, err := s.gate.Submit(policy.TreeSpec{
 		ID:        policy.TreeID(req.TID),
 		Label:     req.Label,
@@ -50,9 +88,66 @@ func (s *Srv) SubmitTree(ctx fs.CtxI, req proto.SubmitTreeReq, rep *proto.Submit
 		db.DPrintf(db.VALUEPROC_ERR, "SubmitTree %v: %v", req.TID, err)
 		return err
 	}
+	s.submitted[id] = key
 	db.DPrintf(db.VALUEPROC, "SubmitTree %v by %v", id, ctx.Principal())
-	rep.TID = string(id)
+	rep.TID, rep.Created = string(id), true
 	return nil
+}
+
+// submitKey fingerprints what a submission asks for, so that a retry can be
+// told apart from two callers reaching for the same name.
+//
+// It is taken over the tree as this layer understands it -- its shape and
+// labels, and each leaf's program, arguments, environment and resources --
+// rather than over the request's bytes. A submitted proc arrives carrying a
+// pid that Build throws away and mints fresh for every attempt, so hashing the
+// message would make two descriptions of identical work look different on the
+// strength of a field the layer has already decided means nothing.
+func submitKey(ctx fs.CtxI, label string, root *proto.NodeSpec) string {
+	h := sha256.New()
+	if p := ctx.Principal(); p != nil {
+		io.WriteString(h, p.GetID().String())
+	}
+	io.WriteString(h, "\x00"+label)
+	hashSpec(h, root)
+	return string(h.Sum(nil))
+}
+
+// hashSpec writes a tree into h. Nesting is bracketed so that no two different
+// shapes can flatten to the same bytes.
+func hashSpec(h io.Writer, n *proto.NodeSpec) {
+	if n == nil {
+		io.WriteString(h, "()")
+		return
+	}
+	fmt.Fprintf(h, "(%q,%d", n.Label, n.K)
+	if len(n.Children) == 0 {
+		// Read through the template, which is what makes this a fingerprint of
+		// the work rather than of the message: everything Build regenerates is
+		// absent from it by construction.
+		//
+		// A leaf that has no runnable proc is written as whatever went wrong
+		// rather than skipped, so that the brackets balance either way. The
+		// caller validates first, so it never gets here.
+		switch t, err := templateOf(n.LeafProc); {
+		case err != nil:
+			fmt.Fprintf(h, ",unrunnable %v", err)
+		default:
+			fmt.Fprintf(h, ",%q,%q,%d,%d,%d", t.program, t.args, t.typ, t.mcpu, t.mem)
+			for _, k := range slices.Sorted(maps.Keys(t.env)) {
+				// The one key that varies between two constructions of the
+				// same proc, and the one Build overwrites with the new pid.
+				if k == proc.SIGMADEBUGPID {
+					continue
+				}
+				fmt.Fprintf(h, ",%q=%q", k, t.env[k])
+			}
+		}
+	}
+	for _, c := range n.Children {
+		hashSpec(h, c)
+	}
+	io.WriteString(h, ")")
 }
 
 // attrsOf describes the submitter, for an arbiter to divide capacity on.

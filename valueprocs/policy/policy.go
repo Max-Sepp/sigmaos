@@ -291,6 +291,14 @@ func (s *Scheduler) walk(t *tree, budget int) []func() {
 	active := make(map[NodeID]bool, len(t.order))         // ancestry still wants it
 	sel := make(map[NodeID]bool, len(t.order))            // parent kept it among its top target children
 	why := make(map[NodeID]StartReasonKind, len(t.order)) // on what grounds
+	displaced := make(map[NodeID]bool, len(t.order))      // lost its slot to another tree, not to a sibling
+
+	// One number, both signs meaningful. Positive is headroom to start into;
+	// negative is an overdraft, which is what a tree holds after the arbiter
+	// divides capacity between more trees than there were before. Giving it
+	// back is the only way a tree submitted onto a busy cluster ever runs.
+	over := max(-budget, 0)
+	budget = max(budget, 0)
 
 	for _, n := range t.order {
 		// Wantedness flows down: the root decides its own, a child inherits it.
@@ -300,6 +308,10 @@ func (s *Scheduler) walk(t *tree, budget int) []func() {
 			why[n.id] = StartRequiredForQuorum
 		} else {
 			isActive = active[n.parent.id] && sel[n.id] && n.state == NodePending
+			// So does the grounds for losing: a whole subtree handed back is
+			// handed back, however its own leaves would have ranked among
+			// themselves.
+			displaced[n.id] = displaced[n.id] || displaced[n.parent.id]
 		}
 		active[n.id] = isActive
 
@@ -307,6 +319,7 @@ func (s *Scheduler) walk(t *tree, budget int) []func() {
 		if !n.isLeaf() {
 			if isActive {
 				s.retarget(n)
+				over -= s.shed(n, over, displaced)
 				s.assign(n, sel, why)
 			}
 			continue
@@ -317,7 +330,7 @@ func (s *Scheduler) walk(t *tree, budget int) []func() {
 		switch {
 		// Charged but unwanted; RStopping is skipped, it was asked once already.
 		case !isActive && l.rs.Charged() && l.rs != RStopping:
-			kind, best := s.stopReason(t, n)
+			kind, best := s.stopReason(t, n, displaced[n.id])
 			fs = append(fs, s.stop(t, n, kind, best))
 		// Wanted and idle, if the tree's share and the cluster both allow it.
 		case isActive && l.rs == RIdle && budget > 0 && s.free() > 0:
@@ -364,6 +377,46 @@ func (s *Scheduler) retarget(n *node) {
 		n.lastTargetAt = s.now
 	}
 	n.racers = max(want-base, 0)
+}
+
+// shed shrinks a node's target to hand back capacity the arbiter has given to
+// another tree, and reports how many slots that releases.
+//
+// Only slack goes. A node never drops below k, because a tree held short of
+// its own quorum has spent everything it still holds for nothing, so there is
+// no share small enough to make that trade worth taking; a tree whose required
+// work alone exceeds its share simply has nothing to give and keeps running.
+//
+// Within a node the lowest-ranked children go first, which takes racers before
+// ordinary surplus without needing to say so: assign puts the gradient-granted
+// slots at the bottom of the ranking. Between nodes it is preorder, so the
+// broadest redundancy is given up before the deepest -- and dropping one child
+// of a Select can free a whole subtree, which is why this counts slots freed
+// rather than children dropped.
+func (s *Scheduler) shed(n *node, over int, displaced map[NodeID]bool) int {
+	if over <= 0 || n.target <= n.k {
+		return 0
+	}
+	ranked := s.rank(n)
+	freed, dropped := 0, 0
+	for n.target > n.k && freed < over {
+		c := ranked[n.target-1]
+		n.target--
+		dropped++
+		displaced[c.id] = true
+		// A child holding nothing frees nothing, and the loop keeps going.
+		// That costs the tree only work it was in no position to start, since
+		// a tree over its share has no budget to start anything with.
+		freed += c.charged()
+	}
+	if dropped == 0 {
+		return 0
+	}
+	n.racers = max(n.racers-dropped, 0)
+	// Hold the smaller target for a dwell, so the pressure rule does not
+	// restore it on the next reconcile and undo the arbiter.
+	n.lastTargetAt = s.now
+	return freed
 }
 
 // assign marks which children a node keeps running, best first.
@@ -447,7 +500,7 @@ func sameSet(a, b map[NodeID]bool) bool {
 }
 
 // stopReason attributes a stop to whichever ancestor settled the question.
-func (s *Scheduler) stopReason(t *tree, n *node) (StopReasonKind, Score) {
+func (s *Scheduler) stopReason(t *tree, n *node, displaced bool) (StopReasonKind, Score) {
 	if t.cancelled {
 		return StopTreeCancelled, 0
 	}
@@ -464,6 +517,13 @@ func (s *Scheduler) stopReason(t *tree, n *node) (StopReasonKind, Score) {
 		case NodeFailed:
 			return StopTreeUnsatisfiable, 0
 		}
+	}
+	// Nothing about the tree settled it, so the attempt lost its place while
+	// still wanted. Either its own tree was made to give the slot up, or a
+	// sibling simply outranked it -- and only the second says anything about
+	// this leaf, so only the second is worth quoting a ranking for.
+	if displaced {
+		return StopCapacityForHigherTree, 0
 	}
 	best, _ := n.parent.bestScore()
 	return StopOutrankedBySibling, best
@@ -575,12 +635,10 @@ func (s *Scheduler) budgets() map[TreeID]int {
 			continue
 		}
 		// A share is a total, but walk spends a remainder, so subtract what the
-		// tree already holds. Over its share it gets nothing, never a negative.
-		if n := sh.Slots - t.root.charged(); n > 0 {
-			b[sh.Tree] = n
-		} else {
-			b[sh.Tree] = 0
-		}
+		// tree already holds. The difference is signed on purpose: below zero
+		// it is what the tree has to give back, and clamping it away is what
+		// would let the first tree to arrive keep a full cluster to itself.
+		b[sh.Tree] = sh.Slots - t.root.charged()
 	}
 	return b
 }

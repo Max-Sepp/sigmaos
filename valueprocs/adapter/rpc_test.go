@@ -2,6 +2,7 @@ package adapter
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -43,7 +44,7 @@ func newSrv(t *testing.T) (*Srv, *fakeProcAPI) {
 	g := gate.New(sd, gate.WithEpoch(testEpoch))
 	ex.ev = g
 	t.Cleanup(func() { g.Close(); ex.Close() })
-	return &Srv{gate: g, exec: ex}, f
+	return &Srv{gate: g, exec: ex, submitted: make(map[policy.TreeID]string)}, f
 }
 
 // submitSpec is a k-of-n tree of plain leaves.
@@ -91,6 +92,50 @@ func TestSubmitThenCollectResults(t *testing.T) {
 	}
 }
 
+// TestResubmittingTheSameTreeIsARepeatNotASecondTree is what makes a
+// submission retryable. A call that fails on the way back is indistinguishable
+// from one that never arrived, so a caller's only safe move is to ask again --
+// and the service has to be the one that knows it has already answered.
+func TestResubmittingTheSameTreeIsARepeatNotASecondTree(t *testing.T) {
+	s, f := newSrv(t)
+
+	rep := &proto.SubmitTreeRep{}
+	assert.NoError(t, s.SubmitTree(newCtx("app", "r1"), submitSpec("t", 2, 2), rep))
+	assert.True(t, rep.Created)
+	eventually(t, func() bool { return f.nSpawned() == 2 }, "the tree started")
+
+	// Rebuilt rather than resent, which is what a caller that gave up waiting
+	// and asked again would do. The pid inside a submitted proc differs every
+	// time it is constructed and the layer regenerates it anyway, so it must
+	// not be what decides whether this is the same tree.
+	again := &proto.SubmitTreeRep{}
+	assert.NoError(t, s.SubmitTree(newCtx("app", "r1"), submitSpec("t", 2, 2), again))
+	assert.Equal(t, "t", again.TID)
+	assert.False(t, again.Created, "the repeat was reported as a fresh registration")
+
+	// The point of the whole exercise: the work is not started twice.
+	consistently(t, 50*time.Millisecond, func() bool { return f.nSpawned() == 2 },
+		"the repeat started the tree a second time")
+}
+
+// TestADifferentTreeUnderTheSameIDIsRefused draws the other line. Accepting it
+// would hand the caller a tree it never described, under a name it thinks it
+// owns, which is worse than an error either way it is read.
+func TestADifferentTreeUnderTheSameIDIsRefused(t *testing.T) {
+	s, _ := newSrv(t)
+
+	rep := &proto.SubmitTreeRep{}
+	assert.NoError(t, s.SubmitTree(newCtx("app", "r1"), submitSpec("t", 2, 2), rep))
+
+	err := s.SubmitTree(newCtx("app", "r1"), submitSpec("t", 1, 3), &proto.SubmitTreeRep{})
+	assert.ErrorIs(t, err, ErrTreeIDInUse)
+
+	// Including when the tree is identical but somebody else is asking, since
+	// a tree id means something only within one caller's namespace.
+	err = s.SubmitTree(newCtx("other", "r1"), submitSpec("t", 2, 2), &proto.SubmitTreeRep{})
+	assert.ErrorIs(t, err, ErrTreeIDInUse)
+}
+
 func TestAttributesComeFromTheCallerNotTheRequest(t *testing.T) {
 	s, _ := newSrv(t)
 
@@ -114,10 +159,14 @@ func TestSubmitRefusesATreeThatCannotRun(t *testing.T) {
 	assert.Error(t, err, "k above the number of children")
 	assert.Equal(t, 0, f.nSpawned(), "nothing was started")
 
-	// A duplicate is an error rather than a second tree, which is what makes
-	// a submission safe to retry after a connection drops.
+	// And the shape is judged before the name: a tree that cannot run is
+	// reported as such rather than as a collision with the id it asked for.
 	assert.NoError(t, s.SubmitTree(newCtx("app", "r1"), submitSpec("t", 1, 1), &proto.SubmitTreeRep{}))
-	assert.Error(t, s.SubmitTree(newCtx("app", "r1"), submitSpec("t", 1, 1), &proto.SubmitTreeRep{}))
+	err = s.SubmitTree(newCtx("app", "r1"),
+		proto.SubmitTreeReq{TID: "t", Root: &proto.NodeSpec{K: 3, Children: []*proto.NodeSpec{leafSpec("a")}}},
+		&proto.SubmitTreeRep{})
+	assert.Error(t, err)
+	assert.NotErrorIs(t, err, ErrTreeIDInUse)
 }
 
 func TestNextResultsRefusesAPositionFromAnotherIncarnation(t *testing.T) {

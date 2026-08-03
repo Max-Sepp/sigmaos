@@ -55,6 +55,15 @@ func NewProcTemplate(p *proc.Proc) (*ProcTemplate, error) {
 	}, nil
 }
 
+// templateOf is NewProcTemplate for a proc still in its wire form, and reports
+// the absent one rather than dereferencing it.
+func templateOf(p *proc.ProcProto) (*ProcTemplate, error) {
+	if p == nil {
+		return nil, fmt.Errorf("valueprocs: leaf has no proc")
+	}
+	return NewProcTemplate(proc.NewProcFromProto(p))
+}
+
 // Name satisfies policy.Workload. It is the program, since that is what makes
 // a log line about a leaf legible.
 func (t *ProcTemplate) Name() string { return t.program }
@@ -105,12 +114,9 @@ func GroupFromProto(n *proto.NodeSpec) (policy.Group, error) {
 		err error
 	)
 	if len(n.Children) == 0 {
-		if n.LeafProc == nil {
-			return nil, fmt.Errorf("valueprocs: leaf %q has no proc", n.Label)
-		}
 		var t *ProcTemplate
-		if t, err = NewProcTemplate(proc.NewProcFromProto(n.LeafProc)); err != nil {
-			return nil, err
+		if t, err = templateOf(n.LeafProc); err != nil {
+			return nil, fmt.Errorf("valueprocs: leaf %q: %w", n.Label, err)
 		}
 		g, err = policy.Leaf(t)
 	} else {
