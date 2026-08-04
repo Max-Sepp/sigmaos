@@ -84,7 +84,15 @@ func TestCodedMatMul(t *testing.T) {
 	defer vpjob.Stop()
 	vpc := clnt.NewClnt(sc.FsLib)
 
+	fillers := injectContention(t, sc)
+	defer releaseContention(sc, fillers)
+
 	cfg := codedmatmul.DefaultConfig()
+	// DefaultConfig leaves Mem at 0 (unconstrained); give workers a declared
+	// reservation close to their real ~150MB working set (see
+	// apps/codedmatmul/worker.go) so -contention_free_mb's filler procs can
+	// actually queue them behind besched's admission check.
+	cfg.Mem = ContentionWorkerMem
 	r := cfg.M / cfg.K
 
 	// Reference C, computed once directly (not via the harness) from the

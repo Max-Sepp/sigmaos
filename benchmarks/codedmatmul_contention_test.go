@@ -10,9 +10,7 @@ package benchmarks_test
 // K, even Arm 1 (uncoded, needs all K workers) can't run all of them at once.
 
 import (
-	"fmt"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"gonum.org/v1/gonum/mat"
@@ -20,10 +18,8 @@ import (
 	"sigmaos/apps/codedmatmul"
 	db "sigmaos/debug"
 	"sigmaos/proc"
-	"sigmaos/sigmaclnt"
 	sp "sigmaos/sigmap"
 	"sigmaos/test"
-	"sigmaos/util/linux/mem"
 	"sigmaos/valueprocs/adapter"
 	"sigmaos/valueprocs/clnt"
 )
@@ -45,57 +41,7 @@ const (
 	// ContentionK, so even the bare quorum (no redundancy) must wait for slot
 	// turnover.
 	ContentionRemainingSlots = 5
-	// ContentionKernelReserveMem is memory left unclaimed by fillers, as a
-	// buffer for kernel services (named, msched, etc) already running on the
-	// host.
-	ContentionKernelReserveMem = proc.Tmem(1000)
-	// ContentionFillerChunkMem is the declared memory size of each filler
-	// sleeper proc.
-	ContentionFillerChunkMem = proc.Tmem(1000)
-	// ContentionFillerSleep is comfortably longer than the benchmark run.
-	ContentionFillerSleep = 600 * time.Second
 )
-
-// spawnFillerProcs spawns enough filler `sleeper` procs (each just sleeps --
-// no real memory touched) to consume most of the host's memory as far as
-// besched's memory-based admission accounting is concerned, leaving room for
-// only ContentionRemainingSlots worker-sized slots. Returns the spawned procs
-// so the caller can evict/reap them afterward.
-func spawnFillerProcs(t *testing.T, sc *sigmaclnt.SigmaClnt) []*proc.Proc {
-	total := mem.GetTotalMem()
-	remaining := proc.Tmem(ContentionRemainingSlots) * ContentionWorkerMem
-	if !assert.True(t, total > remaining+ContentionKernelReserveMem,
-		"Host memory (%vMB) too small for this benchmark's filler sizing", total) {
-		return nil
-	}
-	budget := total - remaining - ContentionKernelReserveMem
-	nFillers := int(budget / ContentionFillerChunkMem)
-
-	procs := make([]*proc.Proc, 0, nFillers)
-	for i := 0; i < nFillers; i++ {
-		p := proc.NewProc("sleeper", []string{fmt.Sprintf("%v", ContentionFillerSleep), "name/"})
-		p.SetMem(ContentionFillerChunkMem)
-		if !assert.Nil(t, sc.Spawn(p), "Err Spawn filler proc") {
-			continue
-		}
-		if !assert.Nil(t, sc.WaitStart(p.GetPid()), "Err WaitStart filler proc") {
-			continue
-		}
-		procs = append(procs, p)
-	}
-	db.DPrintf(db.ALWAYS, "CodedMatMul slot contention: total mem %vMB, spawned %d filler procs (%vMB each), leaving ~%d worker slots free",
-		total, len(procs), ContentionFillerChunkMem, ContentionRemainingSlots)
-	return procs
-}
-
-func evictFillerProcs(sc *sigmaclnt.SigmaClnt, procs []*proc.Proc) {
-	for _, p := range procs {
-		sc.Evict(p.GetPid())
-	}
-	for _, p := range procs {
-		sc.WaitExit(p.GetPid())
-	}
-}
 
 func TestCodedMatMulSlotContention(t *testing.T) {
 	mrts, err := test.NewMultiRealmTstate(t, []sp.Trealm{REALM1})
@@ -109,8 +55,9 @@ func TestCodedMatMulSlotContention(t *testing.T) {
 	defer vpjob.Stop()
 	vpc := clnt.NewClnt(sc.FsLib)
 
-	fillers := spawnFillerProcs(t, sc)
-	defer evictFillerProcs(sc, fillers)
+	remainingSlots := proc.Tmem(ContentionRemainingSlots) * ContentionWorkerMem
+	fillers := injectContentionFreeMB(t, sc, remainingSlots)
+	defer releaseContention(sc, fillers)
 
 	cfg := &codedmatmul.Config{
 		M: ContentionK * 64, D: 65536, W: 64,

@@ -165,6 +165,9 @@ func runMRValueProcsStragglerJob(mrts *test.MultiRealmTstate, vpc *clnt.Clnt, sl
 	ji := NewMRValueProcsJobInstance(rts, StragglerMRApp, chooseMRJobRoot(rts), jobname, proc.Tmem(StragglerMemReq), StragglerSlowTaskId, slowdownMs)
 	ji.PrepareMRJob()
 
+	fillers := injectContention(ts, ji.SigmaClnt)
+	defer releaseContention(ji.SigmaClnt, fillers)
+
 	stopWatch := make(chan struct{})
 	go watchMRValueProcsProgress(vpc, mr.ValueProcsMapTid(jobname), mr.ValueProcsReduceTid(jobname), 10*time.Second, stopWatch)
 	defer close(stopWatch)

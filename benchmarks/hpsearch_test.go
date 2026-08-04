@@ -12,6 +12,7 @@ import (
 
 	"sigmaos/apps/hpsearch"
 	db "sigmaos/debug"
+	"sigmaos/proc"
 	"sigmaos/sigmaclnt"
 	sp "sigmaos/sigmap"
 	"sigmaos/test"
@@ -19,9 +20,14 @@ import (
 	"sigmaos/valueprocs/clnt"
 )
 
-// runJob starts a baseline search and waits for it to finish. Neither
-// benchmark here adds contention while the search runs, so they use this
-// rather than driving StartNoPruneJob/HPSearchJob.Wait themselves.
+// HPSearchTrainerMem is each hp-trainer's declared memory reservation for
+// these benchmarks, so that -contention_free_mb's filler procs (which
+// compete on declared memory, not real usage) can actually queue trainers
+// behind besched's admission check; hpsearch.DefaultConfig leaves Mem at 0
+// (unconstrained) since a trainer's real footprint is negligible.
+const HPSearchTrainerMem = proc.Tmem(64)
+
+// runJob starts a baseline search and waits for it to finish.
 func runJob(sc *sigmaclnt.SigmaClnt, cfg *hpsearch.Config) ([]*hpsearch.Curve, error) {
 	j, err := hpsearch.StartNoPruneJob(sc, cfg)
 	if err != nil {
@@ -48,9 +54,14 @@ func TestHPSearchBaseline(t *testing.T) {
 	defer mrts.Shutdown()
 
 	cfg := hpsearch.DefaultConfig()
+	cfg.Mem = HPSearchTrainerMem
+	sc := mrts.GetRealm(REALM1).SigmaClnt
+
+	fillers := injectContention(t, sc)
+	defer releaseContention(sc, fillers)
 
 	// Run every config to completion (no pruning) and collect its curve.
-	curves, err := runJob(mrts.GetRealm(REALM1).SigmaClnt, cfg)
+	curves, err := runJob(sc, cfg)
 	if !assert.Nil(t, err, "Error runJob: %v", err) {
 		return
 	}
@@ -81,7 +92,11 @@ func TestHPSearchLivePruning(t *testing.T) {
 	defer mrts.Shutdown()
 
 	cfg := hpsearch.DefaultConfig()
+	cfg.Mem = HPSearchTrainerMem
 	sc := mrts.GetRealm(REALM1).SigmaClnt
+
+	fillers := injectContention(t, sc)
+	defer releaseContention(sc, fillers)
 
 	// Baseline run: the "actual" cost of running everything to completion,
 	// and the full curves the live run is set against.
@@ -143,11 +158,15 @@ func TestHPSearchValueProcs(t *testing.T) {
 	defer mrts.Shutdown()
 
 	cfg := hpsearch.DefaultConfig()
+	cfg.Mem = HPSearchTrainerMem
 	sc := mrts.GetRealm(REALM1).SigmaClnt
 
 	vpjob := adapter.StartJob(sc, 0)
 	defer vpjob.Stop()
 	vpc := clnt.NewClnt(sc.FsLib)
+
+	fillers := injectContention(t, sc)
+	defer releaseContention(sc, fillers)
 
 	// Baseline run: the "actual" cost of running everything to completion.
 	baseCurves, err := runJob(sc, cfg)

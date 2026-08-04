@@ -31,6 +31,7 @@ type Config struct {
 	MaxIters int
 	IterDur  time.Duration
 	Mcpu     proc.Tmcpu
+	Mem      proc.Tmem // declared memory reservation per trainer; 0 (default) leaves trainers unconstrained by besched's memory-based admission
 	Seed     int64
 	Margin   float64
 }
@@ -105,7 +106,7 @@ func (j *HPSearchJob) Wait() ([]*Curve, error) {
 
 // SpawnTrainer spawns a single hp-trainer proc for one hyperparameter
 // configuration, without waiting for it to start running.
-func SpawnTrainer(sc *sigmaclnt.SigmaClnt, configId int, seed int64, maxIters int, iterDur time.Duration, mcpu proc.Tmcpu) (*proc.Proc, error) {
+func SpawnTrainer(sc *sigmaclnt.SigmaClnt, configId int, seed int64, maxIters int, iterDur time.Duration, mcpu proc.Tmcpu, mem proc.Tmem) (*proc.Proc, error) {
 	args := []string{
 		strconv.Itoa(configId),
 		strconv.FormatInt(seed, 10),
@@ -115,6 +116,9 @@ func SpawnTrainer(sc *sigmaclnt.SigmaClnt, configId int, seed int64, maxIters in
 
 	p := proc.NewProc(TrainerBin, args)
 	p.SetMcpu(mcpu)
+	if mem > 0 {
+		p.SetMem(mem)
+	}
 
 	if err := sc.Spawn(p); err != nil {
 		return nil, err
@@ -124,8 +128,8 @@ func SpawnTrainer(sc *sigmaclnt.SigmaClnt, configId int, seed int64, maxIters in
 
 // StartTrainer spawns a single hp-trainer proc and waits for it to start
 // running.
-func StartTrainer(sc *sigmaclnt.SigmaClnt, configId int, seed int64, maxIters int, iterDur time.Duration, mcpu proc.Tmcpu) (*proc.Proc, error) {
-	p, err := SpawnTrainer(sc, configId, seed, maxIters, iterDur, mcpu)
+func StartTrainer(sc *sigmaclnt.SigmaClnt, configId int, seed int64, maxIters int, iterDur time.Duration, mcpu proc.Tmcpu, mem proc.Tmem) (*proc.Proc, error) {
+	p, err := SpawnTrainer(sc, configId, seed, maxIters, iterDur, mcpu, mem)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +146,7 @@ func StartNoPruneJob(sc *sigmaclnt.SigmaClnt, cfg *Config) (*HPSearchJob, error)
 	procs := make([]*proc.Proc, cfg.NConfigs)
 	// Spawn one trainer per config, each with its own derived seed.
 	for i := 0; i < cfg.NConfigs; i++ {
-		p, err := SpawnTrainer(sc, i, rng.Int63(), cfg.MaxIters, cfg.IterDur, cfg.Mcpu)
+		p, err := SpawnTrainer(sc, i, rng.Int63(), cfg.MaxIters, cfg.IterDur, cfg.Mcpu, cfg.Mem)
 		if err != nil {
 			return nil, err
 		}
@@ -151,7 +155,7 @@ func StartNoPruneJob(sc *sigmaclnt.SigmaClnt, cfg *Config) (*HPSearchJob, error)
 	return &HPSearchJob{sc: sc, cfg: cfg, procs: procs, waitedOn: false}, nil
 }
 
-func SpawnPruningTrainer(sc *sigmaclnt.SigmaClnt, configId int, seed int64, maxIters int, iterDur time.Duration, mcpu proc.Tmcpu, progressDir string, margin float64) (*proc.Proc, error) {
+func SpawnPruningTrainer(sc *sigmaclnt.SigmaClnt, configId int, seed int64, maxIters int, iterDur time.Duration, mcpu proc.Tmcpu, mem proc.Tmem, progressDir string, margin float64) (*proc.Proc, error) {
 	// Same argv as SpawnTrainer, plus the progressDir/margin the trainer
 	// needs to prune itself against its siblings.
 	args := []string{
@@ -164,6 +168,9 @@ func SpawnPruningTrainer(sc *sigmaclnt.SigmaClnt, configId int, seed int64, maxI
 	}
 	p := proc.NewProc(PruningTrainerBin, args)
 	p.SetMcpu(mcpu)
+	if mem > 0 {
+		p.SetMem(mem)
+	}
 	if err := sc.Spawn(p); err != nil {
 		return nil, err
 	}
@@ -172,8 +179,8 @@ func SpawnPruningTrainer(sc *sigmaclnt.SigmaClnt, configId int, seed int64, maxI
 
 // StartPruningTrainer spawns a single hp-trainer-pruned proc and waits for
 // it to start running.
-func StartPruningTrainer(sc *sigmaclnt.SigmaClnt, configId int, seed int64, maxIters int, iterDur time.Duration, mcpu proc.Tmcpu, progressDir string, margin float64) (*proc.Proc, error) {
-	p, err := SpawnPruningTrainer(sc, configId, seed, maxIters, iterDur, mcpu, progressDir, margin)
+func StartPruningTrainer(sc *sigmaclnt.SigmaClnt, configId int, seed int64, maxIters int, iterDur time.Duration, mcpu proc.Tmcpu, mem proc.Tmem, progressDir string, margin float64) (*proc.Proc, error) {
+	p, err := SpawnPruningTrainer(sc, configId, seed, maxIters, iterDur, mcpu, mem, progressDir, margin)
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +203,7 @@ func StartPruningJob(sc *sigmaclnt.SigmaClnt, cfg *Config) (*HPSearchJob, error)
 	procs := make([]*proc.Proc, cfg.NConfigs)
 	// Spawn one pruning trainer per config, all sharing progressDir.
 	for i := 0; i < cfg.NConfigs; i++ {
-		p, err := SpawnPruningTrainer(sc, i, rng.Int63(), cfg.MaxIters, cfg.IterDur, cfg.Mcpu, progressDir, cfg.Margin)
+		p, err := SpawnPruningTrainer(sc, i, rng.Int63(), cfg.MaxIters, cfg.IterDur, cfg.Mcpu, cfg.Mem, progressDir, cfg.Margin)
 		if err != nil {
 			return nil, err
 		}

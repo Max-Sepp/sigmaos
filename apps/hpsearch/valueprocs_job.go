@@ -17,7 +17,7 @@ const TrainerVPBin = "hp-trainer-vp"
 
 // SpawnValueProcsTrainerLeaf builds (but does not spawn) one config's
 // WorkNode. Unlike SpawnTrainer, this proc reserves no mcpu.
-func SpawnValueProcsTrainerLeaf(configId int, seed int64, maxIters int, iterDur time.Duration) *clnt.WorkNode {
+func SpawnValueProcsTrainerLeaf(configId int, seed int64, maxIters int, iterDur time.Duration, mem proc.Tmem) *clnt.WorkNode {
 	args := []string{
 		strconv.Itoa(configId),
 		strconv.FormatInt(seed, 10),
@@ -25,6 +25,9 @@ func SpawnValueProcsTrainerLeaf(configId int, seed int64, maxIters int, iterDur 
 		strconv.FormatInt(iterDur.Milliseconds(), 10),
 	}
 	p := proc.NewProc(TrainerVPBin, args)
+	if mem > 0 {
+		p.SetMem(mem)
+	}
 	return clnt.Leaf(p).WithLabel(fmt.Sprintf("config-%d", configId))
 }
 
@@ -50,7 +53,7 @@ func StartValueProcsJob(c *clnt.Clnt, cfg *Config) (*ValueProcsJob, error) {
 	leaves := make([]*clnt.WorkNode, cfg.NConfigs)
 	for i := 0; i < cfg.NConfigs; i++ {
 		seeds[i] = rng.Int63()
-		leaves[i] = SpawnValueProcsTrainerLeaf(i, seeds[i], cfg.MaxIters, cfg.IterDur)
+		leaves[i] = SpawnValueProcsTrainerLeaf(i, seeds[i], cfg.MaxIters, cfg.IterDur, cfg.Mem)
 	}
 	root, err := clnt.Select(1, leaves...)
 	if err != nil {
