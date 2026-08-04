@@ -7,6 +7,7 @@ package benchmarks_test
 // plus the baseline's time-heuristic backup logic.
 
 import (
+	"fmt"
 	"path/filepath"
 	"testing"
 	"time"
@@ -96,6 +97,58 @@ func sumLeafStops(st *proto.TreeStatusRep) int32 {
 	return n
 }
 
+// dumpTreeStatus formats one line per node of a tree, with enough of
+// NodeStatus to tell a genuinely wedged leaf (charged, no score movement, no
+// PID any more) apart from one that is merely slow. Used only by
+// watchMRValueProcsProgress.
+func dumpTreeStatus(st *proto.TreeStatusRep) string {
+	s := fmt.Sprintf("tree %s state=%s cancelled=%v nRunning=%d nCharged=%d",
+		st.TID, st.State, st.Cancelled, st.NRunning, st.NCharged)
+	for _, n := range st.Nodes {
+		if !n.IsLeaf {
+			continue
+		}
+		s += fmt.Sprintf("\n  leaf %s label=%s state=%s runState=%s run=%d attempts=%d stops=%d hasScore=%v score=%.3f scoreStale=%v pid=%s",
+			n.NodeID, n.Label, n.State, n.RunState, n.Run, n.Attempts, n.Stops, n.HasScore, n.Score, n.ScoreStale, n.PID)
+	}
+	return s
+}
+
+// watchMRValueProcsProgress polls the map/reduce trees and the scheduler's
+// own stats every interval and logs what it sees. This coordinator can stall
+// or crash-loop without leaving a trace here: its own DPrintfs land in its
+// proc's container log, not the test's, so polling the scheduler directly is
+// the only way to see which leaf, if any, stopped making progress, and
+// whether the adapter accounts for it as a real stuck proc versus a
+// synthesized stop/failure it never got to act on. Stops when stop is closed.
+func watchMRValueProcsProgress(vpc *clnt.Clnt, mapTid, reduceTid string, interval time.Duration, stop <-chan struct{}) {
+	t := time.NewTicker(interval)
+	defer t.Stop()
+	for {
+		select {
+		case <-stop:
+			return
+		case <-t.C:
+			if st, err := vpc.Status(mapTid); err == nil {
+				db.DPrintf(db.ALWAYS, "MR value-procs watchdog: %s", dumpTreeStatus(st))
+			} else {
+				db.DPrintf(db.ALWAYS, "MR value-procs watchdog: map Status err %v", err)
+			}
+			if st, err := vpc.Status(reduceTid); err == nil {
+				db.DPrintf(db.ALWAYS, "MR value-procs watchdog: %s", dumpTreeStatus(st))
+			} else {
+				db.DPrintf(db.ALWAYS, "MR value-procs watchdog: reduce Status err %v", err)
+			}
+			if ss, err := vpc.SchedStats(); err == nil {
+				db.DPrintf(db.ALWAYS, "MR value-procs watchdog: sched pressure=%.3f busy=%.3f nTrees=%d nRunning=%d nCharged=%d slots=%d synthStopped=%d synthFailed=%d unrequestedEvicts=%d evictRetries=%d",
+					ss.Pressure, ss.Busy, ss.NTrees, ss.NRunning, ss.NCharged, ss.Slots, ss.NSynthesizedStopped, ss.NSynthesizedFailed, ss.NUnrequestedEvicts, ss.NEvictRetries)
+			} else {
+				db.DPrintf(db.ALWAYS, "MR value-procs watchdog: SchedStats err %v", err)
+			}
+		}
+	}
+}
+
 // runMRValueProcsStragglerJob is runMRStragglerJob's counterpart for the
 // value-procs coordinator: same app/memory/straggler-injection parameters,
 // but no AStat snapshot to collect -- this coordinator never spawns a proc
@@ -111,6 +164,10 @@ func runMRValueProcsStragglerJob(mrts *test.MultiRealmTstate, vpc *clnt.Clnt, sl
 	jobname := StragglerMRApp + "-mr-vp-straggler-" + rand.String(3) + "-" + rts.GetRealm().String()
 	ji := NewMRValueProcsJobInstance(rts, StragglerMRApp, chooseMRJobRoot(rts), jobname, proc.Tmem(StragglerMemReq), StragglerSlowTaskId, slowdownMs)
 	ji.PrepareMRJob()
+
+	stopWatch := make(chan struct{})
+	go watchMRValueProcsProgress(vpc, mr.ValueProcsMapTid(jobname), mr.ValueProcsReduceTid(jobname), 10*time.Second, stopWatch)
+	defer close(stopWatch)
 
 	start := time.Now()
 	ji.StartMRJob()

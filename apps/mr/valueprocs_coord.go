@@ -270,11 +270,16 @@ func RunValueProcsCoord(args []string) {
 	if err != nil {
 		db.DFatalf("RunValueProcsCoord: Wait map tree: %v", err)
 	}
-	if len(mapResults) != nmap {
-		db.DFatalf("RunValueProcsCoord: map phase settled as %v with %d/%d tasks done", mapState, len(mapResults), nmap)
-	}
 
+	// mapResults is keyed by leaf NodeID, not by task: OnRunCompleted honors a
+	// completion that arrives while the leaf's sibling is already winning (a
+	// racing primary and duplicate finishing close enough together that the
+	// scheduler's stop for the loser hasn't taken effect yet), so a single
+	// task can legitimately contribute two entries here. Counting len(mapResults)
+	// against nmap breaks in exactly that case -- count distinct task indices
+	// instead.
 	obins := make([]Bin, nmap)
+	done := make([]bool, nmap)
 	for _, res := range mapResults {
 		idx, err := labelIndex(res.Label, "m")
 		if err != nil {
@@ -284,7 +289,14 @@ func RunValueProcsCoord(args []string) {
 		if err != nil {
 			db.DFatalf("RunValueProcsCoord: decode map result %v: %v", res.Label, err)
 		}
+		// A leaf's proc is idempotent by contract (see clnt.Leaf), so a second
+		// result for a task already recorded is redundant, not conflicting --
+		// keep the first and skip charging it against the stats file again.
+		if done[idx] {
+			continue
+		}
 		obins[idx] = r.OutBin
+		done[idx] = true
 		// Appended for mr.PrintMRStats, exactly as processResult does for the
 		// baseline coordinator. MsOuter stays whatever the worker itself
 		// reported (0 -- see mr.Result's doc) since this coordinator has no
@@ -293,6 +305,11 @@ func RunValueProcsCoord(args []string) {
 		// diagnostic PrintMRStats prints, not this test's assertions.
 		if err := sc.AppendFileJson(MRstats(jobRoot, jobName), r); err != nil {
 			db.DFatalf("RunValueProcsCoord: AppendFileJson %v err %v", MRstats(jobRoot, jobName), err)
+		}
+	}
+	for i, ok := range done {
+		if !ok {
+			db.DFatalf("RunValueProcsCoord: map phase settled as %v with task %d missing (%d results for %d tasks)", mapState, i, len(mapResults), nmap)
 		}
 	}
 
@@ -338,16 +355,31 @@ func RunValueProcsCoord(args []string) {
 	if err != nil {
 		db.DFatalf("RunValueProcsCoord: Wait reduce tree: %v", err)
 	}
-	if len(reduceResults) != nreduce {
-		db.DFatalf("RunValueProcsCoord: reduce phase settled as %v with %d/%d tasks done", reduceState, len(reduceResults), nreduce)
-	}
+
+	// Same hazard as the map phase above: reduceResults is keyed by leaf
+	// NodeID, so a task whose primary and duplicate both won their race
+	// contributes two entries, not one.
+	rdone := make([]bool, nreduce)
 	for _, res := range reduceResults {
+		idx, err := labelIndex(res.Label, "r")
+		if err != nil {
+			db.DFatalf("RunValueProcsCoord: %v", err)
+		}
 		r, err := NewResult(res.Status.Data())
 		if err != nil {
 			db.DFatalf("RunValueProcsCoord: decode reduce result %v: %v", res.Label, err)
 		}
+		if rdone[idx] {
+			continue
+		}
+		rdone[idx] = true
 		if err := sc.AppendFileJson(MRstats(jobRoot, jobName), r); err != nil {
 			db.DFatalf("RunValueProcsCoord: AppendFileJson %v err %v", MRstats(jobRoot, jobName), err)
+		}
+	}
+	for i, ok := range rdone {
+		if !ok {
+			db.DFatalf("RunValueProcsCoord: reduce phase settled as %v with task %d missing (%d results for %d tasks)", reduceState, i, len(reduceResults), nreduce)
 		}
 	}
 
