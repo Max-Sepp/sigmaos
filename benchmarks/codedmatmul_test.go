@@ -18,6 +18,8 @@ import (
 	"sigmaos/sigmaclnt"
 	sp "sigmaos/sigmap"
 	"sigmaos/test"
+	"sigmaos/valueprocs/adapter"
+	"sigmaos/valueprocs/clnt"
 )
 
 // runCodedMatMulArm starts one coded-matmul run, waits for it, and checks the
@@ -41,6 +43,35 @@ func runCodedMatMulArm(t *testing.T, sc *sigmaclnt.SigmaClnt, cfg *codedmatmul.C
 	return res
 }
 
+// runCodedMatMulValueProcsArm is runCodedMatMulArm's counterpart for the
+// value-procs-scheduled arm: no cancelSurplus flag, since shedding the
+// surplus once the K-quorum is reached is valuesched's own policy, not
+// something the coordinator asks for. Its leaves reserve no mcpu (unlike
+// every other arm's Mcpu=1000), so res.TotalCoreSeconds/WastedCoreSeconds
+// read as 0 -- a different admission regime, not a faster one; makespan and
+// NAttemptsStopped are what's comparable.
+func runCodedMatMulValueProcsArm(t *testing.T, c *clnt.Clnt, cfg *codedmatmul.Config, want *mat.Dense, name string) *codedmatmul.Result {
+	j, err := codedmatmul.StartValueProcsJob(c, cfg)
+	if !assert.Nil(t, err, "%s: StartValueProcsJob err %v", name, err) {
+		return nil
+	}
+	C, samples, stats, err := j.Wait()
+	if !assert.Nil(t, err, "%s: Wait err %v", name, err) {
+		return nil
+	}
+	if !assert.True(t, mat.EqualApprox(C, want, 1e-6), "%s: decoded C does not match the reference", name) {
+		return nil
+	}
+	res := codedmatmul.Analyze(samples, 0, stats)
+	stopped, err := j.NAttemptsStopped()
+	if err != nil {
+		db.DPrintf(db.ALWAYS, "%s: NAttemptsStopped err %v", name, err)
+	}
+	db.DPrintf(db.ALWAYS, "CodedMatMul %s: makespan %v, mcpu=0 (unreserved), %d attempts stopped (surplus reclaimed)",
+		name, res.Makespan, stopped)
+	return res
+}
+
 func TestCodedMatMul(t *testing.T) {
 	mrts, err := test.NewMultiRealmTstate(t, []sp.Trealm{REALM1})
 	if !assert.Nil(t, err, "Error New Tstate: %v", err) {
@@ -48,6 +79,10 @@ func TestCodedMatMul(t *testing.T) {
 	}
 	defer mrts.Shutdown()
 	sc := mrts.GetRealm(REALM1).SigmaClnt
+
+	vpjob := adapter.StartJob(sc, 0)
+	defer vpjob.Stop()
+	vpc := clnt.NewClnt(sc.FsLib)
 
 	cfg := codedmatmul.DefaultConfig()
 	r := cfg.M / cfg.K
@@ -76,7 +111,12 @@ func TestCodedMatMul(t *testing.T) {
 	// the K-quorum is reached.
 	arm3 := runCodedMatMulArm(t, sc, cfg, true, &want, "arm3-coded-reap")
 
-	if arm1 == nil || arm2 == nil || arm3 == nil {
+	// Arm 4: coded, scheduled by valuesched (N=K+m). Shedding the surplus
+	// once the quorum is reached is valuesched's own policy rather than an
+	// explicit cancelSurplus ask.
+	arm4 := runCodedMatMulValueProcsArm(t, vpc, cfg, &want, "arm4-valueprocs")
+
+	if arm1 == nil || arm2 == nil || arm3 == nil || arm4 == nil {
 		return
 	}
 
@@ -86,4 +126,10 @@ func TestCodedMatMul(t *testing.T) {
 	assert.True(t, arm3.Makespan < arm1.Makespan,
 		"Arm 3 (reap) should finish faster than Arm 1 (uncoded barrier) under the default straggler: %v vs %v",
 		arm3.Makespan, arm1.Makespan)
+
+	// Informational only: arm4 reserves no mcpu (a different admission
+	// regime, see runCodedMatMulValueProcsArm), so its makespan is not
+	// asserted against arm1/arm3, only logged alongside them.
+	db.DPrintf(db.ALWAYS, "CodedMatMul comparison: arm1 %v, arm3 %v, arm4 %v",
+		arm1.Makespan, arm3.Makespan, arm4.Makespan)
 }

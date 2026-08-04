@@ -15,6 +15,8 @@ import (
 	"sigmaos/sigmaclnt"
 	sp "sigmaos/sigmap"
 	"sigmaos/test"
+	"sigmaos/valueprocs/adapter"
+	"sigmaos/valueprocs/clnt"
 )
 
 // runJob starts a baseline search and waits for it to finish. Neither
@@ -127,4 +129,60 @@ func TestHPSearchLivePruning(t *testing.T) {
 	// one, so live.CoreSeconds <= base.ActualCoreSeconds holds by construction.
 	assert.True(t, live.CoreSeconds <= base.ActualCoreSeconds, "Live-pruned run used more compute than the baseline")
 	assert.True(t, live.NPruned > 0, "Expected the live policy to prune at least one config")
+}
+
+// TestHPSearchValueProcs compares the baseline (no pruning) search against
+// the value-procs-scheduled arm: a Select(1, NConfigs) tree whose scheduler
+// prunes the worst-ranked configs as pressure rises, replacing pruner.go's
+// peer-published-progress protocol entirely (see apps/hpsearch/valueprocs_job.go).
+func TestHPSearchValueProcs(t *testing.T) {
+	mrts, err := test.NewMultiRealmTstate(t, []sp.Trealm{REALM1})
+	if !assert.Nil(t, err, "Error New Tstate: %v", err) {
+		return
+	}
+	defer mrts.Shutdown()
+
+	cfg := hpsearch.DefaultConfig()
+	sc := mrts.GetRealm(REALM1).SigmaClnt
+
+	vpjob := adapter.StartJob(sc, 0)
+	defer vpjob.Stop()
+	vpc := clnt.NewClnt(sc.FsLib)
+
+	// Baseline run: the "actual" cost of running everything to completion.
+	baseCurves, err := runJob(sc, cfg)
+	if !assert.Nil(t, err, "Error runJob (baseline): %v", err) {
+		return
+	}
+	assert.Equal(t, cfg.NConfigs, len(baseCurves))
+	base := hpsearch.Analyze(baseCurves, cfg)
+
+	// Value-procs run: one winner reported at full fidelity, every other
+	// config's curve approximately reconstructed from its last-known score
+	// (see ValueProcsJob.Wait's doc comment for why an exact readback isn't
+	// possible).
+	j, err := hpsearch.StartValueProcsJob(vpc, cfg)
+	if !assert.Nil(t, err, "Error StartValueProcsJob: %v", err) {
+		return
+	}
+	winner, approxLosers, err := j.Wait()
+	if !assert.Nil(t, err, "Error Wait: %v", err) {
+		return
+	}
+	vpCurves := append([]*hpsearch.Curve{winner}, approxLosers...)
+	assert.Equal(t, cfg.NConfigs, len(vpCurves))
+	live := hpsearch.AnalyzeLive(vpCurves, cfg)
+
+	db.DPrintf(db.ALWAYS, "HPSearch value-procs: actual %.2f core-s, value-procs %.2f core-s (saved %.1f%%), %d/%d configs pruned",
+		base.ActualCoreSeconds, live.CoreSeconds, (base.ActualCoreSeconds-live.CoreSeconds)/base.ActualCoreSeconds*100,
+		live.NPruned, cfg.NConfigs)
+	db.DPrintf(db.ALWAYS, "HPSearch value-procs quality: best-all %.3f, best-kept %.3f, quality lost %.3f",
+		base.BestQualityAll, live.BestQuality, base.BestQualityAll-live.BestQuality)
+
+	// NPruned is exact -- Select(1, NConfigs) guarantees exactly one winner
+	// -- unlike the live-pruning arm's NPruned, which depends on how many
+	// configs actually crossed the margin/sustain threshold before the run
+	// ended.
+	assert.Equal(t, cfg.NConfigs-1, live.NPruned, "Expected every non-winning config to be pruned")
+	assert.True(t, live.CoreSeconds <= base.ActualCoreSeconds, "Value-procs run used more compute than the baseline")
 }

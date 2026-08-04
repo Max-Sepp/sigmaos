@@ -1051,6 +1051,21 @@ func (c *Coord) processResult(ch <-chan ftmgr.Tresult[[]byte, []byte], m, r int3
 			}
 			db.DPrintf(db.ALWAYS, "tasks done %d/%d\n", nM+nR, c.nmaptask+c.nreducetask)
 		} else {
+			isMap := res.Ftclnt == c.mftclnt.AsRawClnt()
+
+			// A losing speculative attempt now self-terminates the moment
+			// it's evicted (vproc.AutoExitOnEvict, wired in via mapper.go/
+			// reducer.go), so its own result can arrive here as
+			// StatusEvicted for a task a sibling has already won. That is
+			// cleanup arriving late, not a failure -- mirrors the discard
+			// check on the success path above, just for the case where the
+			// loser didn't get far enough to report StatusOK before losing.
+			if res.Status != nil && res.Status.IsStatusEvicted() && ((isMap && ts[res.Id]) || (!isMap && tsR[res.Id])) {
+				db.DPrintf(db.MR_COORD, "processResult: discarding evicted late/speculative attempt for already-finished task %v", res.Id)
+				c.recordWastedFinished(res.Proc.GetPid(), res.Ms)
+				continue
+			}
+
 			db.DPrintf(db.MR, "Task failed %v status %v", res.Id, res.Status)
 			if res.Status != nil && res.Status.Msg() == RESTART {
 				// reducer indicates to run some mappers again
@@ -1062,7 +1077,7 @@ func (c *Coord) processResult(ch <-chan ftmgr.Tresult[[]byte, []byte], m, r int3
 				if err := res.Ftclnt.MoveTasks([]ftclnt.TaskId{res.Id}, ftclnt.TODO); err != nil {
 					db.DFatalf("MarkRunnable %v err %v", res.Id, err)
 				}
-				c.evictSiblings(res.Id, res.Proc.GetPid(), res.Ftclnt == c.mftclnt.AsRawClnt())
+				c.evictSiblings(res.Id, res.Proc.GetPid(), isMap)
 			}
 			c.stat.Nfail.Add(1)
 		}

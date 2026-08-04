@@ -24,6 +24,8 @@ import (
 	sp "sigmaos/sigmap"
 	"sigmaos/test"
 	"sigmaos/util/linux/mem"
+	"sigmaos/valueprocs/adapter"
+	"sigmaos/valueprocs/clnt"
 )
 
 const (
@@ -103,6 +105,10 @@ func TestCodedMatMulSlotContention(t *testing.T) {
 	defer mrts.Shutdown()
 	sc := mrts.GetRealm(REALM1).SigmaClnt
 
+	vpjob := adapter.StartJob(sc, 0)
+	defer vpjob.Stop()
+	vpc := clnt.NewClnt(sc.FsLib)
+
 	fillers := spawnFillerProcs(t, sc)
 	defer evictFillerProcs(sc, fillers)
 
@@ -141,10 +147,16 @@ func TestCodedMatMulSlotContention(t *testing.T) {
 	// Arm 3: coded + reap (N=K+m).
 	arm3 := runCodedMatMulArm(t, sc, cfg, true, &want, "arm3-coded-reap")
 
-	if arm1 == nil || arm2 == nil || arm3 == nil {
+	// Arm 4: coded, scheduled by valuesched (N=K+m). This is the more
+	// interesting comparison under contention: unlike arm3's fixed
+	// evict-at-quorum policy, valuesched's pressure model can adapt slack
+	// spending to how contended the cluster actually is.
+	arm4 := runCodedMatMulValueProcsArm(t, vpc, cfg, &want, "arm4-valueprocs")
+
+	if arm1 == nil || arm2 == nil || arm3 == nil || arm4 == nil {
 		return
 	}
 
-	db.DPrintf(db.ALWAYS, "CodedMatMul slot contention: arm1 makespan %v, arm2 makespan %v, arm3 makespan %v",
-		arm1.Makespan, arm2.Makespan, arm3.Makespan)
+	db.DPrintf(db.ALWAYS, "CodedMatMul slot contention: arm1 makespan %v, arm2 makespan %v, arm3 makespan %v, arm4 makespan %v",
+		arm1.Makespan, arm2.Makespan, arm3.Makespan, arm4.Makespan)
 }

@@ -23,6 +23,7 @@ import (
 	"sigmaos/util/crash"
 	"sigmaos/util/perf"
 	"sigmaos/util/rand"
+	"sigmaos/valueprocs/vproc"
 )
 
 const (
@@ -48,6 +49,8 @@ type Mapper struct {
 	ckrs        []*chunkreader.ChunkReader
 	ch          chan error
 	slowdownMs  int
+	vc          *vproc.Ctx    // nil unless spawned by the value-procs coordinator
+	expectedDur time.Duration // 0 if no estimate was given; see Gradient
 }
 
 func NewMapper(sc *sigmaclnt.SigmaClnt, mapf mr.MapT, combinef mr.ReduceT, jobRoot, job string, p *perf.Perf, nr, lsz, wsz int, input string, intOutput string, slowdownMs int) (*Mapper, error) {
@@ -80,7 +83,7 @@ func NewMapper(sc *sigmaclnt.SigmaClnt, mapf mr.MapT, combinef mr.ReduceT, jobRo
 }
 
 func newMapper(mapf mr.MapT, reducef mr.ReduceT, args []string, p *perf.Perf) (*Mapper, error) {
-	if len(args) != 7 && len(args) != 8 {
+	if len(args) != 7 && len(args) != 8 && len(args) != 9 {
 		return nil, fmt.Errorf("NewMapper: wrong number of arguments %v", args)
 	}
 	nr, err := strconv.Atoi(args[2])
@@ -98,10 +101,20 @@ func newMapper(mapf mr.MapT, reducef mr.ReduceT, args []string, p *perf.Perf) (*
 	// The straggler delay is an optional 8th arg, for callers (e.g. mr_test.go)
 	// that construct a Mapper directly without it.
 	slowdownMs := SlowdownOff
-	if len(args) == 8 {
+	if len(args) == 8 || len(args) == 9 {
 		slowdownMs, err = strconv.Atoi(args[7])
 		if err != nil {
 			return nil, fmt.Errorf("NewMapper: slowdownMs %v isn't int", args[7])
+		}
+	}
+	// The expected map duration is an optional 9th arg, given only by the
+	// value-procs coordinator (see mr.Gradient); absent, expectedDur stays 0
+	// and this mapper's gradient is always 0.
+	expectedDurMs := 0
+	if len(args) == 9 {
+		expectedDurMs, err = strconv.Atoi(args[8])
+		if err != nil {
+			return nil, fmt.Errorf("NewMapper: expectedDurMs %v isn't int", args[8])
 		}
 	}
 	sc, err := sigmaclnt.NewSigmaClnt(proc.GetProcEnv())
@@ -112,10 +125,14 @@ func newMapper(mapf mr.MapT, reducef mr.ReduceT, args []string, p *perf.Perf) (*
 	if err != nil {
 		return nil, fmt.Errorf("NewMapper failed %v", err)
 	}
+	m.expectedDur = time.Duration(expectedDurMs) * time.Millisecond
 
 	if err := m.Started(); err != nil {
 		return nil, fmt.Errorf("NewMapper couldn't start %v", args)
 	}
+	// Calling Started() again here (StartWith below) is safe: msched's
+	// ProcState.started documents itself as callable more than once.
+	m.vc = startVProc(sc)
 
 	crash.FailersDefault(m.FsLib, []crash.Tselector{crash.MRMAP_CRASH, crash.MRMAP_PARTITION})
 	return m, nil
@@ -301,7 +318,7 @@ func (m *Mapper) DoMap() (sp.Tlength, sp.Tlength, Bin, error) {
 	perf.LogSpawnLatency("Mapper.getInput", m.ProcEnv().GetPID(), m.ProcEnv().GetSpawnTime(), getInputStart)
 	ni := sp.Tlength(0)
 	getSplitStart := time.Now()
-	for _, s := range bin {
+	for i, s := range bin {
 		n, err := m.doSplit(&s)
 		if err != nil {
 			db.DPrintf(db.MR, "doSplit %v err %v\n", s, err)
@@ -311,6 +328,9 @@ func (m *Mapper) DoMap() (sp.Tlength, sp.Tlength, Bin, error) {
 			db.DFatalf("Split: short split o %d l %d %d\n", s.Offset, s.Length, n)
 		}
 		ni += n
+		if m.vc != nil {
+			m.vc.Score(float64(i+1)/float64(len(bin)), Gradient(time.Since(getSplitStart), m.expectedDur))
+		}
 	}
 	perf.LogSpawnLatency("Mapper.doSplit", m.ProcEnv().GetPID(), m.ProcEnv().GetSpawnTime(), getSplitStart)
 	closeWrtStart := time.Now()
