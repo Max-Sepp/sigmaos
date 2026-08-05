@@ -16,6 +16,15 @@ type NodeView struct {
 	NCharged  int
 	Target    int
 
+	// Value is what this node is worth to the scheduler right now: the number
+	// admission, ranking and shed all read. For a leaf that has reported it is
+	// that leaf's own tangent carried over its horizon; for one that has not,
+	// a peer's tangent carried over the candidate width. Reporting it is what
+	// makes a decision explicable after the fact -- without it, the only way
+	// to find out why an attempt was or was not started is to reconstruct the
+	// arithmetic from the outside.
+	Value float64
+
 	// Leaf-only fields.
 	IsLeaf     bool
 	Workload   string
@@ -54,7 +63,9 @@ type TreeView struct {
 type Stats struct {
 	Pressure      float64
 	Busy          float64
+	SelfOccupancy float64 // charged slots over total; -1 when slots are unknown
 	DelayPressure float64
+	Width         float64 // how far a candidate may carry a borrowed tangent
 	Components    map[string]float64
 
 	NTrees   int
@@ -76,6 +87,16 @@ func (s *Scheduler) Stats() Stats {
 	st.Pressure = s.pressure
 	st.Busy = s.occ.Busy
 	st.DelayPressure = s.delay
+	st.Width = s.width()
+	// Computed here rather than read back from the fold: the fold ran before
+	// this reconcile's own starts and stops were charged, so its copy is one
+	// decision out of date. Pressure is deliberately not recomputed the same
+	// way -- it is smoothed, and what the decisions were actually made on is
+	// what a reader needs.
+	st.SelfOccupancy = -1
+	if self, ok := s.selfOccupancy(); ok {
+		st.SelfOccupancy = self
+	}
 	st.NTrees = len(s.trees)
 	st.NRunning = s.nRunning
 	st.NCharged = s.nCharged
@@ -147,6 +168,7 @@ func (s *Scheduler) nodeView(n *node) NodeView {
 		NCharged:  n.charged(),
 		Target:    n.target,
 		IsLeaf:    n.isLeaf(),
+		Value:     s.value(n),
 	}
 	if l := n.leaf; l != nil {
 		v.Workload = l.w.Name()
@@ -163,9 +185,15 @@ func (s *Scheduler) nodeView(n *node) NodeView {
 	return v
 }
 
-// stale reports whether a running attempt has gone quiet. It is reported and
-// never acted on: an attempt that is compute-bound may simply not have
-// reached its next reporting point, so silence is not evidence of trouble.
+// stale reports whether a running attempt's tangent has aged out.
+//
+// It discounts and never terminates. A tangent describes the curve at the
+// point it was taken, so an attempt that has not reported since has probably
+// moved past it and its claim is worth less -- but an attempt that is merely
+// compute-bound between reporting points is not in trouble, and stopping one
+// for being quiet would punish exactly that. So this only ever lowers a value,
+// which is enough to lose an argument against a candidate with something to
+// show, and never enough to end anything on its own.
 func (s *Scheduler) stale(l *leafState) bool {
 	if l.rs != RRunning || s.cfg.ScoreStale <= 0 {
 		return false

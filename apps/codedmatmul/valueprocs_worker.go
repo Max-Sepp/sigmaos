@@ -58,10 +58,60 @@ func RunValueProcsWorker(args []string) {
 	g := mdscode.NewGenerator(n, k)
 	Ahat := g.EncodeBlock(idx, blocks)
 
-	// Gradient is always 0: racing a stalled slab of the same worker has no
-	// meaning here, since redundancy across workers is already the tree's
-	// k-of-n slack.
-	publish := func(frac float64) { c.Score(frac, 0) }
+	// What this worker reports about itself: progress through the whole job,
+	// and the slope of that progress.
+	//
+	// The score has to span the whole job rather than the current pass.
+	// TiledMultiply publishes t+1 over T and is called once per repeat, so the
+	// fraction it hands out runs 1/T to 1 and then starts over. Forwarding that
+	// directly would make a worker's score collapse to near zero at every
+	// repeat boundary, and since Repeats above 1 is exactly what makes a worker
+	// a straggler, the workers whose reports matter most would be the ones
+	// misreported. A score is how much value has been realized so far, and
+	// realized value does not go backwards.
+	//
+	// The gradient is that progress differentiated against time. The scheduler
+	// extrapolates along it, so reporting a flat curve while the score climbs
+	// would be a claim never to finish.
+	//
+	// Normalizing against one pass, rather than against this worker's own
+	// total, is what makes a straggler visible. A worker is handed no expected
+	// duration, so its first slab sets the scale: one pass is tiles slabs, and
+	// a worker doing four passes covers the job at a quarter of the rate. Were
+	// each worker normalized against its own workload they would all report 1
+	// and a straggler would be indistinguishable from a healthy peer, which is
+	// the one comparison this application exists to make.
+	var (
+		reps     int     // repeats completed, counted by the fraction wrapping
+		lastFrac float64 // last within-pass fraction, to notice the wrap
+		lastDone float64
+		lastAt   = time.Now()
+		perSlab  time.Duration
+	)
+	publish := func(frac float64) {
+		now := time.Now()
+		if frac < lastFrac {
+			reps++
+		}
+		lastFrac = frac
+		done := (float64(reps) + frac) / float64(repeats)
+
+		dt := now.Sub(lastAt)
+		if perSlab <= 0 {
+			// The first slab is what sets the scale, so there is nothing to
+			// measure it against yet and nothing is claimed.
+			perSlab, lastDone, lastAt = dt, done, now
+			c.Score(done, 0)
+			return
+		}
+		grad := 0.0
+		if dt > 0 {
+			onePass := time.Duration(tiles) * perSlab
+			grad = (done - lastDone) / (dt.Seconds() / onePass.Seconds())
+		}
+		lastDone, lastAt = done, now
+		c.Score(done, grad)
+	}
 
 	start := time.Now()
 	var Y *mat.Dense

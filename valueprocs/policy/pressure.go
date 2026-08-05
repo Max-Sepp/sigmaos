@@ -36,19 +36,48 @@ func (s *Scheduler) queueDelay(now time.Time) float64 {
 	return saturate(float64(med) / float64(s.cfg.QueueDelayTarget))
 }
 
-// updatePressure folds the platform's reading together with queueing delay
-// and smooths the result.
+// selfOccupancy is how full the cluster is by this scheduler's own books:
+// slots it holds over slots it was told exist. It is exact, where the
+// platform's reading is an inference from memory and CPU, and it is blind to
+// everything this scheduler did not start, where the platform's reading is
+// not. Neither dominates, which is why PressureSource exists.
+func (s *Scheduler) selfOccupancy() (float64, bool) {
+	if s.occ.Slots <= 0 {
+		return 0, false
+	}
+	return saturate(float64(s.nCharged) / float64(s.occ.Slots)), true
+}
+
+// updatePressure folds the platform's reading together with this scheduler's
+// own occupancy and with queueing delay, then smooths the result.
 //
-// The fold is a max rather than a weighted sum: any one term saturating means
-// the cluster is full, and a sum would let an idle-looking term dilute it.
-// Saturating the delay term before the max matters because it is an unbounded
-// ratio, and a pressure above 1 would drive targets below k.
+// Queueing delay is folded in with a max regardless of the source chosen: it
+// is the one term measured from inside, by how long this scheduler's own
+// attempts sit unplaced, so a cluster that cannot place work is full whatever
+// anything else claims. It is saturated first, being an unbounded ratio, and a
+// pressure above 1 would drive widths below their floor.
 func (s *Scheduler) updatePressure(now time.Time) {
 	s.delay = s.queueDelay(now)
-	sample := saturate(s.occ.Busy)
+	plat := saturate(s.occ.Busy)
+	self, ok := s.selfOccupancy()
+
+	sample := plat
+	if ok {
+		switch s.cfg.PressureSource {
+		case PressureSelf:
+			sample = self
+		case PressureMax:
+			sample = max(plat, self)
+		case PressureMin:
+			sample = min(plat, self)
+		default: // PressurePlatform
+			sample = plat
+		}
+	}
 	if s.delay > sample {
 		sample = s.delay
 	}
+
 	a := s.cfg.EWMAAlpha
 	switch {
 	case !s.seeded:
@@ -61,26 +90,74 @@ func (s *Scheduler) updatePressure(now time.Time) {
 	}
 }
 
-// hysteresis damps a node's target so that a pressure reading hovering near a
-// threshold cannot restart work it has just stopped.
+// confirm damps a node's target: a growth big enough to matter is applied at
+// once, and every other change has to be proposed continuously for ConfirmFor
+// before it takes effect.
 //
-// Independent per-node expansion under low pressure raises aggregate demand,
-// which raises pressure, which contracts every node at once; the deadband and
-// the dwell together are what break that loop. The caller still clamps the
-// result to at least k, so holding a stale target can never starve required
-// work.
-func (s *Scheduler) hysteresis(n *node, want int, now time.Time) int {
-	if n.lastTargetAt.IsZero() || want == n.target {
+// It is a hold timer rather than a cooldown, and the distinction decides how
+// the scheduler behaves under a changing signal. A cooldown would ask how long
+// ago the target last changed and refuse to move again inside a window, which
+// leaves a node that has just been adjusted deaf to whatever happens next --
+// an attempt that stalls immediately afterwards would have to wait out the
+// window before anything could respond. This asks instead how long the current
+// proposal has been on the table. Nothing is ever deaf; a proposal simply has
+// to persist to be acted on, and one that keeps changing restarts its own clock
+// and never lands. Oscillation is damped by instability rather than by recency.
+//
+// The delay is what breaks a feedback loop: independent per-node expansion
+// raises aggregate demand, which raises pressure, which contracts every node at
+// once. The caller still clamps the result to at least k, so a held proposal
+// can never starve required work.
+func (s *Scheduler) confirm(n *node, want int, now time.Time) int {
+	if want == n.target {
+		n.pending, n.pendingSince = want, time.Time{}
 		return want
 	}
-	if now.Sub(n.lastTargetAt) < s.cfg.MinDwell {
-		return n.target
+
+	// Only growth may skip confirmation, and the asymmetry is deliberate.
+	//
+	// Adding redundancy is cheap and reversible: an attempt started in error can
+	// be stopped, costing the compute it burned meanwhile. Shedding is neither.
+	// The work stops, its partial progress is generally lost, and on a Select
+	// the child dropped may be the one that would have turned out best -- which
+	// no later reconcile can undo, because the evidence that would have
+	// overturned the decision is exactly what was cancelled before it could
+	// arrive. A search that prunes most of its candidates the instant pressure
+	// rises locks in whichever happened to be ahead at that moment, and on a
+	// concave progress curve that favours the fastest riser over the best
+	// eventual result.
+	//
+	// So a large change is a strong signal in either direction, but only one
+	// direction is safe to act on before it has been confirmed.
+	//
+	// A jump is measured against the node's slack, since a change of one is the
+	// entirety of a two-child node's discretion and a rounding error in a
+	// fifteen-child one's. A node with no slack has nothing to confirm.
+	if slack := n.alive() - n.k; slack > 0 && want > n.target {
+		if float64(want-n.target)/float64(slack) >= s.cfg.JumpFraction {
+			n.pending, n.pendingSince = want, time.Time{}
+			return want
+		}
 	}
-	if want > n.target && s.pressure >= s.cfg.ExpandAt {
-		return n.target
+
+	// A proposal that differs from the one on the table replaces it and starts
+	// its clock again; one that repeats leaves the clock running. The elapsed
+	// check then follows in the same pass rather than waiting for the next
+	// reconcile, so that a zero hold time means "apply at once" instead of
+	// "apply one reconcile later".
+	if want != n.pending || n.pendingSince.IsZero() {
+		n.pending, n.pendingSince = want, now
 	}
-	if want < n.target && s.pressure <= s.cfg.ContractAt {
-		return n.target
+	if now.Sub(n.pendingSince) >= s.cfg.ConfirmFor {
+		n.pending, n.pendingSince = want, time.Time{}
+		return want
 	}
-	return want
+	return n.target
+}
+
+func abs(v int) int {
+	if v < 0 {
+		return -v
+	}
+	return v
 }

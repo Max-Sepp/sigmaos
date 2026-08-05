@@ -70,13 +70,13 @@ func (f *fake) trace() []string {
 	return out
 }
 
-// testConfig disables smoothing and dwell so that a test states a pressure
-// and sees its consequence. The tests that exist to exercise those two put
-// them back.
+// testConfig disables smoothing and confirmation so that a test states a
+// pressure and sees its consequence. The tests that exist to exercise those
+// two put them back.
 func testConfig() Config {
 	c := DefaultConfig()
 	c.EWMAAlpha = 1
-	c.MinDwell = 0
+	c.ConfirmFor = 0
 	return c
 }
 

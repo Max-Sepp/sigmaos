@@ -17,14 +17,42 @@ var (
 
 // Config is the tuning the scheduler runs under.
 type Config struct {
-	MaxAttempts      int           // per-leaf cap on failed runs; 0 disables
-	ScoreStale       time.Duration // silence beyond this is reported as quiet
-	ExpandAt         float64       // pressure below which redundancy is added
-	ContractAt       float64       // pressure above which redundancy is shed
-	MinDwell         time.Duration // least a node holds a target before reversing
-	GradientFloor    Gradient      // least gradient that justifies a racer
-	QueueDelayTarget time.Duration // queue dwell that reads as full pressure
-	EWMAAlpha        float64       // weight on the newest pressure sample
+	MaxAttempts int           // per-leaf cap on failed runs; 0 disables
+	ScoreStale  time.Duration // age at which a tangent counts as fully stale
+
+	// Wmin and Wmax bound how far a candidate may carry a borrowed tangent,
+	// in units of expected duration, at full and at zero pressure. Wmin above
+	// zero is load-bearing: it is what leaves a wedged incumbent raceable on a
+	// cluster that reports itself full.
+	Wmin, Wmax float64
+
+	// Hfresh and Hstale bound how far an incumbent may carry its own tangent,
+	// at a just-reported and at a fully stale one.
+	Hfresh, Hstale float64
+
+	// NominalRate is the gradient presumed of an attempt nothing has anything
+	// to say about. Gradients are normalized by expected duration, so 1 is
+	// "proceeds as expected" and is the only defensible prior; it is a
+	// parameter because a fleet that habitually overruns its own estimates
+	// may honestly presume less.
+	NominalRate float64
+
+	// JumpFraction is the share of a node's slack a proposed change must cover
+	// to skip confirmation. It is a fraction rather than a count because the
+	// same count means opposite things at different widths: moving by one is
+	// the whole of a two-child node's slack and a fourteenth of a fifteen-child
+	// node's.
+	JumpFraction float64
+
+	// ConfirmFor is how long a smaller change must be proposed continuously
+	// before it is applied. It is a hold time, not a cooldown: it asks how
+	// long this proposal has been on the table, never how recently the last
+	// one was applied, so a node is never deaf to what happens next.
+	ConfirmFor time.Duration
+
+	PressureSource   PressureSource // how platform and self occupancy combine
+	QueueDelayTarget time.Duration  // queue dwell that reads as full pressure
+	EWMAAlpha        float64        // weight on the newest pressure sample
 }
 
 // DefaultConfig returns tuning suitable for a cluster of long-running batch
@@ -33,10 +61,13 @@ func DefaultConfig() Config {
 	return Config{
 		MaxAttempts:      3,
 		ScoreStale:       3 * time.Second,
-		ExpandAt:         0.55,
-		ContractAt:       0.75,
-		MinDwell:         5 * time.Second,
-		GradientFloor:    0.1,
+		Wmin:             0.25,
+		Wmax:             2.0,
+		Hfresh:           6.0,
+		Hstale:           0.35,
+		NominalRate:      1.0,
+		JumpFraction:     0.5,
+		ConfirmFor:       5 * time.Second,
 		QueueDelayTarget: 2 * time.Second,
 		EWMAAlpha:        0.3,
 	}
@@ -126,9 +157,14 @@ func (s *Scheduler) CancelTree(now time.Time, id TreeID) (Effect, error) {
 	return s.reconcile(now), nil
 }
 
-// OnScore records what an attempt reports about itself. It returns nil unless
-// the report changes which children of its node should be running, because on
-// a busy cluster this is the hottest path in the system.
+// OnScore records the tangent an attempt reports about itself.
+//
+// A report that restates what was already known changes nothing and is
+// dropped, which is worth the check because on a busy cluster this is the
+// hottest path in the system. Anything else reconciles: a tangent is an input
+// to every sibling's value as well as its own -- a peer's slope is what a
+// candidate borrows -- so there is no cheap local test for whether a report
+// mattered.
 func (s *Scheduler) OnScore(now time.Time, ref RunRef, sc Score, g Gradient) Effect {
 	s.now = now
 	n := s.leafFor(ref)
@@ -137,17 +173,11 @@ func (s *Scheduler) OnScore(now time.Time, ref RunRef, sc Score, g Gradient) Eff
 		return nil
 	}
 	l := n.leaf
-	wasAbove := l.hasScore && l.gradient > s.cfg.GradientFloor
-	before := s.topSet(n.parent)
-
-	l.score, l.gradient, l.hasScore, l.scoreAt = sc, g, true, now
-
-	if g > s.cfg.GradientFloor != wasAbove {
-		return s.reconcile(now)
-	}
-	if sameSet(before, s.topSet(n.parent)) {
+	if l.hasScore && l.score == sc && l.gradient == g {
+		l.scoreAt = now
 		return nil
 	}
+	l.score, l.gradient, l.hasScore, l.scoreAt = sc, g, true, now
 	return s.reconcile(now)
 }
 
@@ -345,37 +375,52 @@ func (s *Scheduler) walk(t *tree, budget int) []func() {
 	return fs
 }
 
-// retarget decides how many of a node's children should be running.
+// retarget decides how many of a node's children should be running, in two
+// steps that answer two different questions.
 //
-// Contention decides how far above k, and score decides which: at pressure 0
-// every surviving child runs, at pressure 1 exactly k do. The same arithmetic
-// prunes a search, sheds a coded quorum's surplus and races a straggler; only
-// k relative to n differs.
+// The first is what the cluster can afford: at pressure 0 every surviving
+// child runs, at pressure 1 exactly k do. This is slack, and it is spent on
+// the best children because they are the ones ranked first. No threshold gates
+// it. A rule that refused all redundancy above some fixed pressure would leave
+// a stalled attempt unraceable on a cluster with slots to spare, since nothing
+// an application could report would reach past the threshold.
+//
+// The second is what the evidence justifies beyond that. Slack is a count and
+// so cannot tell one stalled task from nine healthy ones -- it duplicates all
+// of them or none. The value comparison is what separates them: a child past
+// what slack paid for is admitted only if it is worth more than the weakest
+// member of the quorum. On a full cluster that is the only way anything
+// redundant starts, and since a stalled incumbent's own tangent values it at
+// nearly nothing, it is exactly when one should.
+//
+// The same two steps prune a search, shed a coded quorum's surplus and race a
+// straggler. Nothing here knows which it is doing; only k relative to n and
+// what the applications reported differ.
 func (s *Scheduler) retarget(n *node) {
 	a := n.alive()
 	if a == 0 {
-		n.target, n.racers = 0, 0
+		n.target, n.racers, n.pending = 0, 0, 0
+		n.pendingSince = time.Time{}
 		return
 	}
-	base := clampInt(n.k+int(math.Round((1-s.pressure)*float64(a-n.k))), n.k, a)
 
-	// A racer is justified only when the gradient says duplication would help
-	// and there is slack to pay for it. Either alone is wrong: gradient alone
-	// races on a full cluster, slack alone races work that is nearly done.
-	r := 0
-	if s.pressure < s.cfg.ExpandAt {
-		for _, c := range n.children {
-			if c.state == NodePending && c.running() > 0 && c.gradient() > s.cfg.GradientFloor {
-				r++
-			}
+	k := clampInt(n.k, 0, a)
+	ranked := s.rank(n)
+	base := clampInt(k+int(math.Round((1-s.pressure)*float64(a-k))), k, a)
+
+	// Ranked descending, so once one candidate fails to clear the bar every
+	// one after it fails too.
+	want := base
+	bar := s.quorumBar(ranked, k)
+	for i := base; i < a; i++ {
+		if s.value(ranked[i]) <= bar {
+			break
 		}
+		want++
 	}
 
-	want := clampInt(s.hysteresis(n, base+r, s.now), n.k, a)
-	if want != n.target {
-		n.target = want
-		n.lastTargetAt = s.now
-	}
+	want = clampInt(s.confirm(n, clampInt(want, k, a), s.now), k, a)
+	n.target = want
 	n.racers = max(want-base, 0)
 }
 
@@ -387,12 +432,12 @@ func (s *Scheduler) retarget(n *node) {
 // no share small enough to make that trade worth taking; a tree whose required
 // work alone exceeds its share simply has nothing to give and keeps running.
 //
-// Within a node the lowest-ranked children go first, which takes racers before
-// ordinary surplus without needing to say so: assign puts the gradient-granted
-// slots at the bottom of the ranking. Between nodes it is preorder, so the
-// broadest redundancy is given up before the deepest -- and dropping one child
-// of a Select can free a whole subtree, which is why this counts slots freed
-// rather than children dropped.
+// Within a node the lowest-valued children go first, on the same ranking
+// retarget admitted down, so what a node gives back is whatever it reached
+// furthest to get. Between nodes it is preorder, so the broadest redundancy is
+// given up before the deepest -- and dropping one child of a Select can free a
+// whole subtree, which is why this counts slots freed rather than children
+// dropped.
 func (s *Scheduler) shed(n *node, over int, displaced map[NodeID]bool) int {
 	if over <= 0 || n.target <= n.k {
 		return 0
@@ -413,13 +458,20 @@ func (s *Scheduler) shed(n *node, over int, displaced map[NodeID]bool) int {
 		return 0
 	}
 	n.racers = max(n.racers-dropped, 0)
-	// Hold the smaller target for a dwell, so the pressure rule does not
-	// restore it on the next reconcile and undo the arbiter.
-	n.lastTargetAt = s.now
+	// Put the smaller target on the table as the proposal being held, so that
+	// retarget on the next reconcile has to confirm restoring it rather than
+	// simply undoing the arbiter.
+	n.pending, n.pendingSince = n.target, s.now
 	return freed
 }
 
 // assign marks which children a node keeps running, best first.
+//
+// Everything inside the quorum is required. Everything past it is redundancy,
+// and which of the two surplus reasons applies is a question about what paid
+// for the slot: slack the cluster had going spare, or a value estimate that
+// cleared the quorum bar. Telling them apart afterwards is the only way to
+// know whether the model decided anything or merely spent idle capacity.
 func (s *Scheduler) assign(n *node, sel map[NodeID]bool, why map[NodeID]StartReasonKind) {
 	for i, c := range s.rank(n) {
 		if c.state == NodeFailed || i >= n.target {
@@ -431,31 +483,45 @@ func (s *Scheduler) assign(n *node, sel map[NodeID]bool, why map[NodeID]StartRea
 		case i < n.k:
 			why[c.id] = StartRequiredForQuorum
 		case i >= n.target-n.racers:
-			why[c.id] = StartSpeculativeRacer
+			why[c.id] = StartDerivedValue
 		default:
 			why[c.id] = StartSlackRedundancy
 		}
 	}
 }
 
-// rank orders a node's children best first: by score, then by how long they
-// have been running so an established attempt is not displaced by a fresh one
-// at equal score, then by identity so replay produces the same decisions.
+// rank orders a node's children best first, by the one value both ends of the
+// decision read: retarget admits down this order and shed drops up it, so
+// whatever a node reached furthest to get is the first thing it gives back,
+// without either end having to agree about anything except this function.
+//
+// Children that have reported come first as a class, ahead of children valued
+// on a peer's borrowed tangent however well that tangent speaks of them. An
+// estimate is evidence about what a candidate might become and a report is
+// evidence about what an attempt is, and the two do not belong in one
+// ordering: interleaving them would let a guess displace work already under
+// way, and would collapse the redundancy comparison in quorumBar into a
+// comparison of a value with itself.
+//
+// Ties break towards work already under way, then by identity, so that
+// replaying a tree produces the same decisions.
 func (s *Scheduler) rank(n *node) []*node {
 	out := make([]*node, len(n.children))
 	copy(out, n.children)
+	val := make(map[NodeID]float64, len(out))
+	for _, c := range out {
+		val[c.id] = s.value(c)
+	}
 	sort.SliceStable(out, func(i, j int) bool {
 		a, b := out[i], out[j]
 		if af, bf := a.state == NodeFailed, b.state == NodeFailed; af != bf {
 			return bf
 		}
-		as, aok := a.score()
-		bs, bok := b.score()
-		if aok != bok {
-			return aok
+		if ar, br := a.reported(), b.reported(); ar != br {
+			return ar
 		}
-		if aok && as != bs {
-			return as > bs
+		if av, bv := val[a.id], val[b.id]; av != bv {
+			return av > bv
 		}
 		at, bt := a.oldestStart(), b.oldestStart()
 		if !at.Equal(bt) {
@@ -472,45 +538,18 @@ func (s *Scheduler) rank(n *node) []*node {
 	return out
 }
 
-// topSet is the set of children a node would keep running right now.
-func (s *Scheduler) topSet(n *node) map[NodeID]bool {
-	if n == nil {
-		return nil
-	}
-	set := make(map[NodeID]bool, n.target)
-	for i, c := range s.rank(n) {
-		if i >= n.target {
-			break
-		}
-		set[c.id] = true
-	}
-	return set
-}
-
-func sameSet(a, b map[NodeID]bool) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for k := range a {
-		if !b[k] {
-			return false
-		}
-	}
-	return true
-}
-
 // stopReason attributes a stop to whichever ancestor settled the question.
-func (s *Scheduler) stopReason(t *tree, n *node, displaced bool) (StopReasonKind, Score) {
+func (s *Scheduler) stopReason(t *tree, n *node, displaced bool) (StopReasonKind, float64) {
 	if t.cancelled {
 		return StopTreeCancelled, 0
 	}
 	for p := n.parent; p != nil; p = p.parent {
 		switch p.state {
 		case NodeSatisfied:
-			// A racing duplicate and an ordinary surplus child look identical
-			// from the tree's shape, so only how the attempt began tells them
-			// apart.
-			if n.leaf.startWhy == StartSpeculativeRacer {
+			// Surplus the cluster had going spare and redundancy started to
+			// beat an incumbent look identical from the tree's shape, so only
+			// how the attempt was admitted tells them apart.
+			if n.leaf.raced {
 				return StopRacerLost, 0
 			}
 			return StopQuorumReached, 0
@@ -525,13 +564,34 @@ func (s *Scheduler) stopReason(t *tree, n *node, displaced bool) (StopReasonKind
 	if displaced {
 		return StopCapacityForHigherTree, 0
 	}
-	best, _ := n.parent.bestScore()
-	return StopOutrankedBySibling, best
+	return StopOutrankedBySibling, s.bestSiblingValue(n)
+}
+
+// bestSiblingValue is the best value among a node's siblings, the figure a
+// stop for being outranked is measured against.
+func (s *Scheduler) bestSiblingValue(n *node) float64 {
+	if n.parent == nil {
+		return 0
+	}
+	best, found := 0.0, false
+	for _, c := range n.parent.children {
+		if c == n || c.state == NodeFailed {
+			continue
+		}
+		if v := s.value(c); !found || v > best {
+			best, found = v, true
+		}
+	}
+	return best
 }
 
 func (s *Scheduler) start(t *tree, n *node, kind StartReasonKind) func() {
 	l := n.leaf
-	if kind != StartRequiredForQuorum && kind != StartSpeculativeRacer {
+	// Whether the value comparison admitted this attempt is settled before the
+	// retry kinds overwrite why it is starting, because the two answer
+	// different questions and a stop later needs the first one.
+	raced := kind == StartDerivedValue
+	if kind != StartRequiredForQuorum && kind != StartDerivedValue {
 		switch l.prev {
 		case endStopped:
 			kind = StartRequeuedAfterStop
@@ -540,14 +600,15 @@ func (s *Scheduler) start(t *tree, n *node, kind StartReasonKind) func() {
 		}
 	}
 	why := StartReason{Kind: kind, Pressure: s.pressure, Attempt: l.attempts}
-	if kind == StartSpeculativeRacer {
-		why.Gradient = l.gradient
+	if kind == StartDerivedValue {
+		why.Value, why.Width = s.value(n), s.width()
 	}
 
 	l.rs = RQueued
 	l.queuedAt = s.now
 	l.startedAt = time.Time{}
 	l.startWhy = kind
+	l.raced = raced
 	s.nCharged++
 	s.stats.NStarts[kind]++
 
@@ -558,11 +619,11 @@ func (s *Scheduler) start(t *tree, n *node, kind StartReasonKind) func() {
 	return func() { ex.Start(ref, lc, why) }
 }
 
-func (s *Scheduler) stop(t *tree, n *node, kind StopReasonKind, best Score) func() {
+func (s *Scheduler) stop(t *tree, n *node, kind StopReasonKind, best float64) func() {
 	l := n.leaf
 	why := StopReason{Kind: kind, Pressure: s.pressure}
 	if kind == StopOutrankedBySibling {
-		why.Score, why.BestSiblingScore = l.score, best
+		why.Value, why.BestSiblingValue = s.value(n), best
 	}
 
 	// The slot stays charged: until a terminal event arrives the work really

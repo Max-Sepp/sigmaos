@@ -73,10 +73,19 @@ message CancelTreeRep {
 
 // ReportScoreReq is pushed by a running proc, and is the hot path.
 //
-// score is opaque: higher means more deserving of resources, and only the
-// ordering among one node's children carries any meaning. gradient is the
-// marginal value of one more attempt racing the same goal, which is the
-// extrapolation the scheduler is not allowed to infer from score.
+// The two fields are one report: a point on the proc's value curve and the
+// slope there. score is how much of its value has been realized, cardinal
+// within one node; gradient is the derivative of that with respect to elapsed
+// time, in units of the proc's own expected duration, so that
+// score + gradient*w is the proc's own estimate of where it will be w
+// expected-durations later. A proc covering its work as fast as it predicted
+// reports a gradient near 1, and one making no progress reports 0 however long
+// it has been running.
+//
+// The sign is the reverse of an overdueness measure: this number falls as an
+// attempt gets into trouble. A proc reporting 0 while its score climbs asserts
+// a flat curve its own scores contradict, and the scheduler extrapolates along
+// whatever is reported here, so the claim matters.
 message ReportScoreReq {
   RunRef ref = 1;
   double score = 2;
@@ -181,9 +190,10 @@ message NodeStatus {
   double gradient = 16;
   bool hasScore = 17;
 
-  // scoreStale reports that a running attempt has gone quiet. It is reported
-  // and never acted on: an attempt that is compute-bound may simply not have
-  // reached its next reporting point.
+  // scoreStale reports that a running attempt's tangent has aged out. It
+  // discounts and never terminates: an attempt that is compute-bound may
+  // simply not have reached its next reporting point, so staleness lowers what
+  // its claim is worth and is never on its own a reason to stop it.
   bool scoreStale = 18;
 
   string pID = 19;                    // the current attempt's proc

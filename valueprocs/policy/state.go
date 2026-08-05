@@ -102,10 +102,19 @@ type leafState struct {
 	stops    int
 	prev     runEnd
 
-	// startWhy is the provenance a stop is later classified against. A racing
-	// duplicate and an ordinary surplus child are indistinguishable by shape,
-	// so only the reason an attempt began can tell them apart.
+	// startWhy is the provenance a stop is later classified against, and raced
+	// records that the attempt was admitted by the value comparison rather
+	// than paid for out of slack.
+	//
+	// They are separate for two reasons. startWhy is overwritten when a retry
+	// restates why an attempt is beginning, where how it was admitted is a
+	// fact about the decision and does not change. And the distinction matters
+	// to a stop: surplus the cluster had going spare, ended because the quorum
+	// filled up, is routine, while redundancy admitted on an estimate that it
+	// would beat an incumbent has lost a race it was started to run. The tree's
+	// shape cannot tell them apart -- both are children past k.
 	startWhy StartReasonKind
+	raced    bool
 
 	score    Score
 	gradient Gradient
@@ -130,9 +139,14 @@ type node struct {
 
 	state NodeState
 
-	target       int
-	racers       int // slots in target that exist only because of gradient
-	lastTargetAt time.Time
+	target int
+	racers int // slots in target that reach past the quorum
+
+	// pending is the target being proposed and pendingSince is when it was
+	// first proposed. Together they are the hold timer: a proposal has to stay
+	// on the table to be applied, and a changing one restarts its own clock.
+	pending      int
+	pendingSince time.Time
 }
 
 func (n *node) isLeaf() bool { return n.leaf != nil }
@@ -183,6 +197,19 @@ func (n *node) running() int {
 	return r
 }
 
+// reported is whether anything in the subtree has a tangent of its own, which
+// is what separates a child standing on its own evidence from one standing on
+// a peer's.
+func (n *node) reported() bool {
+	found := false
+	n.eachLeaf(func(m *node) {
+		if m.leaf.hasScore {
+			found = true
+		}
+	})
+	return found
+}
+
 // score is how a subtree ranks against its siblings. A Select stands on its
 // best leaf, since that is the one deciding whether it will be satisfied.
 func (n *node) score() (Score, bool) {
@@ -194,35 +221,6 @@ func (n *node) score() (Score, bool) {
 		}
 	})
 	return best, found
-}
-
-// bestScore is the best score among a node's children, the figure a stop for
-// being outranked is measured against.
-func (n *node) bestScore() (Score, bool) {
-	if n == nil {
-		return 0, false
-	}
-	var best Score
-	found := false
-	for _, c := range n.children {
-		if sc, ok := c.score(); ok && (!found || sc > best) {
-			best, found = sc, true
-		}
-	}
-	return best, found
-}
-
-// gradient is the strongest case any running attempt in the subtree makes for
-// being raced. Only running attempts count: one still waiting to be placed is
-// not slow, and racing it would add load without addressing anything.
-func (n *node) gradient() Gradient {
-	var g Gradient
-	n.eachLeaf(func(m *node) {
-		if l := m.leaf; l.rs == RRunning && l.hasScore && l.gradient > g {
-			g = l.gradient
-		}
-	})
-	return g
 }
 
 func (n *node) oldestStart() time.Time {

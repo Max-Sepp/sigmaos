@@ -27,21 +27,61 @@ type VPConfig struct {
 	MapperBin, ReducerBin             string
 }
 
-// Gradient is the marginal-value signal a mapper/reducer reports alongside
-// its score: zero until a task has run its expected duration, then rising
-// linearly and uncapped. It is a continuous generalization of the
-// coordinator's existing SpecSlowFactor heuristic (elapsed > 1.5x mean),
-// letting the scheduler's own GradientFloor decide whether a task is worth
-// racing rather than reimplementing a threshold here.
+// Rate tracks the gradient a mapper/reducer reports alongside its score: the
+// slope of its value curve, in score per expected-duration.
 //
-// expected <= 0 means no estimate was given (e.g. this proc wasn't spawned
-// by the value-procs coordinator), so the gradient is always 0 -- no racing
-// signal, not a division by zero.
-func Gradient(elapsed, expected time.Duration) float64 {
-	if expected <= 0 {
+// The scheduler extrapolates along this. It reads score + gradient*w as the
+// task's own estimate of where it will be w expected-durations later, so the
+// number has to be a rate and not a measure of lateness -- substituting one
+// that rises with overdueness would claim a stalled task is about to finish
+// sooner than a healthy one. A task covering its work as fast as it predicted
+// reports about 1, and one making no progress reports 0 however long it has
+// been running.
+//
+// The slope is measured over the interval between reports rather than averaged
+// from the start, because what matters is the curve where the task is now. A
+// task that ran normally and then stalled has a respectable average and a
+// current slope of zero, and it is the zero that should get it raced.
+type Rate struct {
+	expected time.Duration
+
+	lastScore float64
+	lastAt    time.Time
+}
+
+// NewRate returns a tracker for a task expected to take d.
+//
+// d <= 0 means no estimate was given -- this proc was not spawned by the
+// value-procs coordinator -- and every gradient is then 0. That is the honest
+// answer rather than a division by zero: with no expected duration there is no
+// scale to normalize against, and 0 claims only that no progress can be
+// accounted for.
+func NewRate(d time.Duration) *Rate {
+	return &Rate{expected: d}
+}
+
+// Observe records a score at a moment and returns the gradient to report with
+// it.
+func (r *Rate) Observe(score float64, now time.Time) float64 {
+	if r.expected <= 0 {
 		return 0
 	}
-	return math.Max(0, elapsed.Seconds()/expected.Seconds()-1)
+	prevScore, prevAt := r.lastScore, r.lastAt
+	r.lastScore, r.lastAt = score, now
+	if prevAt.IsZero() {
+		// The first report has no interval behind it to measure a slope over.
+		// Nothing has been observed to happen yet, so nothing is claimed.
+		return 0
+	}
+	dt := now.Sub(prevAt)
+	if dt <= 0 {
+		return 0
+	}
+	// Normalizing by expected duration is what makes this comparable with the
+	// gradient of a task of another size, which is the whole reason the
+	// scheduler can borrow one task's slope to value another.
+	dtau := dt.Seconds() / r.expected.Seconds()
+	return math.Max(0, (score-prevScore)/dtau)
 }
 
 // startVProc wires a mapper/reducer proc into the value-procs runtime. It

@@ -216,7 +216,7 @@ func (r *Reducer) ReadFiles(rtot *readResult) error {
 	if randOffset < 0 {
 		randOffset *= -1
 	}
-	start := time.Now()
+	rate := NewRate(r.expectedDur)
 	for i := 0; i < r.nmaptask; i++ {
 		f := (i + randOffset) % r.nmaptask
 		if MAXCONCURRENCY > 1 {
@@ -226,7 +226,8 @@ func (r *Reducer) ReadFiles(rtot *readResult) error {
 			r.readFile(rr)
 			rtot.sum(rr)
 			if r.vc != nil {
-				r.vc.Score(float64(i+1)/float64(r.nmaptask), Gradient(time.Since(start), r.expectedDur))
+				sc := float64(i+1) / float64(r.nmaptask)
+				r.vc.Score(sc, rate.Observe(sc, time.Now()))
 			}
 		}
 	}

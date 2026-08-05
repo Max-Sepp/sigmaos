@@ -112,8 +112,9 @@ func newMapper(mapf mr.MapT, reducef mr.ReduceT, args []string, p *perf.Perf) (*
 		}
 	}
 	// The expected map duration is an optional 9th arg, given only by the
-	// value-procs coordinator (see mr.Gradient); absent, expectedDur stays 0
-	// and this mapper's gradient is always 0.
+	// value-procs coordinator (see mr.Rate); absent, expectedDur stays 0 and
+	// this mapper's gradient is always 0, there being no scale to normalize a
+	// rate against.
 	expectedDurMs := 0
 	if len(args) == 9 {
 		expectedDurMs, err = strconv.Atoi(args[8])
@@ -306,14 +307,18 @@ func (m *Mapper) doSplit(s *mr.Split) (sp.Tlength, error) {
 	return n, err
 }
 
-// sleepReportingGradient sleeps until taskStart+d, reporting this leaf's
-// gradient (score 0: no split work done yet) once per gradientHeartbeat
-// along the way. Without this, hasScore stays false for the entire delay
-// (vc.Score is otherwise only called after doSplit finishes), so the
-// scheduler's gradient() reads 0 the whole time a leaf is stuck here -- it
-// can never look wedged until the delay is already over.
-func (m *Mapper) sleepReportingGradient(taskStart time.Time, d time.Duration) {
-	deadline := taskStart.Add(d)
+// sleepReportingGradient sleeps for d, reporting score 0 once per
+// gradientHeartbeat along the way. Without this, vc.Score is not called until
+// doSplit finishes, so the leaf has no tangent at all while it is stuck here
+// and the scheduler cannot tell it apart from one that has merely not been
+// placed yet.
+//
+// Repeating score 0 is what makes the reports say something: each interval
+// contributes no progress, so the rate the scheduler reads is 0. That is the
+// claim "I am converting no time into value", and it is what justifies
+// starting a backup.
+func (m *Mapper) sleepReportingGradient(rate *Rate, d time.Duration) {
+	deadline := time.Now().Add(d)
 	for {
 		remaining := time.Until(deadline)
 		if remaining <= 0 {
@@ -325,20 +330,21 @@ func (m *Mapper) sleepReportingGradient(taskStart time.Time, d time.Duration) {
 		}
 		time.Sleep(step)
 		if m.vc != nil {
-			m.vc.Score(0, Gradient(time.Since(taskStart), m.expectedDur))
+			now := time.Now()
+			m.vc.Score(0, rate.Observe(0, now))
 		}
 	}
 }
 
 func (m *Mapper) DoMap() (sp.Tlength, sp.Tlength, Bin, error) {
-	// taskStart, not getSplitStart below, is the gradient baseline: a leaf
-	// stuck in the straggler delay must look wedged to the scheduler while
-	// it is still wedged, not only once the delay has already ended.
-	taskStart := time.Now()
+	// The rate is measured from the task's start, not from the first split: a
+	// leaf stuck in the straggler delay must look wedged to the scheduler
+	// while it is still wedged, not only once the delay has already ended.
+	rate := NewRate(m.expectedDur)
 	if m.slowdownMs > SlowdownOff {
 		// Artificially slow down this one task, to measure straggler impact.
 		db.DPrintf(db.MR, "doMap: straggler delay %dms", m.slowdownMs)
-		m.sleepReportingGradient(taskStart, time.Duration(m.slowdownMs)*time.Millisecond)
+		m.sleepReportingGradient(rate, time.Duration(m.slowdownMs)*time.Millisecond)
 	}
 	db.DPrintf(db.MR, "doMap %v", m.input)
 	getInputStart := time.Now()
@@ -361,7 +367,8 @@ func (m *Mapper) DoMap() (sp.Tlength, sp.Tlength, Bin, error) {
 		}
 		ni += n
 		if m.vc != nil {
-			m.vc.Score(float64(i+1)/float64(len(bin)), Gradient(time.Since(taskStart), m.expectedDur))
+			sc := float64(i+1) / float64(len(bin))
+			m.vc.Score(sc, rate.Observe(sc, time.Now()))
 		}
 	}
 	perf.LogSpawnLatency("Mapper.doSplit", m.ProcEnv().GetPID(), m.ProcEnv().GetSpawnTime(), getSplitStart)

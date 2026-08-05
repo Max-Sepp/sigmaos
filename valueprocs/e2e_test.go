@@ -447,20 +447,31 @@ func TestPruningUnderLoad(t *testing.T) {
 	release := fillCluster(t, ts)
 	defer release()
 
-	// Pressure is smoothed and a target has to hold for a dwell before it may
-	// reverse, so this is patient on purpose: the point of both is that a
-	// cluster that is briefly busy does not disturb anything.
+	// Pressure is smoothed and a target has to hold before it may reverse, so
+	// this is patient on purpose: the point of both is that a cluster that is
+	// briefly busy does not disturb anything.
 	// Busy, not just Pressure: the spinners have to be what did this. Queue
 	// dwell is a pressure term too, so a test that only watched the total
 	// would keep passing if the probe stopped seeing the machine at all.
+	//
+	// The last observation is kept so a failure can say which of the three
+	// conditions was not met. Without it the message is the same whether the
+	// spinners never landed, the probe never saw them, or the scheduler saw
+	// them and declined to act -- and those want completely different fixes.
+	var lastBusy, lastPressure float64
+	lastTarget := -1
 	if !assert.True(t, eventually(t, 120*time.Second, func() bool {
 		st, err := ts.c.SchedStats()
-		if err != nil || st.Busy <= 0.75 || st.Pressure <= 0.75 {
+		if err != nil {
 			return false
 		}
-		n, ok := nodeOf(ts, "t7", "r")
-		return ok && n.Target < 3
-	}), "a saturated cluster never narrowed the tree toward its quorum") {
+		lastBusy, lastPressure = st.Busy, st.Pressure
+		if n, ok := nodeOf(ts, "t7", "r"); ok {
+			lastTarget = int(n.Target)
+		}
+		return st.Busy > 0.75 && st.Pressure > 0.75 && lastTarget >= 0 && lastTarget < 3
+	}), "a saturated cluster never narrowed the tree toward its quorum: last busy=%v pressure=%v target=%v",
+		lastBusy, lastPressure, lastTarget) {
 		return
 	}
 
