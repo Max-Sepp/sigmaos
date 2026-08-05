@@ -69,6 +69,8 @@ func TestCodedMatMulSlotContention(t *testing.T) {
 		Mem:          ContentionWorkerMem,
 		Seed:         7159623,
 	}
+	db.DPrintf(db.ALWAYS, "TestCodedMatMulSlotContention: cfg M=%d D=%d W=%d N=%d K=%d Mcpu=%d Mem=%d Repeats=%d StragglerIdx=%v, remainingSlots=%d (%dMB)",
+		cfg.M, cfg.D, cfg.W, cfg.N, cfg.K, cfg.Mcpu, cfg.Mem, cfg.Repeats, cfg.StragglerIdx, ContentionRemainingSlots, remainingSlots)
 	r := cfg.M / cfg.K
 
 	// Reference C, computed once directly (not via the harness), same

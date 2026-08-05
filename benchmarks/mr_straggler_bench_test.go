@@ -66,6 +66,9 @@ func runMRStragglerJob(mrts *test.MultiRealmTstate, slowdownMs int, specEnabled 
 		jobname, proc.Tmem(StragglerMemReq), StragglerSlowTaskId, slowdownMs, specEnabled)
 	ji.PrepareMRJob()
 
+	db.DPrintf(db.ALWAYS, "runMRStragglerJob: job=%v app=%v memreq=%dMB slowTaskId=%d slowdownMs=%d specEnabled=%v",
+		jobname, StragglerMRApp, StragglerMemReq, StragglerSlowTaskId, slowdownMs, specEnabled)
+
 	fillers := injectContention(ts, ji.SigmaClnt)
 	defer releaseContention(ji.SigmaClnt, fillers)
 

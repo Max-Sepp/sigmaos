@@ -42,7 +42,16 @@ func (b Bin) String() string {
 	return r
 }
 
-// Result of mapper or reducer
+// Result of mapper or reducer. TaskId, IsBackup, and Lost only ever get set
+// by the baseline coordinator (apps/mr/coord.go's processResult): TaskId is
+// the logical ft/task id every attempt (original, backup, or restart-redo)
+// for the same unit of work shares, so entries can be correlated across
+// separate Result records for that task; IsBackup marks an attempt
+// speculative execution launched (rather than a task's original attempt);
+// Lost marks an attempt whose result was discarded because a sibling
+// attempt for the same task won first -- see apps/mr/bench.go's
+// PrintMRStats for how these surface per-task speculative decisions in a
+// benchmark's own log.
 type Result struct {
 	IsM      bool       `json:"IsM"`
 	Task     string     `json:"Task"`
@@ -52,6 +61,9 @@ type Result struct {
 	MsInner  int64      `json:"MsInner"`
 	MsOuter  int64      `json:"MsOuter"`
 	KernelID string     `json:"KernelID"`
+	TaskId   int32      `json:"TaskId"`
+	IsBackup bool       `json:"IsBackup"`
+	Lost     bool       `json:"Lost"`
 }
 
 func NewResult(data interface{}) (*Result, error) {

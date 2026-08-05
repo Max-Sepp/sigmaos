@@ -69,6 +69,11 @@ func runCodedMatMulValueProcsArm(t *testing.T, c *clnt.Clnt, cfg *codedmatmul.Co
 	}
 	db.DPrintf(db.ALWAYS, "CodedMatMul %s: makespan %v, mcpu=0 (unreserved), %d attempts stopped (surplus reclaimed)",
 		name, res.Makespan, stopped)
+	if st, err := j.Status(); err == nil {
+		db.DPrintf(db.ALWAYS, "CodedMatMul %s final tree: %s", name, dumpTreeStatus(st))
+	} else {
+		db.DPrintf(db.ALWAYS, "%s: Status err %v", name, err)
+	}
 	return res
 }
 
@@ -88,11 +93,15 @@ func TestCodedMatMul(t *testing.T) {
 	defer releaseContention(sc, fillers)
 
 	cfg := codedmatmul.DefaultConfig()
-	// DefaultConfig leaves Mem at 0 (unconstrained); give workers a declared
-	// reservation close to their real ~150MB working set (see
-	// apps/codedmatmul/worker.go) so -contention_free_mb's filler procs can
-	// actually queue them behind besched's admission check.
-	cfg.Mem = ContentionWorkerMem
+	// DefaultConfig leaves Mem at 0 (unconstrained). Only declare a reservation
+	// when contention injection is actually requested -- besched's memory-based
+	// admission would otherwise apply unconditionally and can perturb this
+	// test's timing assertions even with no filler procs running.
+	if contentionEnabled() {
+		cfg.Mem = ContentionWorkerMem
+	}
+	db.DPrintf(db.ALWAYS, "TestCodedMatMul: cfg M=%d D=%d W=%d N=%d K=%d Mcpu=%d Mem=%d Repeats=%d StragglerIdx=%v",
+		cfg.M, cfg.D, cfg.W, cfg.N, cfg.K, cfg.Mcpu, cfg.Mem, cfg.Repeats, cfg.StragglerIdx)
 	r := cfg.M / cfg.K
 
 	// Reference C, computed once directly (not via the harness) from the

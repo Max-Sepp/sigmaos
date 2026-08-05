@@ -28,6 +28,10 @@ import (
 
 const (
 	CONCURRENCY = 5
+	// gradientHeartbeat is how often DoMap reports a gradient while sleeping
+	// through an injected straggler delay, so a wedged leaf's gradient rises
+	// in real time instead of only becoming visible once the delay is over.
+	gradientHeartbeat = time.Second
 )
 
 type Mapper struct {
@@ -302,11 +306,39 @@ func (m *Mapper) doSplit(s *mr.Split) (sp.Tlength, error) {
 	return n, err
 }
 
+// sleepReportingGradient sleeps until taskStart+d, reporting this leaf's
+// gradient (score 0: no split work done yet) once per gradientHeartbeat
+// along the way. Without this, hasScore stays false for the entire delay
+// (vc.Score is otherwise only called after doSplit finishes), so the
+// scheduler's gradient() reads 0 the whole time a leaf is stuck here -- it
+// can never look wedged until the delay is already over.
+func (m *Mapper) sleepReportingGradient(taskStart time.Time, d time.Duration) {
+	deadline := taskStart.Add(d)
+	for {
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			return
+		}
+		step := gradientHeartbeat
+		if remaining < step {
+			step = remaining
+		}
+		time.Sleep(step)
+		if m.vc != nil {
+			m.vc.Score(0, Gradient(time.Since(taskStart), m.expectedDur))
+		}
+	}
+}
+
 func (m *Mapper) DoMap() (sp.Tlength, sp.Tlength, Bin, error) {
+	// taskStart, not getSplitStart below, is the gradient baseline: a leaf
+	// stuck in the straggler delay must look wedged to the scheduler while
+	// it is still wedged, not only once the delay has already ended.
+	taskStart := time.Now()
 	if m.slowdownMs > SlowdownOff {
 		// Artificially slow down this one task, to measure straggler impact.
 		db.DPrintf(db.MR, "doMap: straggler delay %dms", m.slowdownMs)
-		time.Sleep(time.Duration(m.slowdownMs) * time.Millisecond)
+		m.sleepReportingGradient(taskStart, time.Duration(m.slowdownMs)*time.Millisecond)
 	}
 	db.DPrintf(db.MR, "doMap %v", m.input)
 	getInputStart := time.Now()
@@ -329,7 +361,7 @@ func (m *Mapper) DoMap() (sp.Tlength, sp.Tlength, Bin, error) {
 		}
 		ni += n
 		if m.vc != nil {
-			m.vc.Score(float64(i+1)/float64(len(bin)), Gradient(time.Since(getSplitStart), m.expectedDur))
+			m.vc.Score(float64(i+1)/float64(len(bin)), Gradient(time.Since(taskStart), m.expectedDur))
 		}
 	}
 	perf.LogSpawnLatency("Mapper.doSplit", m.ProcEnv().GetPID(), m.ProcEnv().GetSpawnTime(), getSplitStart)
@@ -376,7 +408,10 @@ func RunMapper(mapf mr.MapT, combinef mr.ReduceT, args []string) {
 	db.DPrintf(db.MR_TPT, "%s: in %s out %v tot %v %vms (%s)\n", "map", humanize.Bytes(uint64(nin)), humanize.Bytes(uint64(nout)), test.Mbyte(nin+nout), time.Since(start).Milliseconds(), test.TputStr(nin+nout, time.Since(start).Milliseconds()))
 	if err == nil {
 		m.ClntExit(proc.NewStatusInfo(proc.StatusOK, "OK",
-			Result{true, m.ProcEnv().GetPID().String(), nin, nout, outbin, time.Since(start).Milliseconds(), 0, m.ProcEnv().GetKernelID()}))
+			Result{
+				IsM: true, Task: m.ProcEnv().GetPID().String(), In: nin, Out: nout, OutBin: outbin,
+				MsInner: time.Since(start).Milliseconds(), KernelID: m.ProcEnv().GetKernelID(),
+			}))
 	} else {
 		m.ClntExit(proc.NewStatusErr(err.Error(), nil))
 	}

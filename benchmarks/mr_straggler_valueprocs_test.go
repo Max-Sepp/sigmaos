@@ -7,7 +7,6 @@ package benchmarks_test
 // plus the baseline's time-heuristic backup logic.
 
 import (
-	"fmt"
 	"path/filepath"
 	"testing"
 	"time"
@@ -97,23 +96,6 @@ func sumLeafStops(st *proto.TreeStatusRep) int32 {
 	return n
 }
 
-// dumpTreeStatus formats one line per node of a tree, with enough of
-// NodeStatus to tell a genuinely wedged leaf (charged, no score movement, no
-// PID any more) apart from one that is merely slow. Used only by
-// watchMRValueProcsProgress.
-func dumpTreeStatus(st *proto.TreeStatusRep) string {
-	s := fmt.Sprintf("tree %s state=%s cancelled=%v nRunning=%d nCharged=%d",
-		st.TID, st.State, st.Cancelled, st.NRunning, st.NCharged)
-	for _, n := range st.Nodes {
-		if !n.IsLeaf {
-			continue
-		}
-		s += fmt.Sprintf("\n  leaf %s label=%s state=%s runState=%s run=%d attempts=%d stops=%d hasScore=%v score=%.3f scoreStale=%v pid=%s",
-			n.NodeID, n.Label, n.State, n.RunState, n.Run, n.Attempts, n.Stops, n.HasScore, n.Score, n.ScoreStale, n.PID)
-	}
-	return s
-}
-
 // watchMRValueProcsProgress polls the map/reduce trees and the scheduler's
 // own stats every interval and logs what it sees. This coordinator can stall
 // or crash-loop without leaving a trace here: its own DPrintfs land in its
@@ -165,6 +147,9 @@ func runMRValueProcsStragglerJob(mrts *test.MultiRealmTstate, vpc *clnt.Clnt, sl
 	ji := NewMRValueProcsJobInstance(rts, StragglerMRApp, chooseMRJobRoot(rts), jobname, proc.Tmem(StragglerMemReq), StragglerSlowTaskId, slowdownMs)
 	ji.PrepareMRJob()
 
+	db.DPrintf(db.ALWAYS, "runMRValueProcsStragglerJob: job=%v app=%v memreq=%dMB slowTaskId=%d slowdownMs=%d",
+		jobname, StragglerMRApp, StragglerMemReq, StragglerSlowTaskId, slowdownMs)
+
 	fillers := injectContention(ts, ji.SigmaClnt)
 	defer releaseContention(ji.SigmaClnt, fillers)
 
@@ -178,13 +163,20 @@ func runMRValueProcsStragglerJob(mrts *test.MultiRealmTstate, vpc *clnt.Clnt, sl
 	dur = time.Since(start)
 	ji.cm.WaitGroup()
 
+	// Final per-leaf breakdown, sampled once the job has fully settled --
+	// unlike watchMRValueProcsProgress's periodic polling, this is guaranteed
+	// to reflect the tree's final state (every leaf's terminal run/attempts/
+	// stops count), not whatever was true as of the last tick before stopWatch
+	// was closed.
 	if st, err := vpc.Status(mr.ValueProcsMapTid(jobname)); err == nil {
 		mapStopped = sumLeafStops(st)
+		db.DPrintf(db.ALWAYS, "MR value-procs final map tree: %s", dumpTreeStatus(st))
 	} else {
 		db.DPrintf(db.ALWAYS, "runMRValueProcsStragglerJob: Status map tree err %v", err)
 	}
 	if st, err := vpc.Status(mr.ValueProcsReduceTid(jobname)); err == nil {
 		reduceStopped = sumLeafStops(st)
+		db.DPrintf(db.ALWAYS, "MR value-procs final reduce tree: %s", dumpTreeStatus(st))
 	} else {
 		db.DPrintf(db.ALWAYS, "runMRValueProcsStragglerJob: Status reduce tree err %v", err)
 	}

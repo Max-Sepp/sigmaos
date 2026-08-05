@@ -188,6 +188,12 @@ func (j *Job) Wait(cancelSurplus bool) (*mat.Dense, []*Sample, QuorumStats, erro
 		if !quorumReached && len(finishedBlocks) >= j.cfg.K {
 			quorumReached = true
 			stats.Makespan = time.Since(start)
+			done := make([]int, 0, len(finishedBlocks))
+			for i := range finishedBlocks {
+				done = append(done, i)
+			}
+			sort.Ints(done)
+			db.DPrintf(db.ALWAYS, "Job.Wait: quorum of %d reached at %v via workers %v", j.cfg.K, stats.Makespan, done)
 			if cancelSurplus && !reaped {
 				reaped = true
 				// Evict is synchronous but only blocks this
@@ -196,6 +202,9 @@ func (j *Job) Wait(cancelSurplus bool) (*mat.Dense, []*Sample, QuorumStats, erro
 					if _, ok := finishedBlocks[i]; !ok {
 						if err := j.sc.Evict(p.GetPid()); err == nil {
 							stats.NEvicted++
+							db.DPrintf(db.ALWAYS, "Job.Wait: evicting surplus worker %d (%v), not needed for quorum", i, p.GetPid())
+						} else {
+							db.DPrintf(db.ALWAYS, "Job.Wait: Evict worker %d (%v) err %v", i, p.GetPid(), err)
 						}
 					}
 				}

@@ -54,8 +54,16 @@ func TestHPSearchBaseline(t *testing.T) {
 	defer mrts.Shutdown()
 
 	cfg := hpsearch.DefaultConfig()
-	cfg.Mem = HPSearchTrainerMem
+	// DefaultConfig leaves Mem at 0 (unconstrained). Only declare a reservation
+	// when contention injection is actually requested -- see TestCodedMatMul's
+	// comment on the same pattern.
+	if contentionEnabled() {
+		cfg.Mem = HPSearchTrainerMem
+	}
 	sc := mrts.GetRealm(REALM1).SigmaClnt
+
+	db.DPrintf(db.ALWAYS, "TestHPSearchBaseline: cfg NConfigs=%d MaxIters=%d IterDur=%v Mcpu=%d Mem=%d",
+		cfg.NConfigs, cfg.MaxIters, cfg.IterDur, cfg.Mcpu, cfg.Mem)
 
 	fillers := injectContention(t, sc)
 	defer releaseContention(sc, fillers)
@@ -92,8 +100,16 @@ func TestHPSearchLivePruning(t *testing.T) {
 	defer mrts.Shutdown()
 
 	cfg := hpsearch.DefaultConfig()
-	cfg.Mem = HPSearchTrainerMem
+	// DefaultConfig leaves Mem at 0 (unconstrained). Only declare a reservation
+	// when contention injection is actually requested -- see TestCodedMatMul's
+	// comment on the same pattern.
+	if contentionEnabled() {
+		cfg.Mem = HPSearchTrainerMem
+	}
 	sc := mrts.GetRealm(REALM1).SigmaClnt
+
+	db.DPrintf(db.ALWAYS, "TestHPSearchLivePruning: cfg NConfigs=%d MaxIters=%d IterDur=%v Mcpu=%d Mem=%d Margin=%.3f",
+		cfg.NConfigs, cfg.MaxIters, cfg.IterDur, cfg.Mcpu, cfg.Mem, cfg.Margin)
 
 	fillers := injectContention(t, sc)
 	defer releaseContention(sc, fillers)
@@ -115,6 +131,19 @@ func TestHPSearchLivePruning(t *testing.T) {
 	}
 	assert.Equal(t, cfg.NConfigs, len(liveCurves))
 	live := hpsearch.AnalyzeLive(liveCurves, cfg)
+
+	// Per-config decision trace: each trainer reports its own Pruned/
+	// PrunedAtIter (apps/hpsearch/trainer.go) directly in its exit status, so
+	// this is the trainer's own decision, not a reconstruction.
+	for _, c := range liveCurves {
+		if c.Pruned {
+			db.DPrintf(db.ALWAYS, "HPSearch live pruning: config %d pruned at iter %d/%d (score %.3f)",
+				c.ConfigId, c.PrunedAtIter, cfg.MaxIters, c.Scores[len(c.Scores)-1])
+		} else {
+			db.DPrintf(db.ALWAYS, "HPSearch live pruning: config %d ran to completion (score %.3f)",
+				c.ConfigId, c.Scores[len(c.Scores)-1])
+		}
+	}
 
 	basePath := "/tmp/" + t.Name() + "-baseline-curves.csv"
 	if err := hpsearch.DumpCurvesCSV(baseCurves, basePath); err != nil {
@@ -158,12 +187,20 @@ func TestHPSearchValueProcs(t *testing.T) {
 	defer mrts.Shutdown()
 
 	cfg := hpsearch.DefaultConfig()
-	cfg.Mem = HPSearchTrainerMem
+	// DefaultConfig leaves Mem at 0 (unconstrained). Only declare a reservation
+	// when contention injection is actually requested -- see TestCodedMatMul's
+	// comment on the same pattern.
+	if contentionEnabled() {
+		cfg.Mem = HPSearchTrainerMem
+	}
 	sc := mrts.GetRealm(REALM1).SigmaClnt
 
 	vpjob := adapter.StartJob(sc, 0)
 	defer vpjob.Stop()
 	vpc := clnt.NewClnt(sc.FsLib)
+
+	db.DPrintf(db.ALWAYS, "TestHPSearchValueProcs: cfg NConfigs=%d MaxIters=%d IterDur=%v Mem=%d (value-procs leaves reserve no mcpu)",
+		cfg.NConfigs, cfg.MaxIters, cfg.IterDur, cfg.Mem)
 
 	fillers := injectContention(t, sc)
 	defer releaseContention(sc, fillers)
@@ -197,6 +234,12 @@ func TestHPSearchValueProcs(t *testing.T) {
 		live.NPruned, cfg.NConfigs)
 	db.DPrintf(db.ALWAYS, "HPSearch value-procs quality: best-all %.3f, best-kept %.3f, quality lost %.3f",
 		base.BestQualityAll, live.BestQuality, base.BestQualityAll-live.BestQuality)
+
+	if st, err := j.Status(); err == nil {
+		db.DPrintf(db.ALWAYS, "HPSearch value-procs final tree: %s", dumpTreeStatus(st))
+	} else {
+		db.DPrintf(db.ALWAYS, "TestHPSearchValueProcs: Status err %v", err)
+	}
 
 	// NPruned is exact -- Select(1, NConfigs) guarantees exactly one winner
 	// -- unlike the live-pruning arm's NPruned, which depends on how many

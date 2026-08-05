@@ -10,6 +10,7 @@ import (
 	"sigmaos/proc"
 	sp "sigmaos/sigmap"
 	"sigmaos/valueprocs/clnt"
+	"sigmaos/valueprocs/proto"
 )
 
 // TrainerVPBin is the value-procs-scheduled counterpart of TrainerBin.
@@ -119,6 +120,13 @@ func (j *ValueProcsJob) Wait() (winner *Curve, approxLosers []*Curve, err error)
 		approxLosers = append(approxLosers, reconstructLoserCurve(configId, j.seeds[configId], j.cfg.MaxIters, n.Score, n.HasScore))
 	}
 	return winner, approxLosers, nil
+}
+
+// Status returns the tree's raw status, for callers that want the full
+// per-leaf breakdown (state, run count, stops, score) that Wait's
+// reconstructed approxLosers curves only partially capture.
+func (j *ValueProcsJob) Status() (*proto.TreeStatusRep, error) {
+	return j.c.Status(j.tid)
 }
 
 // reconstructLoserCurve regenerates a pruned config's full deterministic

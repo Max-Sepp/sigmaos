@@ -12,6 +12,7 @@ import (
 	"sigmaos/proc"
 	sp "sigmaos/sigmap"
 	"sigmaos/valueprocs/clnt"
+	"sigmaos/valueprocs/proto"
 )
 
 // WorkerVPBin is the value-procs-scheduled counterpart of WorkerBin.
@@ -125,6 +126,13 @@ func (j *ValueProcsJob) Wait() (*mat.Dense, []*Sample, QuorumStats, error) {
 // live occupancy gauge, not a cumulative counter, so by the time Wait has
 // returned and the tree has fully settled, it reads near zero regardless of
 // how much surplus the scheduler actually shed along the way.
+// Status returns the tree's raw status, for callers that want the full
+// per-leaf breakdown (state, run count, stops, score) rather than just the
+// aggregate NAttemptsStopped.
+func (j *ValueProcsJob) Status() (*proto.TreeStatusRep, error) {
+	return j.c.Status(j.tid)
+}
+
 func (j *ValueProcsJob) NAttemptsStopped() (int, error) {
 	st, err := j.c.Status(j.tid)
 	if err != nil {

@@ -83,9 +83,21 @@ func injectContentionFreeMB(t *testing.T, sc *sigmaclnt.SigmaClnt, freeMB proc.T
 // when it's nil.
 func injectContention(t *testing.T, sc *sigmaclnt.SigmaClnt) []*proc.Proc {
 	if contentionFreeMB < 0 {
+		db.DPrintf(db.ALWAYS, "injectContention: disabled (-contention_free_mb not set), running uncontended")
 		return nil
 	}
 	return injectContentionFreeMB(t, sc, proc.Tmem(contentionFreeMB))
+}
+
+// contentionEnabled reports whether -contention_free_mb was set. Callers
+// that need to give their workers a declared Mem reservation for contention
+// to have any effect (besched's memory-based admission only applies to
+// procs that declare Mem > 0) should gate that on this, rather than always
+// declaring one -- an always-declared Mem changes the app's admission
+// regime even when contention injection is disabled, which can perturb
+// timing assertions that were tuned against the unconstrained default.
+func contentionEnabled() bool {
+	return contentionFreeMB >= 0
 }
 
 // releaseContention evicts and reaps the filler procs injectContention (or
