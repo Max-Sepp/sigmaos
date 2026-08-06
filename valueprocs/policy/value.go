@@ -74,6 +74,14 @@ func (s *Scheduler) staleness(l *leafState) float64 {
 // candidate, and stands on a peer's claim carried over the candidate's width --
 // which is smaller, and shrinks under contention, because it is borrowed.
 func (s *Scheduler) value(n *node) float64 {
+	// The ablation (see signal.go): decide on occupancy alone, ignoring every
+	// score and gradient reported. Branching here rather than at each call
+	// site is deliberate -- value is the single number both admission and shed
+	// read, so replacing it replaces the signal everywhere at once and cannot
+	// leave one decision reading reports while another does not.
+	if s.cfg.Signal == SignalMetrics {
+		return s.metricValue(n)
+	}
 	if !n.isLeaf() {
 		best, found := 0.0, false
 		for _, c := range n.children {

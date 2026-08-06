@@ -34,6 +34,22 @@ type Config struct {
 	Mem      proc.Tmem // declared memory reservation per trainer; 0 (default) leaves trainers unconstrained by besched's memory-based admission
 	Seed     int64
 	Margin   float64
+
+	// Negative controls for the value-procs arm: one config can be made to
+	// misreport, so the cost of a trial the scheduler cannot trust is
+	// measurable rather than assumed.
+	//
+	// Both name a config rather than a fraction of them, because the question
+	// is what a single bad neighbour does to the honest ones -- and because a
+	// tree in which everybody lies is a tree in which the ranking is
+	// unchanged, so it tests nothing. -1 disables.
+	//
+	// Neither knob touches the Curve a trainer returns. The scheduler's view
+	// is corrupted; the ground truth Analyze measures quality against is not,
+	// which is what lets a test see the honest configs lose.
+	InflateConfig int     // config that multiplies its reported score by InflateFactor
+	InflateFactor float64 // how much it inflates by; 1 is honest
+	SilentConfig  int     // config that reports nothing at all until it completes
 }
 
 func DefaultConfig() *Config {
@@ -44,6 +60,10 @@ func DefaultConfig() *Config {
 		Mcpu:     1000,
 		Seed:     7159623, // Fixed to make the synthetic curves reproducible
 		Margin:   PruneMargin,
+
+		InflateConfig: -1,
+		InflateFactor: 1,
+		SilentConfig:  -1,
 	}
 }
 

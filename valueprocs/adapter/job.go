@@ -6,6 +6,7 @@ import (
 	"sigmaos/proc"
 	"sigmaos/sigmaclnt"
 	"sigmaos/valueprocs"
+	"sigmaos/valueprocs/policy"
 )
 
 // Job runs the scheduling service under supervision.
@@ -25,8 +26,19 @@ type Job struct {
 // into its epoch, which is how a client discovers its results are gone rather
 // than waiting forever for the next one.
 func StartJob(sc *sigmaclnt.SigmaClnt, mcpu proc.Tmcpu) *Job {
-	cfg := procgroupmgr.NewProcGroupConfig(1, "valuesched", nil, mcpu, valueprocs.VALUESCHEDREL)
-	db.DPrintf(db.VALUEPROC, "starting valuesched")
+	return StartJobSignal(sc, mcpu, policy.SignalValue)
+}
+
+// StartJobSignal is StartJob running the service under a named policy signal.
+//
+// It exists for the arm that ablates the signal: the same service, the same
+// trees, the same admission machinery, deciding on occupancy alone (see
+// policy.Signal). Passing the mode as a proc argument rather than baking it
+// into the binary is what lets one deployment serve both arms, so a comparison
+// between them does not also compare two builds.
+func StartJobSignal(sc *sigmaclnt.SigmaClnt, mcpu proc.Tmcpu, sig policy.Signal) *Job {
+	cfg := procgroupmgr.NewProcGroupConfig(1, "valuesched", []string{sig.String()}, mcpu, valueprocs.VALUESCHEDREL)
+	db.DPrintf(db.VALUEPROC, "starting valuesched signal %v", sig)
 	return &Job{pgm: cfg.StartGrpMgr(sc)}
 }
 

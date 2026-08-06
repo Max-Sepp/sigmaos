@@ -53,6 +53,11 @@ type Config struct {
 	PressureSource   PressureSource // how platform and self occupancy combine
 	QueueDelayTarget time.Duration  // queue dwell that reads as full pressure
 	EWMAAlpha        float64        // weight on the newest pressure sample
+
+	// Signal is what decisions may be made on: what applications report, or
+	// occupancy alone. The zero value is the reporting one, so a Config built
+	// without naming a signal behaves as it always did.
+	Signal Signal
 }
 
 // DefaultConfig returns tuning suitable for a cluster of long-running batch
@@ -517,7 +522,7 @@ func (s *Scheduler) rank(n *node) []*node {
 		if af, bf := a.state == NodeFailed, b.state == NodeFailed; af != bf {
 			return bf
 		}
-		if ar, br := a.reported(), b.reported(); ar != br {
+		if ar, br := s.signalReported(a), s.signalReported(b); ar != br {
 			return ar
 		}
 		if av, bv := val[a.id], val[b.id]; av != bv {

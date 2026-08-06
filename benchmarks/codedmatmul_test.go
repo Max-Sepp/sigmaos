@@ -89,8 +89,8 @@ func TestCodedMatMul(t *testing.T) {
 	defer vpjob.Stop()
 	vpc := clnt.NewClnt(sc.FsLib)
 
-	fillers := injectContention(t, sc)
-	defer releaseContention(sc, fillers)
+	ctn := startContention(t, sc)
+	defer ctn.release()
 
 	cfg := codedmatmul.DefaultConfig()
 	// DefaultConfig leaves Mem at 0 (unconstrained). Only declare a reservation
@@ -128,12 +128,31 @@ func TestCodedMatMul(t *testing.T) {
 	// the K-quorum is reached.
 	arm3 := runCodedMatMulArm(t, sc, cfg, true, &want, "arm3-coded-reap")
 
+	// Arm 5: coded + reap again, but declaring no mcpu, which is the arm that
+	// makes arm 4 comparable to anything.
+	//
+	// Arm 4 cannot be brought up to arm 3's reservation -- adapter/spec.go
+	// rejects any leaf that reserves mcpu, because a leaf may be stopped and
+	// re-run and so must not hold a reservation the scheduler is unaware of.
+	// The equalization therefore has to go the other way: run the classical
+	// reap policy under arm 4's admission regime, and compare those two. Arms
+	// 1-3 keep their reservation so the recorded sweeps stay comparable.
+	arm5Cfg := *cfg
+	arm5Cfg.Mcpu = 0
+	arm5 := runCodedMatMulArm(t, sc, &arm5Cfg, true, &want, "arm5-coded-reap-nomcpu")
+
 	// Arm 4: coded, scheduled by valuesched (N=K+m). Shedding the surplus
 	// once the quorum is reached is valuesched's own policy rather than an
 	// explicit cancelSurplus ask.
+	//
+	// Sampled, because the claim this arm exists to test is that the number of
+	// workers admitted at once falls from N toward K as the cluster fills, and
+	// makespan alone cannot show that.
+	smp := startVPSampler(vpc)
 	arm4 := runCodedMatMulValueProcsArm(t, vpc, cfg, &want, "arm4-valueprocs")
+	trace := smp.reportTrace("CodedMatMul arm4-valueprocs")
 
-	if arm1 == nil || arm2 == nil || arm3 == nil || arm4 == nil {
+	if arm1 == nil || arm2 == nil || arm3 == nil || arm4 == nil || arm5 == nil {
 		return
 	}
 
@@ -144,9 +163,28 @@ func TestCodedMatMul(t *testing.T) {
 		"Arm 3 (reap) should finish faster than Arm 1 (uncoded barrier) under the default straggler: %v vs %v",
 		arm3.Makespan, arm1.Makespan)
 
-	// Informational only: arm4 reserves no mcpu (a different admission
-	// regime, see runCodedMatMulValueProcsArm), so its makespan is not
-	// asserted against arm1/arm3, only logged alongside them.
-	db.DPrintf(db.ALWAYS, "CodedMatMul comparison: arm1 %v, arm3 %v, arm4 %v",
-		arm1.Makespan, arm3.Makespan, arm4.Makespan)
+	db.DPrintf(db.ALWAYS, "CodedMatMul comparison: arm1 %v, arm3 %v, arm4 %v, arm5 %v",
+		arm1.Makespan, arm3.Makespan, arm4.Makespan, arm5.Makespan)
+	db.DPrintf(db.ALWAYS, "CodedMatMul admitted width: N=%d K=%d, arm4 running max=%d mean=%.2f of %d slots, pressure max=%.3f mean=%.3f",
+		cfg.N, cfg.K, trace.maxRunning, trace.meanRunning, trace.slots, trace.maxPressure, trace.meanPressure)
+
+	// Now that both arms declare the same (absent) reservation, arm 4's
+	// makespan is a like-for-like measurement rather than a note in the log.
+	// Stated as a ratio bound rather than a strict ordering: the two policies
+	// are meant to be equivalent when the cluster is empty, so requiring one
+	// to beat the other would be asserting noise.
+	assert.True(t, arm4.Makespan <= 2*arm5.Makespan,
+		"Arm 4 (valueprocs) should be within 2x of arm 5 (classical reap, same admission regime): %v vs %v",
+		arm4.Makespan, arm5.Makespan)
+
+	// The width claim itself. The only bound that holds regardless of the host
+	// is the tree's own: nothing can run more workers than it has.
+	//
+	// There is deliberately no lower bound against K. A quorum is K workers
+	// *completing*, not K running at once, so on a cluster with fewer slots
+	// than K the quorum is reached in waves and a peak below K is correct
+	// behavior rather than a failure -- which is what this host does, with 4
+	// slots against K=6.
+	assert.True(t, trace.maxRunning <= cfg.N,
+		"Arm 4 ran %d workers at once, more than the %d the tree has", trace.maxRunning, cfg.N)
 }

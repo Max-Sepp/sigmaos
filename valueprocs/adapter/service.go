@@ -2,6 +2,7 @@ package adapter
 
 import (
 	"hash/fnv"
+	"os"
 
 	db "sigmaos/debug"
 	"sigmaos/proc"
@@ -133,10 +134,46 @@ func (s *Srv) Run(sc *sigmaclnt.SigmaClnt) error {
 }
 
 // RunSrv is the whole of the valuesched proc.
+// RunSrv boots the service.
+//
+// The one argument it takes is the policy signal (see policy.Signal): "value",
+// the default, or "metrics" for the ablation that decides on occupancy alone.
+// It is an argument rather than a build tag so a single binary can serve both
+// arms of a comparison, which is what makes the two runnable in one sweep
+// against one deployment.
 func RunSrv() error {
 	sc, err := sigmaclnt.NewSigmaClnt(proc.GetProcEnv())
 	if err != nil {
 		return err
 	}
-	return NewSrv(sc, DefaultServiceConfig()).Run(sc)
+	cfg := DefaultServiceConfig()
+	sig, err := signalFromArgs(os.Args)
+	if err != nil {
+		return err
+	}
+	cfg.Policy.Signal = sig
+	db.DPrintf(db.ALWAYS, "valuesched: policy signal %v", cfg.Policy.Signal)
+	return NewSrv(sc, cfg).Run(sc)
+}
+
+// argSignal is where the policy signal sits in valuesched's argument vector.
+//
+// It is index 2 rather than 1 because procgroupmgr prepends the job name to
+// whatever StartJobSignal passes (ft/procgroupmgr/procgroupmgr.go's
+// NewProcGroupConfigRealmSwitch), so the layout is:
+//
+//	os.Args = [binary, job, signal]
+//
+// Reading index 1 instead parses the job name as a signal, which fails, which
+// takes the service down before it serves anything -- and takes down the
+// default arm too, not just the ablation. TestValueschedArgLayout pins this.
+const argSignal = 2
+
+// signalFromArgs reads the policy signal out of valuesched's argument vector,
+// defaulting to the reporting model when none was passed.
+func signalFromArgs(args []string) (policy.Signal, error) {
+	if len(args) <= argSignal {
+		return policy.SignalValue, nil
+	}
+	return policy.ParseSignal(args[argSignal])
 }

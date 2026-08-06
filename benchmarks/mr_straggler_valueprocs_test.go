@@ -150,8 +150,8 @@ func runMRValueProcsStragglerJob(mrts *test.MultiRealmTstate, vpc *clnt.Clnt, sl
 	db.DPrintf(db.ALWAYS, "runMRValueProcsStragglerJob: job=%v app=%v memreq=%dMB slowTaskId=%d slowdownMs=%d",
 		jobname, StragglerMRApp, StragglerMemReq, StragglerSlowTaskId, slowdownMs)
 
-	fillers := injectContention(ts, ji.SigmaClnt)
-	defer releaseContention(ji.SigmaClnt, fillers)
+	ctn := startContention(ts, ji.SigmaClnt)
+	defer ctn.release()
 
 	stopWatch := make(chan struct{})
 	go watchMRValueProcsProgress(vpc, mr.ValueProcsMapTid(jobname), mr.ValueProcsReduceTid(jobname), 10*time.Second, stopWatch)

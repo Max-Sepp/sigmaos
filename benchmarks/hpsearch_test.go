@@ -65,8 +65,8 @@ func TestHPSearchBaseline(t *testing.T) {
 	db.DPrintf(db.ALWAYS, "TestHPSearchBaseline: cfg NConfigs=%d MaxIters=%d IterDur=%v Mcpu=%d Mem=%d",
 		cfg.NConfigs, cfg.MaxIters, cfg.IterDur, cfg.Mcpu, cfg.Mem)
 
-	fillers := injectContention(t, sc)
-	defer releaseContention(sc, fillers)
+	ctn := startContention(t, sc)
+	defer ctn.release()
 
 	// Run every config to completion (no pruning) and collect its curve.
 	curves, err := runJob(sc, cfg)
@@ -111,8 +111,8 @@ func TestHPSearchLivePruning(t *testing.T) {
 	db.DPrintf(db.ALWAYS, "TestHPSearchLivePruning: cfg NConfigs=%d MaxIters=%d IterDur=%v Mcpu=%d Mem=%d Margin=%.3f",
 		cfg.NConfigs, cfg.MaxIters, cfg.IterDur, cfg.Mcpu, cfg.Mem, cfg.Margin)
 
-	fillers := injectContention(t, sc)
-	defer releaseContention(sc, fillers)
+	ctn := startContention(t, sc)
+	defer ctn.release()
 
 	// Baseline run: the "actual" cost of running everything to completion,
 	// and the full curves the live run is set against.
@@ -202,8 +202,8 @@ func TestHPSearchValueProcs(t *testing.T) {
 	db.DPrintf(db.ALWAYS, "TestHPSearchValueProcs: cfg NConfigs=%d MaxIters=%d IterDur=%v Mem=%d (value-procs leaves reserve no mcpu)",
 		cfg.NConfigs, cfg.MaxIters, cfg.IterDur, cfg.Mem)
 
-	fillers := injectContention(t, sc)
-	defer releaseContention(sc, fillers)
+	ctn := startContention(t, sc)
+	defer ctn.release()
 
 	// Baseline run: the "actual" cost of running everything to completion.
 	baseCurves, err := runJob(sc, cfg)
@@ -217,23 +217,37 @@ func TestHPSearchValueProcs(t *testing.T) {
 	// config's curve approximately reconstructed from its last-known score
 	// (see ValueProcsJob.Wait's doc comment for why an exact readback isn't
 	// possible).
+	// Sampled for the length of the run, because the tree dump below is taken
+	// once everything has stopped and so cannot say how wide the search ever
+	// got or against what pressure -- which is the quantity the pruning claim
+	// is actually about.
+	smp := startVPSampler(vpc)
 	j, err := hpsearch.StartValueProcsJob(vpc, cfg)
 	if !assert.Nil(t, err, "Error StartValueProcsJob: %v", err) {
+		smp.summarize()
 		return
 	}
-	winner, approxLosers, err := j.Wait()
+	outcomes, err := j.Wait()
+	trace := smp.reportTrace("HPSearch value-procs")
 	if !assert.Nil(t, err, "Error Wait: %v", err) {
 		return
 	}
-	vpCurves := append([]*hpsearch.Curve{winner}, approxLosers...)
+	vpCurves := j.Curves(outcomes)
 	assert.Equal(t, cfg.NConfigs, len(vpCurves))
 	live := hpsearch.AnalyzeLive(vpCurves, cfg)
+	best := hpsearch.Best(outcomes)
+	if !assert.NotNil(t, best, "No trial finished") {
+		return
+	}
+	db.DPrintf(db.ALWAYS, "HPSearch value-procs selection: %d of %d trials finished, application picked config %d",
+		hpsearch.NFinished(outcomes), cfg.NConfigs, best.ConfigId)
 
 	db.DPrintf(db.ALWAYS, "HPSearch value-procs: actual %.2f core-s, value-procs %.2f core-s (saved %.1f%%), %d/%d configs pruned",
 		base.ActualCoreSeconds, live.CoreSeconds, (base.ActualCoreSeconds-live.CoreSeconds)/base.ActualCoreSeconds*100,
 		live.NPruned, cfg.NConfigs)
-	db.DPrintf(db.ALWAYS, "HPSearch value-procs quality: best-all %.3f, best-kept %.3f, quality lost %.3f",
-		base.BestQualityAll, live.BestQuality, base.BestQualityAll-live.BestQuality)
+	db.DPrintf(db.ALWAYS, "HPSearch value-procs quality: best-all %.3f, best-kept %.3f, quality lost %.3f, width max=%d mean=%.2f of %d slots, pressure max=%.3f mean=%.3f",
+		base.BestQualityAll, live.BestQuality, base.BestQualityAll-live.BestQuality,
+		trace.maxRunning, trace.meanRunning, trace.slots, trace.maxPressure, trace.meanPressure)
 
 	if st, err := j.Status(); err == nil {
 		db.DPrintf(db.ALWAYS, "HPSearch value-procs final tree: %s", dumpTreeStatus(st))
@@ -241,10 +255,14 @@ func TestHPSearchValueProcs(t *testing.T) {
 		db.DPrintf(db.ALWAYS, "TestHPSearchValueProcs: Status err %v", err)
 	}
 
-	// NPruned is exact -- Select(1, NConfigs) guarantees exactly one winner
-	// -- unlike the live-pruning arm's NPruned, which depends on how many
-	// configs actually crossed the margin/sustain threshold before the run
-	// ended.
-	assert.Equal(t, cfg.NConfigs-1, live.NPruned, "Expected every non-winning config to be pruned")
+	// Every trial that did not finish was pruned, and at least one finished.
+	//
+	// Not "exactly one finished": a Select(1, N) stops the others once one
+	// completes, but a trial already on its last iteration can finish inside
+	// the window before that stop lands. Asserting a single winner made the
+	// test a check on scheduling latency rather than on pruning.
+	assert.Equal(t, cfg.NConfigs-hpsearch.NFinished(outcomes), live.NPruned,
+		"Every trial that did not finish should be counted pruned")
+	assert.True(t, hpsearch.NFinished(outcomes) >= 1, "Expected at least one trial to finish")
 	assert.True(t, live.CoreSeconds <= base.ActualCoreSeconds, "Value-procs run used more compute than the baseline")
 }
