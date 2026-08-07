@@ -56,8 +56,17 @@ type vpSummary struct {
 	maxPressure  float64
 	meanPressure float64
 	slots        int
+
+	// The two limbs pressure is the max of. Which one binds decides whether an
+	// arm measured what it named: injecting memory contention and then reading
+	// a pressure driven by the workers' own cpu burn tests nothing.
+	maxMemP float64
+	maxCpuP float64
 }
 
+// String deliberately omits the limbs. Every value-procs arm logs this line and
+// notes/sweep_to_csv.py parses it, so a field added here changes the shape of
+// every log in flight. An arm that needs them prints them itself.
 func (s vpSummary) String() string {
 	return fmt.Sprintf("samples=%d slots=%d running(max=%d mean=%.2f) charged(max=%d) pressure(max=%.3f mean=%.3f)",
 		s.n, s.slots, s.maxRunning, s.meanRunning, s.maxCharged, s.maxPressure, s.meanPressure)
@@ -134,13 +143,34 @@ func (s *vpSampler) summarize() vpSummary {
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return reduce(s.samples)
+}
 
-	out := vpSummary{n: len(s.samples)}
+// window reduces only the samples inside [from, to) of the sampler's clock,
+// for claims about a change rather than a level: reduced whole, a run that
+// expanded and then shed looks exactly like one that never moved.
+//
+// Call it after summarize or report, or its contents depend on when it was
+// asked.
+func (s *vpSampler) window(from, to time.Duration) vpSummary {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var in []vpSample
+	for _, sm := range s.samples {
+		if sm.since >= from && sm.since < to {
+			in = append(in, sm)
+		}
+	}
+	return reduce(in)
+}
+
+func reduce(samples []vpSample) vpSummary {
+	out := vpSummary{n: len(samples)}
 	if out.n == 0 {
 		return out
 	}
 	var sumRunning, sumPressure float64
-	for _, sm := range s.samples {
+	for _, sm := range samples {
 		if sm.nRunning > out.maxRunning {
 			out.maxRunning = sm.nRunning
 		}
@@ -149,6 +179,12 @@ func (s *vpSampler) summarize() vpSummary {
 		}
 		if sm.pressure > out.maxPressure {
 			out.maxPressure = sm.pressure
+		}
+		if sm.memP > out.maxMemP {
+			out.maxMemP = sm.memP
+		}
+		if sm.cpuP > out.maxCpuP {
+			out.maxCpuP = sm.cpuP
 		}
 		if sm.slots > out.slots {
 			out.slots = sm.slots
