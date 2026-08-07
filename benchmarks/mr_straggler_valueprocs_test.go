@@ -103,7 +103,7 @@ func sumLeafStops(st *proto.TreeStatusRep) int32 {
 // the only way to see which leaf, if any, stopped making progress, and
 // whether the adapter accounts for it as a real stuck proc versus a
 // synthesized stop/failure it never got to act on. Stops when stop is closed.
-func watchMRValueProcsProgress(vpc *clnt.Clnt, mapTid, reduceTid string, interval time.Duration, stop <-chan struct{}) {
+func watchMRValueProcsProgress(vpc clnt.Observer, mapTid, reduceTid string, interval time.Duration, stop <-chan struct{}) {
 	t := time.NewTicker(interval)
 	defer t.Stop()
 	for {
@@ -139,7 +139,7 @@ func watchMRValueProcsProgress(vpc *clnt.Clnt, mapTid, reduceTid string, interva
 // attempts (sumLeafStops) are the closest available analog to Nspeculate,
 // sampled from the scheduler directly rather than from the coordinator's
 // own exit status.
-func runMRValueProcsStragglerJob(mrts *test.MultiRealmTstate, vpc *clnt.Clnt, slowdownMs int) (dur time.Duration, mapStopped, reduceStopped int32) {
+func runMRValueProcsStragglerJob(mrts *test.MultiRealmTstate, vpc clnt.Observer, slowdownMs int) (dur time.Duration, mapStopped, reduceStopped int32) {
 	ts := mrts.T
 	rts := mrts.GetRealm(REALM1)
 

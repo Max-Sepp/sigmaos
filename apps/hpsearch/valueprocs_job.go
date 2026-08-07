@@ -44,7 +44,7 @@ func SpawnValueProcsTrainerLeaf(configId int, seed int64, maxIters int, iterDur 
 // the same hyperparameter search through valuesched as a Select(1, N) tree:
 // keep the best of NConfigs trials, pruning the rest as pressure rises.
 type ValueProcsJob struct {
-	c     *clnt.Clnt
+	c     clnt.Runner
 	cfg   *Config
 	tid   string
 	seeds []int64
@@ -55,7 +55,7 @@ type ValueProcsJob struct {
 // seeds are retained on the job (not just handed to the trainers), because
 // they are what let Wait reconstruct an approximate curve for every config
 // the scheduler pruned -- see Wait's doc comment.
-func StartValueProcsJob(c *clnt.Clnt, cfg *Config) (*ValueProcsJob, error) {
+func StartValueProcsJob(c clnt.Runner, cfg *Config) (*ValueProcsJob, error) {
 	rng := rand.New(rand.NewSource(cfg.Seed))
 
 	seeds := make([]int64, cfg.NConfigs)

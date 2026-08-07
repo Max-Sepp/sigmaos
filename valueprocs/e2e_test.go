@@ -51,7 +51,7 @@ func (ts *tstate) shutdown() {
 // submit registers a tree and requires that this call is what registered it,
 // so that a test cannot accidentally run against a tree left behind by an
 // earlier one under the same id.
-func submit(t *testing.T, c *clnt.Clnt, tid, label string, root *clnt.WorkNode) bool {
+func submit(t *testing.T, c clnt.Runner, tid, label string, root *clnt.WorkNode) bool {
 	t.Helper()
 	created, err := c.Submit(tid, label, root)
 	if !assert.Nil(t, err, "Submit %v: %v", tid, err) {

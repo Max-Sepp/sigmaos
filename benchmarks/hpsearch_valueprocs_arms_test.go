@@ -140,7 +140,7 @@ const SchedSlotsWait = 30 * time.Second
 // indistinguishable from "no capacity" to a caller that only looks once. Every
 // arm sizing itself off this would otherwise skip on a perfectly healthy
 // cluster, purely because it asked too early.
-func schedSlots(t *testing.T, vpc *clnt.Clnt) int {
+func schedSlots(t *testing.T, vpc clnt.Observer) int {
 	deadline := time.Now().Add(SchedSlotsWait)
 	for {
 		ss, err := vpc.SchedStats()

@@ -53,7 +53,7 @@ type Mapper struct {
 	ckrs        []*chunkreader.ChunkReader
 	ch          chan error
 	slowdownMs  int
-	vc          *vproc.Ctx    // nil unless spawned by the value-procs coordinator
+	vc          vproc.Scorer  // nil unless spawned by the value-procs coordinator
 	expectedDur time.Duration // 0 if no estimate was given; see Gradient
 }
 

@@ -44,7 +44,7 @@ import (
 // the mode is fixed for the whole of a scheduler's life, so an arm that reused
 // the previous arm's service would be measuring a scheduler that had already
 // made decisions under the other signal.
-func withSignal(sc *sigmaclnt.SigmaClnt, sig policy.Signal, body func(vpc *clnt.Clnt)) {
+func withSignal(sc *sigmaclnt.SigmaClnt, sig policy.Signal, body func(vpc clnt.Sched)) {
 	vpjob := adapter.StartJobSignal(sc, 0, sig)
 	defer vpjob.Stop()
 	body(clnt.NewClnt(sc.FsLib))
@@ -87,7 +87,7 @@ func TestHPSearchSignalAblation(t *testing.T) {
 			trace vpSummary
 			ok    bool
 		)
-		withSignal(sc, sig, func(vpc *clnt.Clnt) {
+		withSignal(sc, sig, func(vpc clnt.Sched) {
 			smp := startVPSampler(vpc)
 			j, err := hpsearch.StartValueProcsJob(vpc, cfg)
 			if !assert.Nil(t, err, "Error StartValueProcsJob (%v): %v", sig, err) {
@@ -169,7 +169,7 @@ func TestCodedMatMulSignalAblation(t *testing.T) {
 			res   *codedmatmul.Result
 			trace vpSummary
 		)
-		withSignal(sc, sig, func(vpc *clnt.Clnt) {
+		withSignal(sc, sig, func(vpc clnt.Sched) {
 			smp := startVPSampler(vpc)
 			res = runCodedMatMulValueProcsArm(t, vpc, cfg, &want, "signal="+sig.String())
 			trace = smp.report("CodedMatMul signal=" + sig.String())
@@ -211,7 +211,7 @@ func TestMRSignalAblation(t *testing.T) {
 	sc := mrts.GetRealm(REALM1).SigmaClnt
 
 	run := func(sig policy.Signal) (dur time.Duration, mapStopped, reduceStopped int32) {
-		withSignal(sc, sig, func(vpc *clnt.Clnt) {
+		withSignal(sc, sig, func(vpc clnt.Sched) {
 			dur, mapStopped, reduceStopped = runMRValueProcsStragglerJob(mrts, vpc, StragglerSlowdownMs)
 		})
 		return

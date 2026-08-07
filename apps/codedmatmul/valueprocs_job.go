@@ -41,7 +41,7 @@ func SpawnValueProcsWorkerLeaf(idx, n, k, r, d, w, tiles, repeats int, seed int6
 // workload through valuesched instead of spawning and reaping workers by
 // hand.
 type ValueProcsJob struct {
-	c   *clnt.Clnt
+	c   clnt.Runner
 	cfg *Config
 	tid string
 	g   *mdscode.Generator
@@ -50,7 +50,7 @@ type ValueProcsJob struct {
 // StartValueProcsJob submits a Select(K, w0..w{N-1}) tree for one
 // coded-matmul run: satisfied once K of N workers complete, with the
 // remaining N-K as slack valuesched sheds once the quorum is reached.
-func StartValueProcsJob(c *clnt.Clnt, cfg *Config) (*ValueProcsJob, error) {
+func StartValueProcsJob(c clnt.Runner, cfg *Config) (*ValueProcsJob, error) {
 	if cfg.M%cfg.K != 0 {
 		return nil, fmt.Errorf("codedmatmul: M (%d) not divisible by K (%d)", cfg.M, cfg.K)
 	}

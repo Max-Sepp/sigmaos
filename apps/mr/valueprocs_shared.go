@@ -91,7 +91,12 @@ func (r *Rate) Observe(score float64, now time.Time) float64 {
 // sc.Started() a second time here (newMapper/RunReducer already called it
 // once) is documented as safe (sched/msched/srv/procmgr/state.go's
 // (*ProcState).started: "May be called multiple times").
-func startVProc(sc *sigmaclnt.SigmaClnt) *vproc.Ctx {
+//
+// Scoring is all a mapper or reducer does with the runtime, so that is all it
+// is handed. The nil on the error path is an untyped one, and has to stay
+// that way: a nil *vproc.Ctx returned as a Scorer would be an interface the
+// callers' "did valuesched spawn me" checks read as present.
+func startVProc(sc *sigmaclnt.SigmaClnt) vproc.Scorer {
 	c, err := vproc.StartWith(sc)
 	if err != nil {
 		db.DPrintf(db.MR, "startVProc: StartWith err %v (continuing without value-procs scoring)", err)

@@ -50,7 +50,7 @@ func runCodedMatMulArm(t *testing.T, sc *sigmaclnt.SigmaClnt, cfg *codedmatmul.C
 // every other arm's Mcpu=1000), so res.TotalCoreSeconds/WastedCoreSeconds
 // read as 0 -- a different admission regime, not a faster one; makespan and
 // NAttemptsStopped are what's comparable.
-func runCodedMatMulValueProcsArm(t *testing.T, c *clnt.Clnt, cfg *codedmatmul.Config, want *mat.Dense, name string) *codedmatmul.Result {
+func runCodedMatMulValueProcsArm(t *testing.T, c clnt.Runner, cfg *codedmatmul.Config, want *mat.Dense, name string) *codedmatmul.Result {
 	j, err := codedmatmul.StartValueProcsJob(c, cfg)
 	if !assert.Nil(t, err, "%s: StartValueProcsJob err %v", name, err) {
 		return nil

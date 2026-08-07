@@ -74,7 +74,7 @@ func (s vpSummary) String() string {
 
 // vpSampler polls a scheduler for the length of a job.
 type vpSampler struct {
-	c     *clnt.Clnt
+	c     clnt.Observer
 	start time.Time
 
 	mu      sync.Mutex
@@ -90,7 +90,7 @@ type vpSampler struct {
 // reachable or it is not, the benchmark's own assertions will say so, and a
 // sampler that failed loudly would turn a diagnostic into a second source of
 // test failures.
-func startVPSampler(c *clnt.Clnt) *vpSampler {
+func startVPSampler(c clnt.Observer) *vpSampler {
 	s := &vpSampler{
 		c:     c,
 		start: time.Now(),
