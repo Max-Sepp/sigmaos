@@ -1,6 +1,7 @@
 package valueprocs_test
 
 import (
+	"fmt"
 	"strconv"
 	"sync"
 	"testing"
@@ -91,10 +92,20 @@ func nodeOf(ts *tstate, tid, nid string) (*proto.NodeStatus, bool) {
 	return nil, false
 }
 
-// fillCluster spawns enough spinners to occupy every core the cluster has, and
-// returns what reclaims them. Contention has to be real: the probe measures
-// machine-wide CPU, so nothing short of procs actually burning it moves the
-// reading this layer scales on.
+// fillCluster occupies every slot the cluster has with a second tree, and
+// returns what releases it.
+//
+// The load is submitted through valuesched rather than spawned beside it, so
+// the slots it takes are slots this scheduler knows it no longer has. That is
+// the contention a sizing decision is actually about: a machine-wide CPU
+// reading says how hard the hardware is working, which is a different question
+// from whether there is anywhere left to put work, and only the second can say
+// whether one more attempt would fit.
+//
+// k is the full width, so the filler is required work throughout. A filler that
+// could itself be pruned would give its slots back to the tree it is supposed
+// to be taking them from, and the test would pass or fail on which tree the
+// arbiter happened to walk first.
 func fillCluster(t *testing.T, ts *tstate) func() {
 	t.Helper()
 	loads, err := mschedclnt.NewMSchedClnt(ts.FsLib, sp.NOT_SET).MSchedLoad()
@@ -106,25 +117,20 @@ func fillCluster(t *testing.T, ts *tstate) func() {
 		cores += int(l.NCores)
 	}
 
-	pids := make([]sp.Tpid, 0, cores)
-	for range cores {
-		p := proc.NewProc("spinner", []string{"name/"})
-		if err := ts.Spawn(p); !assert.Nil(t, err, "Spawn spinner: %v", err) {
-			break
-		}
-		if err := ts.WaitStart(p.GetPid()); !assert.Nil(t, err, "WaitStart spinner: %v", err) {
-			break
-		}
-		pids = append(pids, p.GetPid())
+	kids := make([]*clnt.WorkNode, 0, cores)
+	for i := range cores {
+		kids = append(kids, leaf("work", 120000, 0.5, 0, fmt.Sprintf("filler%d", i)))
 	}
-	db.DPrintf(db.TEST, "filling %v cores with %v spinners", cores, len(pids))
+	root, err := clnt.Select(len(kids), kids...)
+	if !assert.Nil(t, err, "Select filler: %v", err) {
+		return func() {}
+	}
+	if !submit(t, ts.c, "filler", "filler", root) {
+		return func() {}
+	}
+	db.DPrintf(db.TEST, "filling %v cores with %v filler leaves", cores, len(kids))
 
-	return func() {
-		for _, pid := range pids {
-			ts.Evict(pid)
-			ts.WaitExit(pid)
-		}
-	}
+	return func() { ts.c.Cancel("filler") }
 }
 
 // leaf builds a workload node. The client never sees a scheduling concept:
@@ -447,46 +453,39 @@ func TestPruningUnderLoad(t *testing.T) {
 	release := fillCluster(t, ts)
 	defer release()
 
-	// Pressure is smoothed and a target has to hold before it may reverse, so
-	// this is patient on purpose: the point of both is that a cluster that is
-	// briefly busy does not disturb anything.
-	// Busy, not just Pressure: the spinners have to be what did this. Queue
-	// dwell is a pressure term too, so a test that only watched the total
-	// would keep passing if the probe stopped seeing the machine at all.
+	// A target has to hold before it may reverse, so this is patient on purpose:
+	// a cluster that is briefly busy must not disturb anything.
 	//
-	// The last observation is kept so a failure can say which of the three
+	// Slots, not the machine's reading. The filler sleeps rather than spins, so
+	// nothing here moves a CPU gauge, and that is deliberate -- what should
+	// narrow this tree is that the slots it wanted have been taken, which is a
+	// fact about the ledger and not about how hard the hardware is working.
+	//
+	// The last observation is kept so a failure can say which of the two
 	// conditions was not met. Without it the message is the same whether the
-	// spinners never landed, the probe never saw them, or the scheduler saw
-	// them and declined to act -- and those want completely different fixes.
-	var lastBusy, lastPressure float64
+	// filler never landed or the scheduler saw it and declined to act, and
+	// those want completely different fixes.
+	var lastCharged, lastSlots int32
 	lastTarget := -1
 	if !assert.True(t, eventually(t, 120*time.Second, func() bool {
 		st, err := ts.c.SchedStats()
 		if err != nil {
 			return false
 		}
-		lastBusy, lastPressure = st.Busy, st.Pressure
+		lastCharged, lastSlots = st.NCharged, st.Slots
 		if n, ok := nodeOf(ts, "t7", "r"); ok {
 			lastTarget = int(n.Target)
 		}
-		return st.Busy > 0.75 && st.Pressure > 0.75 && lastTarget >= 0 && lastTarget < 3
-	}), "a saturated cluster never narrowed the tree toward its quorum: last busy=%v pressure=%v target=%v",
-		lastBusy, lastPressure, lastTarget) {
+		return lastSlots > 0 && lastCharged >= lastSlots && lastTarget >= 0 && lastTarget < 3
+	}), "a full cluster never narrowed the tree toward its quorum: last charged=%v of %v slots, target=%v",
+		lastCharged, lastSlots, lastTarget) {
 		return
 	}
 
 	st, err := ts.c.SchedStats()
 	assert.Nil(t, err)
-	db.DPrintf(db.TEST, "pruned at pressure %v (busy %v, delay %v) components %v",
-		st.Pressure, st.Busy, st.DelayPressure, st.Components)
-
-	// And the term that saw it was CPU. Best-effort admission gates on free
-	// memory and best-effort procs routinely reserve none, so a fleet pinning
-	// every core still reads as having memory to spare -- which is why the
-	// fold takes a max over both rather than trusting memory alone.
-	assert.Greater(t, st.Components["cpu"], 0.75, "cpu did not see a cluster full of spinners")
-	assert.Less(t, st.Components["mem"], 0.75,
-		"memory saw it too, so this no longer tests the case memory is blind to")
+	db.DPrintf(db.TEST, "pruned at %v of %v slots charged (pressure %v, busy %v, delay %v) stops %v",
+		st.NCharged, st.Slots, st.Pressure, st.Busy, st.DelayPressure, st.NStopsByKind)
 
 	// And it sheds by score rather than by position: the worst-scoring leaf
 	// gives up its slot while the best keeps running.
@@ -498,10 +497,164 @@ func TestPruningUnderLoad(t *testing.T) {
 	if assert.True(t, ok, "no best leaf") {
 		assert.Equal(t, "running", best.RunState, "the highest-scoring leaf lost its slot")
 	}
-	assert.Greater(t, st.NStopsByKind[uint32(policy.StopOutrankedBySibling)], int32(0),
-		"the stop was attributed to something other than the ranking")
+	// The slot went to another tree, which is a different reason from losing to
+	// a sibling and is attributed as such -- the arbiter decided whose work
+	// holds the slot, and the ranking decided which of this tree's work gave it
+	// up.
+	assert.Greater(t,
+		st.NStopsByKind[uint32(policy.StopCapacityForHigherTree)]+
+			st.NStopsByKind[uint32(policy.StopOutrankedBySibling)], int32(0),
+		"the stop was attributed to neither capacity nor the ranking: %v", st.NStopsByKind)
 
 	assert.Nil(t, ts.c.Cancel("t7"))
+}
+
+// TestSlotsGivenBackComeBack is the other half of the sizing decision, and the
+// half nothing on a real cluster covered.
+//
+// Contracting under load is only half a rule. One that sheds and never regrows
+// passes every pruning test there is and still leaves the cluster idle for the
+// rest of the run -- which is not a hypothetical failure but exactly what
+// sizing on the occupancy reading does whenever the reading it contracted on
+// was another tenant's, since nothing this scheduler gives back can lower it.
+// Sizing on the slot ledger is reversible for the same reason it is exact: the
+// slots came back, so the work does.
+//
+// Both the squeeze and its release are another tree, which is what makes the
+// release clean. Slots taken through valuesched are slots this scheduler knows
+// it no longer has, and handing them back is a cancel rather than a wait on
+// someone else's memory to drain. So the run contains an arrival and a
+// departure, and one tree has to size itself correctly three times.
+func TestSlotsGivenBackComeBack(t *testing.T) {
+	ts, ok := newTstate(t)
+	if !ok {
+		return
+	}
+	defer ts.shutdown()
+
+	// Long enough that no candidate can finish inside the test. A Select(1, ...)
+	// satisfied by a completion stops its siblings for a reason that has nothing
+	// to do with capacity, and the regrowth being measured here would then never
+	// come -- so the run would fail as though the rule were broken.
+	root, err := clnt.Select(1,
+		leaf("work", 120000, 0.9, 0, "best"),
+		leaf("work", 120000, 0.5, 0, "middle"),
+		leaf("work", 120000, 0.1, 0, "worst"))
+	assert.Nil(t, err)
+	submit(t, ts.c, "t8", "regrow", root)
+
+	// Target and NRunning together, since a target the platform never acted on
+	// is not capacity in use. The same predicate is the precondition and the
+	// claim: what is being tested is that the tree returns to a state it has
+	// already been observed to reach, so anything weaker on the way back would
+	// not be a comparison.
+	wide := func() bool {
+		n, ok := nodeOf(ts, "t8", "r")
+		return ok && n.Target == 3 && n.NRunning == 3
+	}
+	if !assert.True(t, eventually(t, 30*time.Second, wide),
+		"an idle cluster runs every candidate") {
+		return
+	}
+
+	// The squeeze. The returned closure is idempotent -- it discards Cancel's
+	// error, and cancelling a tree that is already gone is exactly that error --
+	// so it is safe both explicitly below and on the deferred path an early
+	// return takes.
+	release := fillCluster(t, ts)
+	defer release()
+
+	// Both the target and what is running, and the second is the load-bearing
+	// half. A target is a decision; a stop is the platform having acted on it,
+	// and they are deliberately not simultaneous anywhere in this layer. Waiting
+	// only for the target would let the release land while the shed was still in
+	// flight, and a candidate that was told to stop and never did is one the
+	// tree does not have to start again -- so the run would report a regrowth
+	// that consisted of taking nothing back.
+	//
+	// The rest is kept for the failure message, as in TestPruningUnderLoad:
+	// without it a timeout cannot say whether the filler never landed or the
+	// scheduler saw it and declined to act, and those want different fixes.
+	var lastCharged, lastSlots int32
+	contracted, running := -1, -1
+	if !assert.True(t, eventually(t, 120*time.Second, func() bool {
+		st, err := ts.c.SchedStats()
+		if err != nil {
+			return false
+		}
+		lastCharged, lastSlots = st.NCharged, st.Slots
+		if n, ok := nodeOf(ts, "t8", "r"); ok {
+			contracted, running = int(n.Target), int(n.NRunning)
+		}
+		return lastSlots > 0 && contracted > 0 && contracted < 3 && running > 0 && running < 3
+	}), "a full cluster never narrowed the tree: last charged=%v of %v slots, target=%v running=%v",
+		lastCharged, lastSlots, contracted, running) {
+		return
+	}
+
+	// Hold the squeeze, and require that it holds. Without this the run shows a
+	// contraction followed by a regrowth and cannot attribute the second to the
+	// release: a tree that bounced straight back on its own would leave exactly
+	// the same trace. Longer than the hold timer, so a target that was going to
+	// reverse itself has had the time in which it would.
+	time.Sleep(policy.DefaultConfig().ConfirmFor + time.Second)
+	if n, ok := nodeOf(ts, "t8", "r"); !assert.True(t, ok, "no root node after the dwell") ||
+		!assert.Less(t, int(n.Target), 3,
+			"the tree regrew while the squeeze was still on, so nothing below can be attributed to lifting it") {
+		return
+	}
+
+	st, err := ts.c.SchedStats()
+	if !assert.Nil(t, err, "SchedStats: %v", err) {
+		return
+	}
+	// Requeued rather than slack, and the difference is not cosmetic. start()
+	// settles the value question first and then lets the leaf's own history
+	// overwrite why it is starting, so a candidate that was shed for capacity
+	// and later regrown is recorded as having been requeued -- the slack kind
+	// cannot appear on this path at all. Requeued-after-stop is also the more
+	// direct statement of the claim: it says a candidate that had been given up
+	// was taken back, which is the whole property.
+	//
+	// Snapshotted before the release rather than at the start of the test, since
+	// the count is only evidence about what the release did if what came before
+	// it is excluded.
+	regrowth := func(st *proto.SchedStatsRep) int32 {
+		return st.NStartsByKind[uint32(policy.StartRequeuedAfterStop)]
+	}
+	shedStarts := regrowth(st)
+	db.DPrintf(db.TEST, "contracted to %v (running %v) at %v of %v slots charged (pressure %v, busy %v, delay %v) stops %v",
+		contracted, running, st.NCharged, st.Slots, st.Pressure, st.Busy, st.DelayPressure, st.NStopsByKind)
+
+	// The release, and the claim.
+	release()
+
+	lastTarget := -1
+	if !assert.True(t, eventually(t, 120*time.Second, func() bool {
+		if n, ok := nodeOf(ts, "t8", "r"); ok {
+			lastTarget = int(n.Target)
+		}
+		return wide()
+	}), "the slots came back and the tree did not: contracted to %v, back to %v of 3",
+		contracted, lastTarget) {
+		return
+	}
+
+	st, err = ts.c.SchedStats()
+	if !assert.Nil(t, err, "SchedStats: %v", err) {
+		return
+	}
+	db.DPrintf(db.TEST, "regrew from %v to 3 at %v of %v slots charged (pressure %v, busy %v, delay %v) starts %v",
+		contracted, st.NCharged, st.Slots, st.Pressure, st.Busy, st.DelayPressure, st.NStartsByKind)
+
+	// And it grew by taking back what it gave up. A width that came back because
+	// the quorum was refilled would say nothing about capacity -- k is one, and
+	// one candidate never stopped running -- so the count that matters is of
+	// candidates started again after having been stopped.
+	assert.Greater(t, regrowth(st), shedStarts,
+		"the tree regrew without restarting anything it had given up: %v", st.NStartsByKind)
+
+	assert.Nil(t, ts.c.Cancel("t8"))
 }
 
 // TestANonCompliantProcIsSynthesizedOver closes the hole SigmaOS leaves open.

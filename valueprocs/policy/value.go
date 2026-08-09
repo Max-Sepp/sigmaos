@@ -16,15 +16,31 @@ import "math"
 // width is how far a candidate's borrowed tangent may be carried, in units of
 // expected duration.
 //
-// The floor matters more than the slope. Were Wmin zero, full pressure would
-// value every candidate at nothing, and no evidence of any kind could then
-// justify starting one -- an absolute admission threshold wearing a continuous
-// function's clothes. Holding Wmin above zero means there is always an
-// incumbent slow enough to be worth overtaking, however contended the cluster.
+// Under SizingHeadroom it is constant, and the constant is the point: contention
+// has already entered the decision once, in afford, where it is measured as
+// capacity. Letting it in again here would discount the application's own
+// estimate by the kernel's view of the machine -- the two halves of the decision
+// leaking into each other, which is precisely what this layer exists to keep
+// apart. How much credit an unproven candidate gets is a question about
+// evidence, and it has the same answer on a busy cluster as on an idle one.
+//
+// Nor does it need to double as an admission control. Under-crediting candidates
+// was how the proportional arm avoided over-racing a contended cluster, and it
+// paid for that by refusing to race a wedged attempt beside a free slot. With
+// capacity enforced where capacity is known, racing is bounded by afford: a
+// racer admitted past the quorum still needs a slot to start in.
+//
+// Under SizingProportional the ramp stays, because that arm is the policy being
+// argued against and has to be reproduced whole. There the floor matters more
+// than the slope -- were Wmin zero, full pressure would value every candidate at
+// nothing, and no evidence of any kind could justify starting one.
 func (s *Scheduler) width() float64 {
 	lo, hi := s.cfg.Wmin, s.cfg.Wmax
 	if hi < lo {
 		hi = lo
+	}
+	if s.cfg.Sizing != SizingProportional {
+		return hi
 	}
 	return lo + (hi-lo)*(1-saturate(s.pressure))
 }

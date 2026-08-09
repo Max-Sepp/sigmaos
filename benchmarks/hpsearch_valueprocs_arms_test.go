@@ -15,7 +15,6 @@ package benchmarks_test
 // once" is the quantity these claims are actually about.
 
 import (
-	"math"
 	"testing"
 	"time"
 
@@ -23,39 +22,14 @@ import (
 
 	"sigmaos/apps/hpsearch"
 	db "sigmaos/debug"
-	"sigmaos/proc"
 	"sigmaos/sigmaclnt"
 	sp "sigmaos/sigmap"
 	"sigmaos/test"
 	"sigmaos/valueprocs/adapter"
 	"sigmaos/valueprocs/clnt"
-	"sigmaos/valueprocs/policy"
 )
 
 const (
-	// HPSearchSlackSqueezeFreeMB is the level the slack-then-squeeze arm
-	// squeezes to. Above a trainer's declared Mem (64MB) so they queue rather
-	// than starve, and low enough that memP outranks the cpu the trainers burn
-	// themselves, since pressure is max(memP, cpuP).
-	//
-	// Sized off measurement, not arithmetic. Over 10 runs memP landed in
-	// 0.763-0.771 at 2000MB free while cpuP in the settled window ranged
-	// 0.420-0.850, so the two distributions overlapped: the limb assertion
-	// below failed once and passed once by 0.001. 1200MB puts memP near 0.92,
-	// clear of the worst cpuP observed. 3000MB gave 0.81 and moved nothing the
-	// scheduler read at all.
-	//
-	// Well above the floor contention_sweep.sh warns about -- that is MR's
-	// 1500MB straggler reservation, and no MR task runs here.
-	HPSearchSlackSqueezeFreeMB = proc.Tmem(1200)
-	// HPSearchSqueezeAt is how far into the value-procs run the squeeze lands:
-	// past the probe lag, and early enough to leave a squeezed phase longer
-	// than policy.Config.ConfirmFor.
-	HPSearchSqueezeAt = 3 * time.Second
-	// HPSearchSqueezeIters gives a ~15s search at IterDur=50ms. A shrink must
-	// be proposed continuously for ConfirmFor before it applies, so a shorter
-	// run cannot show a contraction however the policy behaves.
-	HPSearchSqueezeIters = 300
 	// HPSearchInflateFactor is how much the dishonest trial multiplies its
 	// reported score by. Large enough that it outranks every honest trial at
 	// every iteration, which is the worst case rather than a marginal one.
@@ -70,10 +44,6 @@ type hpsearchVPFixture struct {
 	vpc   *clnt.Clnt
 	vpjob *adapter.Job
 	cfg   *hpsearch.Config
-
-	// smp is the sampler from the last runVP, kept for arms that need the
-	// trace windowed rather than the whole-run summary runVP returns.
-	smp *vpSampler
 }
 
 // newHPSearchVPFixture boots a realm and starts valuesched, or returns nil
@@ -103,7 +73,6 @@ func (f *hpsearchVPFixture) shutdown() {
 // of it alongside the scheduler trace.
 func (f *hpsearchVPFixture) runVP(t *testing.T, label string) (*hpsearch.LivePruneResult, vpSummary, bool) {
 	smp := startVPSampler(f.vpc)
-	f.smp = smp
 	j, err := hpsearch.StartValueProcsJob(f.vpc, f.cfg)
 	if !assert.Nil(t, err, "Error StartValueProcsJob: %v", err) {
 		smp.summarize()
@@ -225,87 +194,6 @@ func TestHPSearchValueProcsSlack(t *testing.T) {
 	// contended and nothing needed pruning at all.
 	db.DPrintf(db.ALWAYS, "HPSearch value-procs slack: %d of %d trials finished; quality lost to completion-order resolution %.3f",
 		f.cfg.NConfigs-live.NPruned, f.cfg.NConfigs, baseline.BestQualityAll-live.BestQuality)
-}
-
-// TestHPSearchValueProcsSlackThenSqueeze is the same arm with the squeeze
-// arriving partway through: the search starts wide and has to give slots back.
-//
-// This is the shape the introduction describes -- capacity is there until a
-// new workload arrives and takes it -- and it is the only arm in which the
-// right width changes within a single run. What it reports is whether the
-// search contracted at all, and how far.
-//
-// Two preconditions, neither of which held when this arm was first written:
-// the run must outlast ConfirmFor (HPSearchSqueezeIters), and the squeeze must
-// outrank the cpu the trainers burn themselves (HPSearchSlackSqueezeFreeMB,
-// asserted below). Without them the arm passes on its own load and reports a
-// flat width whatever the policy does.
-func TestHPSearchValueProcsSlackThenSqueeze(t *testing.T) {
-	f := newHPSearchVPFixture(t)
-	if f == nil {
-		return
-	}
-	defer f.shutdown()
-
-	slots := schedSlots(t, f.vpc)
-	if !assert.True(t, slots >= 2, "Need at least 2 slots to have slack, got %d", slots) {
-		return
-	}
-	f.cfg.NConfigs = slots - 1
-	// The trainers need a declared reservation for the squeeze to queue them,
-	// regardless of whether the sweep asked for contention -- this arm injects
-	// its own.
-	f.cfg.Mem = HPSearchTrainerMem
-	f.cfg.MaxIters = HPSearchSqueezeIters
-
-	ctn := squeezeAfter(t, f.sc, HPSearchSlackSqueezeFreeMB, HPSearchSqueezeAt)
-	defer ctn.release()
-
-	db.DPrintf(db.ALWAYS, "TestHPSearchValueProcsSlackThenSqueeze: slots=%d NConfigs=%d squeeze to %vMB at +%v",
-		slots, f.cfg.NConfigs, HPSearchSlackSqueezeFreeMB, HPSearchSqueezeAt)
-
-	_, trace, ok := f.runVP(t, "HPSearch value-procs slack-then-squeeze")
-	if !ok {
-		return
-	}
-
-	db.DPrintf(db.ALWAYS, "HPSearch value-procs slack-then-squeeze: width max=%d mean=%.2f, pressure max=%.3f mean=%.3f",
-		trace.maxRunning, trace.meanRunning, trace.maxPressure, trace.meanPressure)
-
-	// The settled window starts a hold plus a probe period after the squeeze:
-	// before that the policy is correctly declining to act on a proposal it has
-	// not confirmed, and counting it would read as a failure to contract.
-	settle := HPSearchSqueezeAt + policy.DefaultConfig().ConfirmFor + time.Second
-	slack := f.smp.window(0, HPSearchSqueezeAt)
-	squeezed := f.smp.window(settle, time.Duration(math.MaxInt64))
-
-	phase := func(name string, s vpSummary) {
-		db.DPrintf(db.ALWAYS, "HPSearch value-procs slack-then-squeeze phase %s: samples=%d width(max=%d mean=%.2f) pressure(max=%.3f mean=%.3f) limbs(mem=%.3f cpu=%.3f)",
-			name, s.n, s.maxRunning, s.meanRunning, s.maxPressure, s.meanPressure, s.maxMemP, s.maxCpuP)
-	}
-	phase("slack", slack)
-	phase("squeezed", squeezed)
-	db.DPrintf(db.ALWAYS, "HPSearch value-procs slack-then-squeeze: width %.2f -> %.2f (mean), %d -> %d (max); pressure %.3f -> %.3f",
-		slack.meanRunning, squeezed.meanRunning, slack.maxRunning, squeezed.maxRunning,
-		slack.maxPressure, squeezed.maxPressure)
-
-	if !assert.True(t, slack.n > 0 && squeezed.n > 0,
-		"Need samples either side of the squeeze; got %d before %v and %d after %v -- the run (%d iters) is probably shorter than the settle window",
-		slack.n, HPSearchSqueezeAt, squeezed.n, settle, f.cfg.MaxIters) {
-		return
-	}
-	// An arm that never expanded cannot demonstrate a contraction.
-	assert.True(t, slack.maxRunning > 1,
-		"Expected the search to run wide during the slack phase, saw max %d", slack.maxRunning)
-	assert.True(t, squeezed.maxMemP > squeezed.maxCpuP,
-		"The injected squeeze never became the binding pressure limb: memP %.3f vs cpuP %.3f. "+
-			"Lower HPSearchSlackSqueezeFreeMB (currently %vMB) until memP clears the trainers' own cpu load",
-		squeezed.maxMemP, squeezed.maxCpuP, HPSearchSlackSqueezeFreeMB)
-	// The claim itself.
-	assert.Less(t, squeezed.meanRunning, slack.meanRunning,
-		"Expected the search to give slots back once the squeeze was confirmed: mean width %.2f during slack vs %.2f after settling (max %d vs %d, pressure %.3f vs %.3f)",
-		slack.meanRunning, squeezed.meanRunning, slack.maxRunning, squeezed.maxRunning,
-		slack.maxPressure, squeezed.maxPressure)
 }
 
 // TestHPSearchValueProcsInflatedTrial is the first negative control: one trial

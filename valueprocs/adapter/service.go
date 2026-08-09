@@ -136,11 +136,11 @@ func (s *Srv) Run(sc *sigmaclnt.SigmaClnt) error {
 // RunSrv is the whole of the valuesched proc.
 // RunSrv boots the service.
 //
-// The one argument it takes is the policy signal (see policy.Signal): "value",
-// the default, or "metrics" for the ablation that decides on occupancy alone.
-// It is an argument rather than a build tag so a single binary can serve both
-// arms of a comparison, which is what makes the two runnable in one sweep
-// against one deployment.
+// The two arguments it takes name the arm: the policy signal (see
+// policy.Signal), "value" or "metrics", and the sizing rule (see policy.Sizing),
+// "headroom" or "proportional". They are arguments rather than build tags so a
+// single binary can serve every arm of a comparison, which is what makes them
+// runnable in one sweep against one deployment.
 func RunSrv() error {
 	sc, err := sigmaclnt.NewSigmaClnt(proc.GetProcEnv())
 	if err != nil {
@@ -151,23 +151,32 @@ func RunSrv() error {
 	if err != nil {
 		return err
 	}
-	cfg.Policy.Signal = sig
-	db.DPrintf(db.ALWAYS, "valuesched: policy signal %v", cfg.Policy.Signal)
+	sz, err := sizingFromArgs(os.Args)
+	if err != nil {
+		return err
+	}
+	cfg.Policy.Signal, cfg.Policy.Sizing = sig, sz
+	db.DPrintf(db.ALWAYS, "valuesched: policy signal %v sizing %v",
+		cfg.Policy.Signal, cfg.Policy.Sizing)
 	return NewSrv(sc, cfg).Run(sc)
 }
 
-// argSignal is where the policy signal sits in valuesched's argument vector.
+// argSignal and argSizing are where the arm sits in valuesched's argument
+// vector.
 //
-// It is index 2 rather than 1 because procgroupmgr prepends the job name to
-// whatever StartJobSignal passes (ft/procgroupmgr/procgroupmgr.go's
+// They start at index 2 rather than 1 because procgroupmgr prepends the job name
+// to whatever StartJobArm passes (ft/procgroupmgr/procgroupmgr.go's
 // NewProcGroupConfigRealmSwitch), so the layout is:
 //
-//	os.Args = [binary, job, signal]
+//	os.Args = [binary, job, signal, sizing]
 //
 // Reading index 1 instead parses the job name as a signal, which fails, which
 // takes the service down before it serves anything -- and takes down the
 // default arm too, not just the ablation. TestValueschedArgLayout pins this.
-const argSignal = 2
+const (
+	argSignal = 2
+	argSizing = 3
+)
 
 // signalFromArgs reads the policy signal out of valuesched's argument vector,
 // defaulting to the reporting model when none was passed.
@@ -176,4 +185,16 @@ func signalFromArgs(args []string) (policy.Signal, error) {
 		return policy.SignalValue, nil
 	}
 	return policy.ParseSignal(args[argSignal])
+}
+
+// sizingFromArgs reads the sizing rule out of valuesched's argument vector.
+//
+// A missing argument is the ledger rather than an error, so a deployment that
+// predates this axis -- or a caller that only names a signal -- gets the arm
+// this system proposes rather than the one it argues against.
+func sizingFromArgs(args []string) (policy.Sizing, error) {
+	if len(args) <= argSizing {
+		return policy.SizingHeadroom, nil
+	}
+	return policy.ParseSizing(args[argSizing])
 }

@@ -6,10 +6,17 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// metricsConfig is testConfig with the signal ablated, so every test below
-// differs from its value-model counterpart in exactly one field.
+// metricsConfig is the state-of-the-art arm: the signal ablated and the target
+// sized on the occupancy reading.
+//
+// Both halves are needed for it to model anything real. Ablating the signal
+// alone would leave a scheduler that reads no reports but still sizes on
+// capacity, which is not a system anybody has built; what the introduction
+// describes is one that reads utilisation and sheds against it. The arm that
+// changes one field at a time from this one is proportionalConfig, which is why
+// there are three arms and not two.
 func metricsConfig() Config {
-	c := testConfig()
+	c := proportionalConfig()
 	c.Signal = SignalMetrics
 	return c
 }

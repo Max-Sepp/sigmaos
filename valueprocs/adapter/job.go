@@ -26,19 +26,26 @@ type Job struct {
 // into its epoch, which is how a client discovers its results are gone rather
 // than waiting forever for the next one.
 func StartJob(sc *sigmaclnt.SigmaClnt, mcpu proc.Tmcpu) *Job {
-	return StartJobSignal(sc, mcpu, policy.SignalValue)
+	return StartJobArm(sc, mcpu, policy.SignalValue, policy.SizingHeadroom)
 }
 
-// StartJobSignal is StartJob running the service under a named policy signal.
-//
-// It exists for the arm that ablates the signal: the same service, the same
-// trees, the same admission machinery, deciding on occupancy alone (see
-// policy.Signal). Passing the mode as a proc argument rather than baking it
-// into the binary is what lets one deployment serve both arms, so a comparison
-// between them does not also compare two builds.
+// StartJobSignal is StartJob running the service under a named policy signal,
+// sizing on the ledger as the default arm does.
 func StartJobSignal(sc *sigmaclnt.SigmaClnt, mcpu proc.Tmcpu, sig policy.Signal) *Job {
-	cfg := procgroupmgr.NewProcGroupConfig(1, "valuesched", []string{sig.String()}, mcpu, valueprocs.VALUESCHEDREL)
-	db.DPrintf(db.VALUEPROC, "starting valuesched signal %v", sig)
+	return StartJobArm(sc, mcpu, sig, policy.SizingHeadroom)
+}
+
+// StartJobArm is StartJob running the service under a named arm.
+//
+// An arm is a signal and a sizing rule together: what the application is allowed
+// to tell the scheduler, and what the cluster is allowed to tell it (see
+// policy.Signal and policy.Sizing). Passing both as proc arguments rather than
+// baking them into the binary is what lets one deployment serve every arm, so a
+// comparison between them does not also compare builds.
+func StartJobArm(sc *sigmaclnt.SigmaClnt, mcpu proc.Tmcpu, sig policy.Signal, sz policy.Sizing) *Job {
+	args := []string{sig.String(), sz.String()}
+	cfg := procgroupmgr.NewProcGroupConfig(1, "valuesched", args, mcpu, valueprocs.VALUESCHEDREL)
+	db.DPrintf(db.VALUEPROC, "starting valuesched signal %v sizing %v", sig, sz)
 	return &Job{pgm: cfg.StartGrpMgr(sc)}
 }
 

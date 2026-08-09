@@ -234,28 +234,6 @@ func startContention(t *testing.T, sc *sigmaclnt.SigmaClnt) *contention {
 	return c
 }
 
-// squeezeAfter is a step schedule built programmatically rather than from the
-// flags, for the tests whose whole point is that the squeeze arrives partway
-// through -- they must apply one whatever -contention_shape the sweep asked
-// for, or they would silently degrade into another constant-contention run.
-func squeezeAfter(t *testing.T, sc *sigmaclnt.SigmaClnt, freeMB proc.Tmem, delay time.Duration) *contention {
-	c := &contention{t: t, sc: sc, stop: make(chan struct{}), done: make(chan struct{})}
-	go func() {
-		defer close(c.done)
-		select {
-		case <-time.After(delay):
-		case <-c.stop:
-			return
-		}
-		db.DPrintf(db.ALWAYS, "contention: programmatic squeeze to %vMB free at +%v", freeMB, delay)
-		procs := injectContentionFreeMB(c.t, c.sc, freeMB)
-		c.mu.Lock()
-		c.procs = append(c.procs, procs...)
-		c.mu.Unlock()
-	}()
-	return c
-}
-
 // schedule runs the step and pulse shapes. Both wait out the onset; only
 // pulse lifts the squeeze again. Either wait can be cut short by release, so
 // a job that finishes before its own contention was due does not hold the

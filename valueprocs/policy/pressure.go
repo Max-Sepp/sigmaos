@@ -39,8 +39,12 @@ func (s *Scheduler) queueDelay(now time.Time) float64 {
 // selfOccupancy is how full the cluster is by this scheduler's own books:
 // slots it holds over slots it was told exist. It is exact, where the
 // platform's reading is an inference from memory and CPU, and it is blind to
-// everything this scheduler did not start, where the platform's reading is
-// not. Neither dominates, which is why PressureSource exists.
+// everything this scheduler did not start, where the platform's reading is not.
+//
+// It is reported rather than folded into pressure. The two are not the same
+// quantity and averaging them produces neither: SizingHeadroom wants the slots
+// themselves, which it takes from free, and SizingProportional wants the
+// platform's reading, which is what pressure is.
 func (s *Scheduler) selfOccupancy() (float64, bool) {
 	if s.occ.Slots <= 0 {
 		return 0, false
@@ -48,32 +52,24 @@ func (s *Scheduler) selfOccupancy() (float64, bool) {
 	return saturate(float64(s.nCharged) / float64(s.occ.Slots)), true
 }
 
-// updatePressure folds the platform's reading together with this scheduler's
-// own occupancy and with queueing delay, then smooths the result.
+// updatePressure folds the platform's reading together with queueing delay,
+// then smooths the result.
 //
-// Queueing delay is folded in with a max regardless of the source chosen: it
-// is the one term measured from inside, by how long this scheduler's own
-// attempts sit unplaced, so a cluster that cannot place work is full whatever
-// anything else claims. It is saturated first, being an unbounded ratio, and a
-// pressure above 1 would drive widths below their floor.
+// Queueing delay is folded in with a max: it is the one term measured from
+// inside, by how long this scheduler's own attempts sit unplaced, so a cluster
+// that cannot place work is full whatever anything else claims. It is saturated
+// first, being an unbounded ratio, and a pressure above 1 would drive widths
+// below their floor.
+//
+// There is no choice of source to make. This scheduler's own occupancy is
+// reported (see Stats.SelfOccupancy) and is what SizingHeadroom decides on
+// directly, in slots rather than as a fraction; folding it into a scalar
+// alongside the platform's reading only ever produced a number that was neither
+// quantity. Pressure is now what SizingProportional sizes on and what every
+// decision is annotated with, and nothing else.
 func (s *Scheduler) updatePressure(now time.Time) {
 	s.delay = s.queueDelay(now)
-	plat := saturate(s.occ.Busy)
-	self, ok := s.selfOccupancy()
-
-	sample := plat
-	if ok {
-		switch s.cfg.PressureSource {
-		case PressureSelf:
-			sample = self
-		case PressureMax:
-			sample = max(plat, self)
-		case PressureMin:
-			sample = min(plat, self)
-		default: // PressurePlatform
-			sample = plat
-		}
-	}
+	sample := saturate(s.occ.Busy)
 	if s.delay > sample {
 		sample = s.delay
 	}

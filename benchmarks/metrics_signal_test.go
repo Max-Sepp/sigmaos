@@ -44,8 +44,18 @@ import (
 // the mode is fixed for the whole of a scheduler's life, so an arm that reused
 // the previous arm's service would be measuring a scheduler that had already
 // made decisions under the other signal.
+//
+// Both arms size on the ledger (see policy.Sizing), so these tests keep varying
+// exactly one thing. The metrics arm here is therefore not the state of the art
+// on its own -- that is metrics paired with proportional sizing, which
+// TestHPSearchArmAblation runs as the third arm.
 func withSignal(sc *sigmaclnt.SigmaClnt, sig policy.Signal, body func(vpc clnt.Sched)) {
-	vpjob := adapter.StartJobSignal(sc, 0, sig)
+	withArm(sc, sig, policy.SizingHeadroom, body)
+}
+
+// withArm is withSignal naming both halves of the arm.
+func withArm(sc *sigmaclnt.SigmaClnt, sig policy.Signal, sz policy.Sizing, body func(vpc clnt.Sched)) {
+	vpjob := adapter.StartJobArm(sc, 0, sig, sz)
 	defer vpjob.Stop()
 	body(clnt.NewClnt(sc.FsLib))
 }
@@ -131,6 +141,113 @@ func TestHPSearchSignalAblation(t *testing.T) {
 	// than a pruning failure.
 	assert.True(t, value.NPruned < cfg.NConfigs, "value arm finished no trial")
 	assert.True(t, metrics.NPruned < cfg.NConfigs, "metrics arm finished no trial")
+}
+
+// TestHPSearchArmAblation runs all three arms of the decomposition, and is the
+// test that attributes a result to one half of the decision rather than to the
+// pair of them.
+//
+// The arms, in the order they run:
+//
+//	metrics + proportional  the state of the art: utilisation in, work shed out
+//	value   + proportional  reports read, but capacity still measured as a ratio
+//	value   + headroom      reports read, capacity measured as slots
+//
+// Each neighbouring pair differs in one field, so the two gaps are separately
+// meaningful. The first is what the reported scores buy: which trials survive a
+// squeeze, given the same decision about how many survive. The second is what
+// the capacity measure buys: how many survive, given the same ranking of them.
+//
+// The second gap is the one the existing evaluation could not see, and the
+// slack-then-squeeze traces predict it is the larger. There a three-candidate
+// search under proportional sizing pruned to one candidate on a four-slot host
+// and never grew back, because the reading driving it was another tenant's
+// committed memory. No ranking can recover quality the node was never wide
+// enough to find.
+func TestHPSearchArmAblation(t *testing.T) {
+	mrts, err := test.NewMultiRealmTstate(t, []sp.Trealm{REALM1})
+	if !assert.Nil(t, err, "Error New Tstate: %v", err) {
+		return
+	}
+	defer mrts.Shutdown()
+	sc := mrts.GetRealm(REALM1).SigmaClnt
+
+	cfg := hpsearch.DefaultConfig()
+	if contentionEnabled() {
+		cfg.Mem = HPSearchTrainerMem
+	}
+
+	ctn := startContention(t, sc)
+	defer ctn.release()
+
+	// One baseline, shared by all three arms, so the only thing that moves
+	// between them is the arm.
+	baseCurves, err := runJob(sc, cfg)
+	if !assert.Nil(t, err, "Error runJob (baseline): %v", err) {
+		return
+	}
+	base := hpsearch.Analyze(baseCurves, cfg)
+
+	type arm struct {
+		name string
+		sig  policy.Signal
+		sz   policy.Sizing
+	}
+	arms := []arm{
+		{"metrics+proportional", policy.SignalMetrics, policy.SizingProportional},
+		{"value+proportional", policy.SignalValue, policy.SizingProportional},
+		{"value+headroom", policy.SignalValue, policy.SizingHeadroom},
+	}
+
+	type result struct {
+		live  *hpsearch.LivePruneResult
+		trace vpSummary
+		lost  float64
+	}
+	got := make([]result, 0, len(arms))
+
+	for _, a := range arms {
+		var r result
+		ok := false
+		withArm(sc, a.sig, a.sz, func(vpc clnt.Sched) {
+			smp := startVPSampler(vpc)
+			j, err := hpsearch.StartValueProcsJob(vpc, cfg)
+			if !assert.Nil(t, err, "Error StartValueProcsJob (%v): %v", a.name, err) {
+				smp.summarize()
+				return
+			}
+			outcomes, err := j.Wait()
+			r.trace = smp.report("HPSearch arm=" + a.name)
+			if !assert.Nil(t, err, "Error Wait (%v): %v", a.name, err) {
+				return
+			}
+			r.live = hpsearch.AnalyzeLive(j.Curves(outcomes), cfg)
+			r.lost = base.BestQualityAll - r.live.BestQuality
+			ok = true
+		})
+		if !ok {
+			return
+		}
+		db.DPrintf(db.ALWAYS, "HPSearch arm=%s: best-kept %.3f (lost %.3f, %.2f core-s, width max=%d mean=%.2f, pressure mean=%.3f), %d of %d trials finished",
+			a.name, r.live.BestQuality, r.lost, r.live.CoreSeconds,
+			r.trace.maxRunning, r.trace.meanRunning, r.trace.meanPressure,
+			cfg.NConfigs-r.live.NPruned, cfg.NConfigs)
+		got = append(got, r)
+	}
+
+	db.DPrintf(db.ALWAYS, "HPSearch arm ablation: best-all %.3f; quality the reported scores bought = %.3f; quality the slot ledger bought = %.3f",
+		base.BestQualityAll, got[0].lost-got[1].lost, got[1].lost-got[2].lost)
+	// Width is what the second gap should act through, so report it alongside:
+	// a ledger arm that did not run wider than the proportional one has not
+	// demonstrated the mechanism, whatever the quality numbers say.
+	db.DPrintf(db.ALWAYS, "HPSearch arm ablation: mean width %.2f (proportional) -> %.2f (headroom)",
+		got[1].trace.meanRunning, got[2].trace.meanRunning)
+
+	// Every arm has to resolve to a winner. Anything else is a broken arm
+	// rather than a finding about arms.
+	for i, a := range arms {
+		assert.True(t, got[i].live.NPruned < cfg.NConfigs, "%v arm finished no trial", a.name)
+	}
 }
 
 // TestCodedMatMulSignalAblation asks what the reported scores buy a coded

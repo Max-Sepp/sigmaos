@@ -197,6 +197,26 @@ func (n *node) running() int {
 	return r
 }
 
+// holding counts children whose subtree holds at least one slot.
+//
+// It counts children rather than slots because a target is a number of
+// children, and the two part company once a child is itself a Select: such a
+// child holds as many slots as its own target and still counts once here.
+//
+// Sizing starts from this rather than from target so that it reads what the
+// node has rather than what it last asked for. A target restored from the
+// number it was itself derived from would never notice work that was asked for
+// and never placed.
+func (n *node) holding() int {
+	h := 0
+	for _, c := range n.children {
+		if c.charged() > 0 {
+			h++
+		}
+	}
+	return h
+}
+
 // reported is whether anything in the subtree has a tangent of its own, which
 // is what separates a child standing on its own evidence from one standing on
 // a peer's.

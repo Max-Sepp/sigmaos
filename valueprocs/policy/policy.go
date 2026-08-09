@@ -20,10 +20,16 @@ type Config struct {
 	MaxAttempts int           // per-leaf cap on failed runs; 0 disables
 	ScoreStale  time.Duration // age at which a tangent counts as fully stale
 
-	// Wmin and Wmax bound how far a candidate may carry a borrowed tangent,
-	// in units of expected duration, at full and at zero pressure. Wmin above
-	// zero is load-bearing: it is what leaves a wedged incumbent raceable on a
-	// cluster that reports itself full.
+	// Wmin and Wmax bound how far a candidate may carry a borrowed tangent, in
+	// units of expected duration.
+	//
+	// Only SizingProportional reads both. There Wmin is load-bearing, being
+	// what leaves a wedged incumbent raceable on a cluster that reports itself
+	// full -- an absolute admission threshold otherwise, wearing a continuous
+	// function's clothes. Under SizingHeadroom a candidate is always worth Wmax:
+	// contention has already entered the decision once, where it is measured
+	// properly, and how much credit to extend an application's own claim is not
+	// a second contention question. See width.
 	Wmin, Wmax float64
 
 	// Hfresh and Hstale bound how far an incumbent may carry its own tangent,
@@ -50,14 +56,16 @@ type Config struct {
 	// one was applied, so a node is never deaf to what happens next.
 	ConfirmFor time.Duration
 
-	PressureSource   PressureSource // how platform and self occupancy combine
-	QueueDelayTarget time.Duration  // queue dwell that reads as full pressure
-	EWMAAlpha        float64        // weight on the newest pressure sample
+	QueueDelayTarget time.Duration // queue dwell that reads as full pressure
+	EWMAAlpha        float64       // weight on the newest pressure sample
 
 	// Signal is what decisions may be made on: what applications report, or
-	// occupancy alone. The zero value is the reporting one, so a Config built
-	// without naming a signal behaves as it always did.
+	// occupancy alone. Sizing is what contention is measured as: the slot
+	// ledger, or the occupancy reading. Between them they name the arm (see
+	// signal.go and sizing.go); the zero value of each is what this system
+	// proposes rather than what it is arguing against.
 	Signal Signal
+	Sizing Sizing
 }
 
 // DefaultConfig returns tuning suitable for a cluster of long-running batch
@@ -383,12 +391,12 @@ func (s *Scheduler) walk(t *tree, budget int) []func() {
 // retarget decides how many of a node's children should be running, in two
 // steps that answer two different questions.
 //
-// The first is what the cluster can afford: at pressure 0 every surviving
-// child runs, at pressure 1 exactly k do. This is slack, and it is spent on
-// the best children because they are the ones ranked first. No threshold gates
-// it. A rule that refused all redundancy above some fixed pressure would leave
-// a stalled attempt unraceable on a cluster with slots to spare, since nothing
-// an application could report would reach past the threshold.
+// The first is what the cluster can afford, which afford answers from whichever
+// capacity measure the arm selects. This is slack, and it is spent on the best
+// children because they are the ones ranked first. No threshold gates it. A rule
+// that refused all redundancy above some fixed pressure would leave a stalled
+// attempt unraceable on a cluster with slots to spare, since nothing an
+// application could report would reach past the threshold.
 //
 // The second is what the evidence justifies beyond that. Slack is a count and
 // so cannot tell one stalled task from nine healthy ones -- it duplicates all
@@ -411,7 +419,7 @@ func (s *Scheduler) retarget(n *node) {
 
 	k := clampInt(n.k, 0, a)
 	ranked := s.rank(n)
-	base := clampInt(k+int(math.Round((1-s.pressure)*float64(a-k))), k, a)
+	base := s.afford(n, k, a)
 
 	// Ranked descending, so once one candidate fails to clear the bar every
 	// one after it fails too.

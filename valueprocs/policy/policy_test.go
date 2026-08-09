@@ -108,8 +108,20 @@ func TestFailureCascadesToRootInOnePass(t *testing.T) {
 
 // --- the three motivating shapes -------------------------------------------
 
-func TestPrunesToKUnderPressure(t *testing.T) {
+// TestPrunesToWhatFits is the hyperparameter search: fifteen configurations,
+// pruned when the compute to explore them stops being there.
+//
+// The cluster shrinks to a single slot, so a single candidate is what fits and
+// fourteen are given back. What the arm being argued against would do with the
+// same fifteen is prune to the same one on a cluster that still had fourteen
+// slots free, because a reading past three quarters proposes the quorum
+// whatever the slots say -- see TestProportionalArmPrunesOnTheReadingAlone.
+//
+// Which candidate survives is the half of the decision only the application can
+// supply, and it is the same under either rule.
+func TestPrunesToWhatFits(t *testing.T) {
 	s, f := newSched(testConfig())
+	sized(s, t0, 15)
 	submit(t, s, t0, "t", selG(t, 1, leavesG(t, 15)...))
 	assert.Len(t, f.starts(), 15, "an idle cluster runs every candidate")
 	startQueued(s, f, t0)
@@ -120,7 +132,7 @@ func TestPrunesToKUnderPressure(t *testing.T) {
 	}
 	f.reset()
 
-	busy(s, t0, 1.0)
+	apply(s.OnOccupancy(t0, Occupancy{Busy: 1.0, Slots: 1}))
 	assert.Len(t, f.stops(), 14)
 	assert.Equal(t, 1, nodeView(t, s, "t", "r").Target)
 
@@ -132,8 +144,11 @@ func TestPrunesToKUnderPressure(t *testing.T) {
 	assert.False(t, stopped["r.14"], "the best-scoring child must survive")
 }
 
+// TestQuorumSurplusShedByScore is the erasure-coded shape: nine workers of which
+// six are needed, and the surplus given back when the slots for it go.
 func TestQuorumSurplusShedByScore(t *testing.T) {
 	s, f := newSched(testConfig())
+	sized(s, t0, 9)
 	submit(t, s, t0, "t", selG(t, 6, leavesG(t, 9)...))
 	startQueued(s, f, t0)
 	for i := 0; i < 9; i++ {
@@ -141,7 +156,7 @@ func TestQuorumSurplusShedByScore(t *testing.T) {
 	}
 	f.reset()
 
-	busy(s, t0, 1.0)
+	apply(s.OnOccupancy(t0, Occupancy{Busy: 1.0, Slots: 6}))
 	assert.Len(t, f.stops(), 3)
 	for _, c := range f.stops() {
 		assert.Contains(t, []NodeID{"r.0", "r.1", "r.2"}, c.ref.Node,
@@ -159,10 +174,9 @@ func TestQuorumSurplusShedByScore(t *testing.T) {
 // platform. The probe folds committed memory together with CPU before this
 // package sees either, so a busy report may mean a slot going to waste or a
 // machine whose cores are all spinning, and nothing here can tell which.
-// Pressure therefore stays at what the platform said. The backup starts anyway,
-// because a stalled incumbent is worth almost nothing and a candidate is worth
-// something at any pressure -- which is a stronger property than second-
-// guessing the probe would give.
+// Pressure therefore stays at what the platform said. What changed is that the
+// reading is no longer what decides how much runs, so it can be believed and
+// still not leave a slot standing empty.
 func TestBackupStartsOnAnIdleClusterTheProbeCallsBusy(t *testing.T) {
 	s, f := newSched(testConfig())
 
@@ -177,26 +191,32 @@ func TestBackupStartsOnAnIdleClusterTheProbeCallsBusy(t *testing.T) {
 	startQueued(s, f, t0)
 	assert.Len(t, f.starts(), 6, "an idle cluster runs every attempt")
 
-	// The contention burst: six charged against four slots is genuinely full,
-	// by the platform's reading and the scheduler's own alike. Each task keeps
-	// its primary and gives back its duplicate, which is the "run=1 stops=1"
-	// the log shows those leaves holding for the rest of the job.
+	// The contention burst: six charged against four slots really is over
+	// capacity, so two of the six have to go and a third follows from the
+	// shape -- a duplicate per task is what a pair has to give.
 	f.reset()
 	apply(s.OnOccupancy(t0, Occupancy{Busy: 1.0, Slots: 4}))
 	assert.Len(t, f.stops(), 3, "one duplicate per task")
 	stopped(s, f, t0)
-	for i := 0; i < 3; i++ {
-		assert.Equal(t, RIdle, nodeView(t, s, "t", NodeID(fmt.Sprintf("r.%d.1", i))).RunState)
-	}
 
-	// Two tasks finish. Now one attempt is charged of four slots, and the
-	// platform still calls that three-quarters-idle cluster nearly full --
-	// which is the exact state the log captured, repeatedly, for three
-	// minutes, while nothing was scheduled.
+	// Three of four slots would then be holding the three primaries, and the
+	// fourth is free. It does not stay free: giving back more than had to be
+	// given back is the failure this whole rule exists to prevent, so a
+	// duplicate goes straight back into the slot the rounding left over.
+	assert.Equal(t, 4, s.Stats().NCharged,
+		"the shed gives back what does not fit and no more")
+	assert.Equal(t, 1.0, s.Stats().SelfOccupancy, "four slots, four attempts")
+	startQueued(s, f, t0)
+
+	// Two tasks finish, and their duplicates go with them. Now the straggler's
+	// task holds two attempts of four slots, and the platform still calls that
+	// half-idle cluster nearly full -- which is the exact state the log
+	// captured, repeatedly, for three minutes, while nothing was scheduled.
 	f.reset()
 	for i := 1; i < 3; i++ {
 		apply(s.OnRunCompleted(t0, refOf("t", NodeID(fmt.Sprintf("r.%d.0", i)), 0), nil))
 	}
+	stopped(s, f, t0)
 	apply(s.OnOccupancy(t0, Occupancy{Busy: 0.728, Slots: 4}))
 
 	// The straggler: running, reporting, converting no time into value.
@@ -205,29 +225,34 @@ func TestBackupStartsOnAnIdleClusterTheProbeCallsBusy(t *testing.T) {
 	assert.Equal(t, 0.728, s.Stats().Pressure,
 		"the platform's reading is taken at face value, as it must be")
 
-	// The backup runs again. Which of the two events restarted it -- capacity
-	// coming free, or the straggler admitting it was wedged -- is not the
-	// point and is deliberately not asserted: the failure being regressed
-	// against is that neither ever did, for the remaining three minutes of the
-	// job, on a cluster three-quarters idle.
-	if assert.Len(t, f.starts(), 1, "the backup must start") {
-		assert.Equal(t, NodeID("r.0.1"), f.starts()[0].ref.Node)
-		assert.Equal(t, RunID(1), f.starts()[0].ref.Run, "a fresh attempt")
-	}
+	// The backup is running. Which event put it there -- capacity coming free,
+	// or the straggler admitting it was wedged -- is not the point and is
+	// deliberately not asserted: the failure being regressed against is that
+	// neither ever did, for the remaining three minutes of the job, on a
+	// cluster three-quarters idle.
+	dup := nodeView(t, s, "t", "r.0.1")
+	assert.True(t, dup.RunState.Charged(), "the backup must be running, got %v", dup.RunState)
+	assert.Equal(t, RunID(1), dup.Run, "a fresh attempt")
 	assert.Equal(t, 2, nodeView(t, s, "t", "r.0").Target)
 	assert.Equal(t, 0.5, s.Stats().SelfOccupancy,
 		"the straggler and its backup, two slots of four")
 }
 
-// TestWedgedIsRaceableAtFullPressure is the floor invariant. Wmin above zero
-// is what keeps a candidate's borrowed tangent worth something when the
-// cluster really is full, and without it full pressure would be an admission
-// wall again -- continuous this time, but just as absolute as the ExpandAt
-// threshold it replaced.
+// TestWedgedIsRaceableAtFullPressure is the proportional arm's floor invariant.
+// Wmin above zero is what keeps a candidate's borrowed tangent worth something
+// when the reading says the cluster is full, and without it full pressure would
+// be an admission wall again -- continuous this time, but just as absolute as
+// the ExpandAt threshold it replaced.
+//
+// It is stated against that arm because the floor is that arm's problem. Under
+// the ledger rule a candidate is always worth Wmax and there is no reading that
+// could value it at nothing, so the invariant holds by construction rather than
+// by tuning; what bounds racing there is capacity, which is the thing that was
+// always meant to bound it.
 func TestWedgedIsRaceableAtFullPressure(t *testing.T) {
 	run := func(t *testing.T, score Score, g Gradient) []call {
 		t.Helper()
-		s, f := newSched(testConfig())
+		s, f := newSched(proportionalConfig())
 		busy(s, t0, 1.0)
 		submit(t, s, t0, "t", selG(t, 1, leafG(t, "a"), leafG(t, "b")))
 		startQueued(s, f, t0)
@@ -250,7 +275,7 @@ func TestWedgedIsRaceableAtFullPressure(t *testing.T) {
 	})
 
 	t.Run("floor removed", func(t *testing.T) {
-		cfg := testConfig()
+		cfg := proportionalConfig()
 		cfg.Wmin = 0
 		s, f := newSched(cfg)
 		busy(s, t0, 1.0)
@@ -264,30 +289,23 @@ func TestWedgedIsRaceableAtFullPressure(t *testing.T) {
 	})
 }
 
-func TestPressureSourceSelectsTheFold(t *testing.T) {
-	// A platform calling itself full while the scheduler holds nothing is the
-	// disagreement the enum exists to resolve. The default is to believe the
-	// platform: the folds that do not are available, and documented with why
-	// each is a trap.
-	for _, tc := range []struct {
-		src  PressureSource
-		want float64
-	}{
-		{PressurePlatform, 1},
-		{PressureSelf, 0},
-		{PressureMax, 1},
-		{PressureMin, 0},
-	} {
-		t.Run(tc.src.String(), func(t *testing.T) {
-			cfg := testConfig()
-			cfg.PressureSource = tc.src
-			// Queue delay is folded in regardless of source; nothing is queued
-			// here, so it contributes nothing.
-			s, _ := newSched(cfg)
-			apply(s.OnOccupancy(t0, Occupancy{Busy: 1.0, Slots: 8}))
-			assert.Equal(t, tc.want, s.Stats().Pressure)
-		})
-	}
+// TestPlatformReadingAndOwnBooksAreBothReported pins that the two capacity
+// measures stay separate quantities.
+//
+// They disagree exactly when it matters, and folding them into one scalar --
+// which is what the deleted PressureSource enum chose between -- produced a
+// number that was neither. A platform reading of 1 on a cluster where this
+// scheduler holds nothing means either a slot going to waste or a machine whose
+// cores are all spinning on work it did not start, and no fold distinguishes
+// them. Reporting both is what lets each rule read the one it needs.
+func TestPlatformReadingAndOwnBooksAreBothReported(t *testing.T) {
+	s, _ := newSched(testConfig())
+	apply(s.OnOccupancy(t0, Occupancy{Busy: 1.0, Slots: 8}))
+
+	st := s.Stats()
+	assert.Equal(t, 1.0, st.Pressure, "the platform's reading is taken at face value")
+	assert.Equal(t, 0.0, st.SelfOccupancy, "and it holds none of the eight slots")
+	assert.Equal(t, 8, st.Slots)
 }
 
 // TestRaceOnlyWhatIsNotProgressing covers the property redundancy exists for:
@@ -297,6 +315,12 @@ func TestPressureSourceSelectsTheFold(t *testing.T) {
 // one and a healthy attempt a high one -- the reverse of what a measure of
 // lateness would do, and the reverse of the direction that reads intuitively
 // from the phrase "wants a racer".
+//
+// Stated against the proportional arm, because it needs a node held at its
+// quorum with the comparison as the only thing that could move it. Under the
+// ledger rule a free slot is filled by slack before any comparison is reached,
+// so the question this test asks does not arise there until the cluster is full
+// -- see TestBetterCandidateTakesTheSlotOnAFullCluster.
 func TestRaceOnlyWhatIsNotProgressing(t *testing.T) {
 	// A pressure high enough that slack alone holds the node at k, so the
 	// value comparison is the only thing that can move target.
@@ -304,7 +328,7 @@ func TestRaceOnlyWhatIsNotProgressing(t *testing.T) {
 
 	newRace := func(t *testing.T) (*Scheduler, *fake) {
 		t.Helper()
-		s, f := newSched(testConfig())
+		s, f := newSched(proportionalConfig())
 		busy(s, t0, p)
 		submit(t, s, t0, "t", selG(t, 1, leafG(t, "a"), leafG(t, "b")))
 		startQueued(s, f, t0)
@@ -356,7 +380,7 @@ func TestRaceOnlyWhatIsNotProgressing(t *testing.T) {
 }
 
 func TestQueuedChildIsNotAPeer(t *testing.T) {
-	cfg := testConfig()
+	cfg := proportionalConfig()
 	// Take queueing delay out of the pressure fold, so that the only thing
 	// left to explain a race is what the running attempt reports.
 	cfg.QueueDelayTarget = time.Hour
@@ -382,6 +406,186 @@ func TestQueuedChildIsNotAPeer(t *testing.T) {
 	}
 }
 
+// --- capacity sizing -------------------------------------------------------
+
+// squeezed is the shape the slack-then-squeeze arm measures: four slots, a
+// three-candidate search holding three of them, and another tenant about to
+// take most of the machine's memory without taking a slot.
+func squeezed(t *testing.T) (*Scheduler, *fake) {
+	t.Helper()
+	s, f := newSched(testConfig())
+	sized(s, t0, 4)
+	submit(t, s, t0, "t", selG(t, 1, leavesG(t, 3)...))
+	startQueued(s, f, t0)
+	if !assert.Equal(t, 3, nodeView(t, s, "t", "r").Target,
+		"the search should start wide on an empty cluster") {
+		t.FailNow()
+	}
+	f.reset()
+	return s, f
+}
+
+// TestBusyMachineWithAFreeSlotDoesNotContract is the regression this rule
+// exists for.
+//
+// Over twenty runs of the arm this reproduces, the search gave up two of its
+// three candidates when the squeeze landed and held one for the rest of the
+// run, while charged one slot of four. The reading that caused it was another
+// tenant's committed memory, so no decision this scheduler could make would
+// lower it, and nothing ever grew back.
+//
+// Nothing about a free slot changed when that tenant arrived, which is what the
+// ledger reads and the occupancy ratio never could.
+func TestBusyMachineWithAFreeSlotDoesNotContract(t *testing.T) {
+	s, f := squeezed(t)
+
+	apply(s.OnOccupancy(t0, Occupancy{Busy: 0.826, Slots: 4}))
+
+	assert.Equal(t, 3, nodeView(t, s, "t", "r").Target,
+		"three candidates still fit in four slots, whatever the machine reads")
+	assert.Empty(t, f.stops(), "nothing should be given back while a slot is spare")
+	assert.Equal(t, 0.826, s.Stats().Pressure,
+		"the reading is still believed; it is no longer what sizes the node")
+}
+
+// TestProportionalArmPrunesOnTheReadingAlone is the same state under the arm
+// being argued against, and is what makes the comparison a comparison.
+//
+// Same four slots, same three candidates, same reading. The node contracts to
+// its quorum with three slots standing empty, because the rule converts the
+// reading to a share of the node's slack and 0.826 of two rounds to none.
+func TestProportionalArmPrunesOnTheReadingAlone(t *testing.T) {
+	s, f := newSched(proportionalConfig())
+	sized(s, t0, 4)
+	submit(t, s, t0, "t", selG(t, 1, leavesG(t, 3)...))
+	startQueued(s, f, t0)
+	f.reset()
+
+	apply(s.OnOccupancy(t0, Occupancy{Busy: 0.826, Slots: 4}))
+
+	assert.Equal(t, 1, nodeView(t, s, "t", "r").Target)
+	assert.Len(t, f.stops(), 2, "two candidates pruned with a slot already free")
+	stopped(s, f, t0)
+	assert.Equal(t, 3, s.free(),
+		"and having given the slots back the rule will not take them again")
+}
+
+// TestContractsOnlyAsFarAsTheSlotsThatWent pins the shape of a real
+// contraction. Capacity is reported rather than requested, so a fleet that
+// loses a machine leaves this scheduler holding slots that have stopped
+// existing -- the one condition under which sizing sheds anything.
+//
+// What it gives back is the overdraft and not a slot more. The proportional
+// rule has no notion of what fits: every reading past three quarters proposes
+// the quorum, so losing two slots of four and losing all four are the same
+// decision.
+func TestContractsOnlyAsFarAsTheSlotsThatWent(t *testing.T) {
+	s, f := squeezed(t)
+
+	apply(s.OnOccupancy(t0, Occupancy{Busy: 1.0, Slots: 2}))
+
+	assert.Equal(t, 2, nodeView(t, s, "t", "r").Target,
+		"two slots left means two candidates, not the quorum")
+	assert.Len(t, f.stops(), 1, "exactly the one candidate that no longer fits")
+}
+
+// TestRegrowsWhenSlotsComeBack is the half of the behaviour the proportional
+// rule cannot express at all. A contraction was permanent whenever the reading
+// that caused it was insensitive to the contraction, which is precisely when it
+// was another tenant's.
+func TestRegrowsWhenSlotsComeBack(t *testing.T) {
+	s, f := squeezed(t)
+
+	apply(s.OnOccupancy(t0, Occupancy{Busy: 1.0, Slots: 2}))
+	stopped(s, f, t0)
+	assert.Equal(t, 2, nodeView(t, s, "t", "r").Target)
+
+	f.reset()
+	apply(s.OnOccupancy(t0, Occupancy{Busy: 1.0, Slots: 4}))
+
+	assert.Equal(t, 3, nodeView(t, s, "t", "r").Target,
+		"the slot came back, so the candidate does")
+	assert.Len(t, f.starts(), 1)
+}
+
+// TestQueuedWorkWithholdsGrowth covers the backstop that replaces the occupancy
+// ratio's caution.
+//
+// A slot ledger cannot see a machine whose cores are spinning on work this
+// scheduler did not start, and neither could the ratio -- the probe folds
+// memory and CPU together before either is visible here. What can see it is
+// this scheduler's own attempts failing to be placed, which is measured from
+// inside and cannot be mistaken for someone else's committed memory.
+//
+// Note the asymmetry: the node keeps what it has. A queue is a reason not to
+// take more, never a reason to give back work already under way.
+func TestQueuedWorkWithholdsGrowth(t *testing.T) {
+	s, f := newSched(testConfig())
+	// One slot, so the search starts a single candidate, and that candidate is
+	// never placed.
+	sized(s, t0, 1)
+	submit(t, s, t0, "t", selG(t, 1, leavesG(t, 3)...))
+	assert.Len(t, f.starts(), 1)
+	assert.Equal(t, RQueued, nodeView(t, s, "t", "r.0").RunState)
+
+	// Slots appear, but this scheduler's own attempt has been waiting longer
+	// than the delay target, so they are not slots it can use.
+	late := t0.Add(2 * testConfig().QueueDelayTarget)
+	f.reset()
+	apply(s.OnOccupancy(late, Occupancy{Slots: 4}))
+
+	assert.Equal(t, 1.0, s.Stats().DelayPressure, "the attempt is fully overdue")
+	assert.Equal(t, 1, nodeView(t, s, "t", "r").Target,
+		"free slots that cannot place work are not headroom")
+	assert.Empty(t, f.starts())
+	assert.Empty(t, f.stops(), "and a queue never sheds what is already running")
+}
+
+// TestBetterCandidateTakesTheSlotOnAFullCluster is where the value model acts
+// under the ledger rule.
+//
+// With slack filling every free slot, a comparison between candidates only
+// decides anything once there are none left -- and there it decides by
+// displacement rather than by admission, since a full cluster has no slot to
+// start an extra attempt into. A candidate that has run before keeps its score
+// (see OnRunStopped), so it can outrank a wedged incumbent on evidence and take
+// the slot back.
+//
+// This is the property TestRaceOnlyWhatIsNotProgressing states for the
+// proportional arm, restated for a cluster that is actually full rather than
+// one that merely reads that way.
+func TestBetterCandidateTakesTheSlotOnAFullCluster(t *testing.T) {
+	s, f := newSched(testConfig())
+	sized(s, t0, 2)
+	submit(t, s, t0, "t", selG(t, 1, leavesG(t, 2)...))
+	startQueued(s, f, t0)
+
+	// Both report, then the cluster shrinks to a single slot and the weaker one
+	// is given back. It keeps its score.
+	apply(s.OnScore(t0, refOf("t", "r.0", 0), 0.9, 1.0))
+	apply(s.OnScore(t0, refOf("t", "r.1", 0), 0.1, 1.0))
+	apply(s.OnOccupancy(t0, Occupancy{Busy: 1.0, Slots: 1}))
+	if !assert.Len(t, f.stops(), 1) || !assert.Equal(t, NodeID("r.1"), f.stops()[0].ref.Node) {
+		return
+	}
+	stopped(s, f, t0)
+	assert.Equal(t, 0, s.free(), "one slot, and the survivor holds it")
+
+	// Now the survivor wedges: still running, converting no more time into
+	// value. The one that was pruned is worth more than it on the evidence both
+	// of them reported.
+	f.reset()
+	apply(s.OnScore(t0, refOf("t", "r.0", 0), 0.9, 0.0))
+
+	if assert.Len(t, f.stops(), 1, "the wedged incumbent gives up the slot") {
+		assert.Equal(t, NodeID("r.0"), f.stops()[0].ref.Node)
+	}
+	stopped(s, f, t0)
+	if assert.Len(t, f.starts(), 1, "and the better candidate takes it") {
+		assert.Equal(t, NodeID("r.1"), f.starts()[0].ref.Node)
+	}
+}
+
 // --- policy invariants -----------------------------------------------------
 
 // TestValueScaleInvariant pins the strongest property this model can have:
@@ -397,14 +601,17 @@ func TestQueuedChildIsNotAPeer(t *testing.T) {
 func TestValueScaleInvariant(t *testing.T) {
 	trace := func(mul float64) []string {
 		s, fk := newSched(testConfig())
+		sized(s, t0, 6)
 		submit(t, s, t0, "t", selG(t, 2, leavesG(t, 6)...))
 		startQueued(s, fk, t0)
 		for i := 0; i < 6; i++ {
 			ref := refOf("t", NodeID(fmt.Sprintf("r.%d", i)), 0)
 			apply(s.OnScore(t0, ref, Score(float64(i)*mul), Gradient(float64(i%3)*mul)))
 		}
-		busy(s, t0, 0.8)
-		busy(s, t0, 0.2)
+		// Slots away and back, so the trace contains a shed and a regrowth and
+		// the ranking has to decide both.
+		apply(s.OnOccupancy(t0, Occupancy{Slots: 3}))
+		apply(s.OnOccupancy(t0, Occupancy{Slots: 6}))
 		return fk.trace()
 	}
 
@@ -412,10 +619,13 @@ func TestValueScaleInvariant(t *testing.T) {
 	assert.Equal(t, trace(1), trace(0.001))
 }
 
-// TestNoOscillation pins the anti-oscillation property: pressure sweeping back
-// and forth may not make a node retarget on every crossing.
+// TestNoOscillation pins the anti-oscillation property: a capacity signal
+// sweeping back and forth may not make a node retarget on every crossing.
+//
+// Driven from the occupancy reading, since that is the signal with a continuum
+// to sweep across; the hold timer it exercises is the same under either rule.
 func TestNoOscillation(t *testing.T) {
-	cfg := testConfig()
+	cfg := proportionalConfig()
 	cfg.ConfirmFor = 5 * time.Second
 	// Every proposal here moves the target by one of seven slack slots, well
 	// under the fraction that would skip confirmation.
@@ -451,7 +661,7 @@ func TestNoOscillation(t *testing.T) {
 // timer restarts whenever the proposal changes, so a node whose value estimate
 // will not settle stays exactly where it is, indefinitely.
 func TestAlternatingProposalNeverApplies(t *testing.T) {
-	cfg := testConfig()
+	cfg := proportionalConfig()
 	cfg.ConfirmFor = 5 * time.Second
 	cfg.JumpFraction = 2 // nothing here is ever big enough to skip the hold
 	s, f := newSched(cfg)
@@ -489,12 +699,14 @@ func TestStalenessDoesNotStop(t *testing.T) {
 
 func TestStoppingStaysChargedUntilTerminal(t *testing.T) {
 	s, f := newSched(testConfig())
+	sized(s, t0, 2)
 	submit(t, s, t0, "t", selG(t, 1, leavesG(t, 2)...))
 	startQueued(s, f, t0)
 	charged := s.Stats().NCharged
 	f.reset()
 
-	busy(s, t0, 1.0)
+	// One of the two slots goes, so one of the two attempts has to.
+	apply(s.OnOccupancy(t0, Occupancy{Busy: 1.0, Slots: 1}))
 	assert.Len(t, f.stops(), 1)
 	assert.Equal(t, charged, s.Stats().NCharged,
 		"issuing a stop frees nothing; only a terminal event does")
@@ -550,7 +762,8 @@ func TestRequeuedChildKeepsScore(t *testing.T) {
 	apply(s.OnScore(t0, refOf("t", "r.1", 0), 0.1, 0))
 	f.reset()
 
-	busy(s, t0, 1.0)
+	// One slot for the two of them, so the lower-scoring one is given back.
+	sized(s, t0, 1)
 	if assert.Len(t, f.stops(), 1) {
 		assert.Equal(t, NodeID("r.1"), f.stops()[0].ref.Node)
 	}
@@ -570,7 +783,7 @@ func TestResurrectionWhenLeadersFail(t *testing.T) {
 	startQueued(s, f, t0)
 	apply(s.OnScore(t0, refOf("t", "r.0", 0), 0.9, 0))
 	apply(s.OnScore(t0, refOf("t", "r.1", 0), 0.1, 0))
-	busy(s, t0, 1.0)
+	sized(s, t0, 1)
 	apply(s.OnRunStopped(t0, refOf("t", "r.1", 0), nil))
 	f.reset()
 
@@ -596,9 +809,9 @@ func TestStopNeverExhaustsAttempts(t *testing.T) {
 	// candidate: a stop is a decision about the cluster, not evidence that the
 	// work is broken.
 	for i := 0; i < 3*cfg.MaxAttempts; i++ {
-		busy(s, t0, 1.0)
+		sized(s, t0, 1) // one slot: the lower-scoring candidate goes
 		apply(s.OnRunStopped(t0, refOf("t", "r.1", RunID(i)), nil))
-		busy(s, t0, 0.0)
+		sized(s, t0, 2) // and comes straight back when the slot does
 		startQueued(s, f, t0)
 		f.reset()
 	}
@@ -629,8 +842,8 @@ func TestDeterministicReconcile(t *testing.T) {
 		for i := 8; i >= 0; i-- {
 			apply(s.OnScore(t0, refOf("t", NodeID(fmt.Sprintf("r.%d", i)), 0), Score(i%4), 0))
 		}
-		busy(s, t0, 0.9)
-		busy(s, t0, 0.1)
+		sized(s, t0, 3)
+		sized(s, t0, 9)
 		return f.trace()
 	}
 	assert.Equal(t, replay(), replay())
@@ -663,7 +876,7 @@ func TestLateEventForSupersededAttemptIsDropped(t *testing.T) {
 	s, f := newSched(testConfig())
 	submit(t, s, t0, "t", selG(t, 1, leafG(t, "a"), leafG(t, "b")))
 	startQueued(s, f, t0)
-	busy(s, t0, 1.0)
+	sized(s, t0, 1)
 	apply(s.OnRunStopped(t0, refOf("t", "r.1", 0), nil))
 	f.reset()
 
@@ -753,9 +966,10 @@ func TestArbiterNeverShedsBelowQuorum(t *testing.T) {
 
 func TestStatsCountByReason(t *testing.T) {
 	s, f := newSched(testConfig())
+	sized(s, t0, 4)
 	submit(t, s, t0, "t", selG(t, 1, leavesG(t, 4)...))
 	startQueued(s, f, t0)
-	busy(s, t0, 1.0)
+	apply(s.OnOccupancy(t0, Occupancy{Busy: 1.0, Slots: 1}))
 
 	st := s.Stats()
 	assert.Equal(t, 4, st.NStarts[StartRequiredForQuorum]+st.NStarts[StartSlackRedundancy])

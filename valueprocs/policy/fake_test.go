@@ -80,6 +80,18 @@ func testConfig() Config {
 	return c
 }
 
+// proportionalConfig is testConfig sizing on the occupancy reading, so that a
+// test of the arm being argued against differs from its counterpart in exactly
+// one field. It is also what the tests of the value model use where the
+// property they pin is about admission rather than capacity: under the ledger
+// rule slack fills a free slot before any comparison is reached, so a node
+// with room to spare cannot demonstrate a choice between candidates.
+func proportionalConfig() Config {
+	c := testConfig()
+	c.Sizing = SizingProportional
+	return c
+}
+
 func newSched(cfg Config) (*Scheduler, *fake) {
 	f := &fake{}
 	return NewScheduler(cfg, f, nil, nil), f
