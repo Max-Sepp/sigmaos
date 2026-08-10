@@ -21,19 +21,17 @@ const WorkerVPBin = "codedmatmul-worker-vp"
 // SpawnValueProcsWorkerLeaf builds (but does not spawn -- valuesched's
 // adapter does that) one worker's WorkNode.
 //
-// Unlike SpawnWorker, this proc reserves no mcpu: valuesched's adapter
-// rejects any leaf that does, since a leaf may be stopped and re-run under
-// its own admission model rather than besched's mcpu-based one.
-func SpawnValueProcsWorkerLeaf(idx, n, k, r, d, w, tiles, repeats int, seed int64, mem proc.Tmem) *clnt.WorkNode {
+// Like SpawnWorker, this proc reserves nothing. For a leaf that is not
+// optional: valuesched's adapter rejects any leaf that reserves mcpu, since a
+// leaf may be stopped and re-run under its own admission model rather than
+// besched's mcpu-based one.
+func SpawnValueProcsWorkerLeaf(idx, n, k, r, d, w, tiles, repeats int, seed int64) *clnt.WorkNode {
 	args := []string{
 		strconv.Itoa(idx), strconv.Itoa(n), strconv.Itoa(k), strconv.Itoa(r),
 		strconv.Itoa(d), strconv.Itoa(w), strconv.Itoa(tiles), strconv.Itoa(repeats),
 		strconv.FormatInt(seed, 10),
 	}
 	p := proc.NewProc(WorkerVPBin, args)
-	if mem > 0 {
-		p.SetMem(mem)
-	}
 	return clnt.Leaf(p).WithLabel(fmt.Sprintf("w%d", idx))
 }
 
@@ -67,7 +65,7 @@ func StartValueProcsJob(c clnt.Runner, cfg *Config) (*ValueProcsJob, error) {
 		if stragglers[i] {
 			repeats = cfg.Repeats
 		}
-		leaves[i] = SpawnValueProcsWorkerLeaf(i, cfg.N, cfg.K, r, cfg.D, cfg.W, cfg.Tiles, repeats, cfg.Seed, cfg.Mem)
+		leaves[i] = SpawnValueProcsWorkerLeaf(i, cfg.N, cfg.K, r, cfg.D, cfg.W, cfg.Tiles, repeats, cfg.Seed)
 	}
 	root, err := clnt.Select(cfg.K, leaves...)
 	if err != nil {

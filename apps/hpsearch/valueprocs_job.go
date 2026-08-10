@@ -17,14 +17,14 @@ import (
 const TrainerVPBin = "hp-trainer-vp"
 
 // SpawnValueProcsTrainerLeaf builds (but does not spawn) one config's
-// WorkNode. Unlike SpawnTrainer, this proc reserves no mcpu.
+// WorkNode. Like SpawnTrainer, this proc reserves neither mcpu nor memory.
 //
 // scale and silent are the negative-control knobs (see Config): a scale other
 // than 1 inflates what this trainer reports without changing what it returns,
 // and silent withholds its reports until it completes. Both are always passed
 // so the argument list has one shape, and an honest trainer is just the
 // (1, false) case of it.
-func SpawnValueProcsTrainerLeaf(configId int, seed int64, maxIters int, iterDur time.Duration, mem proc.Tmem, scale float64, silent bool) *clnt.WorkNode {
+func SpawnValueProcsTrainerLeaf(configId int, seed int64, maxIters int, iterDur time.Duration, scale float64, silent bool) *clnt.WorkNode {
 	args := []string{
 		strconv.Itoa(configId),
 		strconv.FormatInt(seed, 10),
@@ -34,9 +34,6 @@ func SpawnValueProcsTrainerLeaf(configId int, seed int64, maxIters int, iterDur 
 		strconv.FormatBool(silent),
 	}
 	p := proc.NewProc(TrainerVPBin, args)
-	if mem > 0 {
-		p.SetMem(mem)
-	}
 	return clnt.Leaf(p).WithLabel(fmt.Sprintf("config-%d", configId))
 }
 
@@ -66,7 +63,7 @@ func StartValueProcsJob(c clnt.Runner, cfg *Config) (*ValueProcsJob, error) {
 		if i == cfg.InflateConfig && cfg.InflateFactor > 0 {
 			scale = cfg.InflateFactor
 		}
-		leaves[i] = SpawnValueProcsTrainerLeaf(i, seeds[i], cfg.MaxIters, cfg.IterDur, cfg.Mem, scale, i == cfg.SilentConfig)
+		leaves[i] = SpawnValueProcsTrainerLeaf(i, seeds[i], cfg.MaxIters, cfg.IterDur, scale, i == cfg.SilentConfig)
 	}
 	root, err := clnt.Select(1, leaves...)
 	if err != nil {

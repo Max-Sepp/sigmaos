@@ -54,9 +54,6 @@ func newHPSearchVPFixture(t *testing.T) *hpsearchVPFixture {
 		return nil
 	}
 	cfg := hpsearch.DefaultConfig()
-	if contentionEnabled() {
-		cfg.Mem = HPSearchTrainerMem
-	}
 	sc := mrts.GetRealm(REALM1).SigmaClnt
 	f := &hpsearchVPFixture{mrts: mrts, sc: sc, cfg: cfg}
 	f.vpjob = adapter.StartJob(sc, 0)
@@ -307,8 +304,8 @@ func TestHPSearchValueProcsOverhead(t *testing.T) {
 	}
 	defer f.shutdown()
 
-	// No contention injected at all, whatever the sweep asked for.
-	f.cfg.Mem = 0
+	// No contention injected at all, whatever the sweep asked for: this arm
+	// never calls startContention.
 
 	start := time.Now()
 	base, err := runJob(f.sc, f.cfg)

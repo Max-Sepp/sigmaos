@@ -25,14 +25,19 @@ const (
 // Config is one coded-matmul run: C = A*B split into N workers, K of which are
 // needed to reconstruct C. A is M x D (M = K*r row-stripes of r x D), B is D x
 // W.
+//
+// No arm declares a resource reservation. adapter/spec.go rejects any leaf
+// that reserves mcpu, so the value-procs arm could never match a reservation
+// the classical arms held; equalizing downward is what makes the arms differ
+// only in how they are scheduled rather than also in how they are admitted.
+// Analyze charges a worker one core regardless, which is what a worker
+// actually burns.
 type Config struct {
 	M, D, W      int
 	N, K         int
 	Repeats      int   // recompute factor given to straggler workers
 	StragglerIdx []int // worker indices that get Repeats instead of 1 (i.e. list of workers which are made stragglers)
 	Tiles        int   // TiledMultiply slab count
-	Mcpu         proc.Tmcpu
-	Mem          proc.Tmem // declared memory reservation per worker; 0 (default) leaves workers unconstrained by besched's memory-based admission
 	Seed         int64
 }
 
@@ -43,7 +48,6 @@ func DefaultConfig() *Config {
 		Repeats:      4,
 		StragglerIdx: []int{0},
 		Tiles:        8,
-		Mcpu:         1000,
 		Seed:         7159623,
 	}
 }
@@ -73,17 +77,13 @@ func (j *Job) WaitStart() error {
 
 // SpawnWorker spawns a single codedmatmul-worker proc, without waiting for it
 // to start running.
-func SpawnWorker(sc *sigmaclnt.SigmaClnt, idx, n, k, r, d, w, tiles, repeats int, seed int64, progressDir string, mcpu proc.Tmcpu, mem proc.Tmem) (*proc.Proc, error) {
+func SpawnWorker(sc *sigmaclnt.SigmaClnt, idx, n, k, r, d, w, tiles, repeats int, seed int64, progressDir string) (*proc.Proc, error) {
 	args := []string{
 		strconv.Itoa(idx), strconv.Itoa(n), strconv.Itoa(k), strconv.Itoa(r),
 		strconv.Itoa(d), strconv.Itoa(w), strconv.Itoa(tiles), strconv.Itoa(repeats),
 		strconv.FormatInt(seed, 10), progressDir,
 	}
 	p := proc.NewProc(WorkerBin, args)
-	p.SetMcpu(mcpu)
-	if mem > 0 {
-		p.SetMem(mem)
-	}
 	if err := sc.Spawn(p); err != nil {
 		return nil, err
 	}
@@ -119,7 +119,7 @@ func StartJob(sc *sigmaclnt.SigmaClnt, cfg *Config) (*Job, error) {
 		if stragglers[i] {
 			repeats = cfg.Repeats
 		}
-		p, err := SpawnWorker(sc, i, cfg.N, cfg.K, r, cfg.D, cfg.W, cfg.Tiles, repeats, cfg.Seed, progressDir, cfg.Mcpu, cfg.Mem)
+		p, err := SpawnWorker(sc, i, cfg.N, cfg.K, r, cfg.D, cfg.W, cfg.Tiles, repeats, cfg.Seed, progressDir)
 		if err != nil {
 			return nil, err
 		}

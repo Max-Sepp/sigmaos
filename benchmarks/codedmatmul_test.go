@@ -37,7 +37,7 @@ func runCodedMatMulArm(t *testing.T, sc *sigmaclnt.SigmaClnt, cfg *codedmatmul.C
 	if !assert.True(t, mat.EqualApprox(C, want, 1e-6), "%s: decoded C does not match the reference", name) {
 		return nil
 	}
-	res := codedmatmul.Analyze(samples, cfg.Mcpu, stats)
+	res := codedmatmul.Analyze(samples, stats)
 	db.DPrintf(db.ALWAYS, "CodedMatMul %s: makespan %v, total %.2f core-s, wasted %.2f core-s, %d evicted",
 		name, res.Makespan, res.TotalCoreSeconds, res.WastedCoreSeconds, res.NEvicted)
 	return res
@@ -46,10 +46,11 @@ func runCodedMatMulArm(t *testing.T, sc *sigmaclnt.SigmaClnt, cfg *codedmatmul.C
 // runCodedMatMulValueProcsArm is runCodedMatMulArm's counterpart for the
 // value-procs-scheduled arm: no cancelSurplus flag, since shedding the
 // surplus once the K-quorum is reached is valuesched's own policy, not
-// something the coordinator asks for. Its leaves reserve no mcpu (unlike
-// every other arm's Mcpu=1000), so res.TotalCoreSeconds/WastedCoreSeconds
-// read as 0 -- a different admission regime, not a faster one; makespan and
-// NAttemptsStopped are what's comparable.
+// something the coordinator asks for.
+//
+// Every arm now reserves nothing, so this arm's core-seconds are on the same
+// footing as the rest and comparable directly, rather than reading as 0
+// against arms that declared a reservation.
 func runCodedMatMulValueProcsArm(t *testing.T, c clnt.Runner, cfg *codedmatmul.Config, want *mat.Dense, name string) *codedmatmul.Result {
 	j, err := codedmatmul.StartValueProcsJob(c, cfg)
 	if !assert.Nil(t, err, "%s: StartValueProcsJob err %v", name, err) {
@@ -62,7 +63,7 @@ func runCodedMatMulValueProcsArm(t *testing.T, c clnt.Runner, cfg *codedmatmul.C
 	if !assert.True(t, mat.EqualApprox(C, want, 1e-6), "%s: decoded C does not match the reference", name) {
 		return nil
 	}
-	res := codedmatmul.Analyze(samples, 0, stats)
+	res := codedmatmul.Analyze(samples, stats)
 	stopped, err := j.NAttemptsStopped()
 	if err != nil {
 		db.DPrintf(db.ALWAYS, "%s: NAttemptsStopped err %v", name, err)
@@ -93,15 +94,8 @@ func TestCodedMatMul(t *testing.T) {
 	defer ctn.release()
 
 	cfg := codedmatmul.DefaultConfig()
-	// DefaultConfig leaves Mem at 0 (unconstrained). Only declare a reservation
-	// when contention injection is actually requested -- besched's memory-based
-	// admission would otherwise apply unconditionally and can perturb this
-	// test's timing assertions even with no filler procs running.
-	if contentionEnabled() {
-		cfg.Mem = ContentionWorkerMem
-	}
-	db.DPrintf(db.ALWAYS, "TestCodedMatMul: cfg M=%d D=%d W=%d N=%d K=%d Mcpu=%d Mem=%d Repeats=%d StragglerIdx=%v",
-		cfg.M, cfg.D, cfg.W, cfg.N, cfg.K, cfg.Mcpu, cfg.Mem, cfg.Repeats, cfg.StragglerIdx)
+	db.DPrintf(db.ALWAYS, "TestCodedMatMul: cfg M=%d D=%d W=%d N=%d K=%d Repeats=%d StragglerIdx=%v (workers reserve nothing)",
+		cfg.M, cfg.D, cfg.W, cfg.N, cfg.K, cfg.Repeats, cfg.StragglerIdx)
 	r := cfg.M / cfg.K
 
 	// Reference C, computed once directly (not via the harness) from the
@@ -128,17 +122,17 @@ func TestCodedMatMul(t *testing.T) {
 	// the K-quorum is reached.
 	arm3 := runCodedMatMulArm(t, sc, cfg, true, &want, "arm3-coded-reap")
 
-	// Arm 5: coded + reap again, but declaring no mcpu, which is the arm that
-	// makes arm 4 comparable to anything.
+	// Arm 5: coded + reap under arm 4's admission regime, which is what used
+	// to make arm 4 comparable to anything: arm 4 cannot be brought up to a
+	// reservation, since adapter/spec.go rejects any leaf that reserves mcpu,
+	// so the equalization had to go the other way.
 	//
-	// Arm 4 cannot be brought up to arm 3's reservation -- adapter/spec.go
-	// rejects any leaf that reserves mcpu, because a leaf may be stopped and
-	// re-run and so must not hold a reservation the scheduler is unaware of.
-	// The equalization therefore has to go the other way: run the classical
-	// reap policy under arm 4's admission regime, and compare those two. Arms
-	// 1-3 keep their reservation so the recorded sweeps stay comparable.
+	// Now that no arm reserves anything, this is a rerun of arm 3 with the
+	// same config. It is kept as its own arm only so recorded sweeps keep the
+	// column -- collapse it into arm 3 (and drop cmm_arm5* from
+	// notes/sweep_to_csv.py) if that continuity stops being worth a second
+	// full matmul per run.
 	arm5Cfg := *cfg
-	arm5Cfg.Mcpu = 0
 	arm5 := runCodedMatMulArm(t, sc, &arm5Cfg, true, &want, "arm5-coded-reap-nomcpu")
 
 	// Arm 4: coded, scheduled by valuesched (N=K+m). Shedding the surplus

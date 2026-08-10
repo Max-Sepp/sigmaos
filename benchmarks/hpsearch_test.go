@@ -12,20 +12,12 @@ import (
 
 	"sigmaos/apps/hpsearch"
 	db "sigmaos/debug"
-	"sigmaos/proc"
 	"sigmaos/sigmaclnt"
 	sp "sigmaos/sigmap"
 	"sigmaos/test"
 	"sigmaos/valueprocs/adapter"
 	"sigmaos/valueprocs/clnt"
 )
-
-// HPSearchTrainerMem is each hp-trainer's declared memory reservation for
-// these benchmarks, so that -contention_free_mb's filler procs (which
-// compete on declared memory, not real usage) can actually queue trainers
-// behind besched's admission check; hpsearch.DefaultConfig leaves Mem at 0
-// (unconstrained) since a trainer's real footprint is negligible.
-const HPSearchTrainerMem = proc.Tmem(64)
 
 // runJob starts a baseline search and waits for it to finish.
 func runJob(sc *sigmaclnt.SigmaClnt, cfg *hpsearch.Config) ([]*hpsearch.Curve, error) {
@@ -54,16 +46,10 @@ func TestHPSearchBaseline(t *testing.T) {
 	defer mrts.Shutdown()
 
 	cfg := hpsearch.DefaultConfig()
-	// DefaultConfig leaves Mem at 0 (unconstrained). Only declare a reservation
-	// when contention injection is actually requested -- see TestCodedMatMul's
-	// comment on the same pattern.
-	if contentionEnabled() {
-		cfg.Mem = HPSearchTrainerMem
-	}
 	sc := mrts.GetRealm(REALM1).SigmaClnt
 
-	db.DPrintf(db.ALWAYS, "TestHPSearchBaseline: cfg NConfigs=%d MaxIters=%d IterDur=%v Mcpu=%d Mem=%d",
-		cfg.NConfigs, cfg.MaxIters, cfg.IterDur, cfg.Mcpu, cfg.Mem)
+	db.DPrintf(db.ALWAYS, "TestHPSearchBaseline: cfg NConfigs=%d MaxIters=%d IterDur=%v (trainers reserve nothing)",
+		cfg.NConfigs, cfg.MaxIters, cfg.IterDur)
 
 	ctn := startContention(t, sc)
 	defer ctn.release()
@@ -100,16 +86,10 @@ func TestHPSearchLivePruning(t *testing.T) {
 	defer mrts.Shutdown()
 
 	cfg := hpsearch.DefaultConfig()
-	// DefaultConfig leaves Mem at 0 (unconstrained). Only declare a reservation
-	// when contention injection is actually requested -- see TestCodedMatMul's
-	// comment on the same pattern.
-	if contentionEnabled() {
-		cfg.Mem = HPSearchTrainerMem
-	}
 	sc := mrts.GetRealm(REALM1).SigmaClnt
 
-	db.DPrintf(db.ALWAYS, "TestHPSearchLivePruning: cfg NConfigs=%d MaxIters=%d IterDur=%v Mcpu=%d Mem=%d Margin=%.3f",
-		cfg.NConfigs, cfg.MaxIters, cfg.IterDur, cfg.Mcpu, cfg.Mem, cfg.Margin)
+	db.DPrintf(db.ALWAYS, "TestHPSearchLivePruning: cfg NConfigs=%d MaxIters=%d IterDur=%v Margin=%.3f (trainers reserve nothing)",
+		cfg.NConfigs, cfg.MaxIters, cfg.IterDur, cfg.Margin)
 
 	ctn := startContention(t, sc)
 	defer ctn.release()
@@ -187,20 +167,14 @@ func TestHPSearchValueProcs(t *testing.T) {
 	defer mrts.Shutdown()
 
 	cfg := hpsearch.DefaultConfig()
-	// DefaultConfig leaves Mem at 0 (unconstrained). Only declare a reservation
-	// when contention injection is actually requested -- see TestCodedMatMul's
-	// comment on the same pattern.
-	if contentionEnabled() {
-		cfg.Mem = HPSearchTrainerMem
-	}
 	sc := mrts.GetRealm(REALM1).SigmaClnt
 
 	vpjob := adapter.StartJob(sc, 0)
 	defer vpjob.Stop()
 	vpc := clnt.NewClnt(sc.FsLib)
 
-	db.DPrintf(db.ALWAYS, "TestHPSearchValueProcs: cfg NConfigs=%d MaxIters=%d IterDur=%v Mem=%d (value-procs leaves reserve no mcpu)",
-		cfg.NConfigs, cfg.MaxIters, cfg.IterDur, cfg.Mem)
+	db.DPrintf(db.ALWAYS, "TestHPSearchValueProcs: cfg NConfigs=%d MaxIters=%d IterDur=%v (trainers reserve nothing)",
+		cfg.NConfigs, cfg.MaxIters, cfg.IterDur)
 
 	ctn := startContention(t, sc)
 	defer ctn.release()

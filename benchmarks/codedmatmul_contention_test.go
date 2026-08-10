@@ -3,11 +3,17 @@ package benchmarks_test
 // TestCodedMatMulSlotContention re-runs the same three-arm codedmatmul
 // comparison as TestCodedMatMul (see codedmatmul_test.go), but first occupies
 // most of the host's memory with filler `sleeper` procs so only a handful of
-// worker-sized memory slots are left free -- fewer than K. This creates
-// genuine SigmaOS scheduler-level (besched) queueing: besched's isEligible
-// check (sched/besched/srv/srv.go) admits a BE proc only if its declared Mem
-// fits in the requesting msched's free memory, so with fewer free slots than
-// K, even Arm 1 (uncoded, needs all K workers) can't run all of them at once.
+// worker-sized memory slots are left free -- fewer than K.
+//
+// CAVEAT: that no longer produces besched-level queueing. besched's isEligible
+// check (sched/besched/srv/srv.go) admits a BE proc if its declared Mem fits
+// in the requesting msched's free memory, and codedmatmul workers no longer
+// declare any Mem, so `GetMem() == 0` clears the check however little memory
+// the fillers have left. The fillers still load the host, so the arms still
+// contend for real cycles, but the "fewer free slots than K" framing below
+// describes an admission squeeze that is not currently applied. Restoring it
+// needs a squeeze the scheduler applies to unreserved procs -- not a declared
+// reservation on the workers, which is what the arms were equalized to remove.
 
 import (
 	"testing"
@@ -25,10 +31,11 @@ import (
 )
 
 const (
-	// ContentionWorkerMem is each codedmatmul worker's declared memory
-	// reservation for this benchmark -- a bit above its real ~150MB working
-	// set (see apps/codedmatmul/worker.go), not artificially inflated, since
-	// the filler procs below are what create the scarcity.
+	// ContentionWorkerMem is the size of one worker-shaped memory slot -- a bit
+	// above a worker's real ~150MB working set (see
+	// apps/codedmatmul/worker.go). Workers no longer declare it; it survives
+	// only as the unit ContentionRemainingSlots is counted in, so the amount of
+	// memory the fillers leave free is unchanged from earlier sweeps.
 	ContentionWorkerMem = proc.Tmem(512)
 	// ContentionK is the quorum size. Chosen so slot contention shows up
 	// within the required K workers themselves, not just the surplus.
@@ -65,12 +72,10 @@ func TestCodedMatMulSlotContention(t *testing.T) {
 		Repeats:      4,
 		StragglerIdx: []int{0},
 		Tiles:        8,
-		Mcpu:         1000,
-		Mem:          ContentionWorkerMem,
 		Seed:         7159623,
 	}
-	db.DPrintf(db.ALWAYS, "TestCodedMatMulSlotContention: cfg M=%d D=%d W=%d N=%d K=%d Mcpu=%d Mem=%d Repeats=%d StragglerIdx=%v, remainingSlots=%d (%dMB)",
-		cfg.M, cfg.D, cfg.W, cfg.N, cfg.K, cfg.Mcpu, cfg.Mem, cfg.Repeats, cfg.StragglerIdx, ContentionRemainingSlots, remainingSlots)
+	db.DPrintf(db.ALWAYS, "TestCodedMatMulSlotContention: cfg M=%d D=%d W=%d N=%d K=%d Repeats=%d StragglerIdx=%v, remainingSlots=%d (%dMB) (workers reserve nothing)",
+		cfg.M, cfg.D, cfg.W, cfg.N, cfg.K, cfg.Repeats, cfg.StragglerIdx, ContentionRemainingSlots, remainingSlots)
 	r := cfg.M / cfg.K
 
 	// Reference C, computed once directly (not via the harness), same

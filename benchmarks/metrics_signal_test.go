@@ -76,9 +76,6 @@ func TestHPSearchSignalAblation(t *testing.T) {
 	sc := mrts.GetRealm(REALM1).SigmaClnt
 
 	cfg := hpsearch.DefaultConfig()
-	if contentionEnabled() {
-		cfg.Mem = HPSearchTrainerMem
-	}
 
 	ctn := startContention(t, sc)
 	defer ctn.release()
@@ -173,9 +170,6 @@ func TestHPSearchArmAblation(t *testing.T) {
 	sc := mrts.GetRealm(REALM1).SigmaClnt
 
 	cfg := hpsearch.DefaultConfig()
-	if contentionEnabled() {
-		cfg.Mem = HPSearchTrainerMem
-	}
 
 	ctn := startContention(t, sc)
 	defer ctn.release()
@@ -269,9 +263,6 @@ func TestCodedMatMulSignalAblation(t *testing.T) {
 	defer ctn.release()
 
 	cfg := codedmatmul.DefaultConfig()
-	if contentionEnabled() {
-		cfg.Mem = ContentionWorkerMem
-	}
 	r := cfg.M / cfg.K
 	blocks, B := codedmatmul.GenBlocks(cfg.Seed, cfg.K, r, cfg.D, cfg.W)
 	A := mat.NewDense(cfg.M, cfg.D, nil)
