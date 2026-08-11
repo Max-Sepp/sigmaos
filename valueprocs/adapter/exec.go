@@ -79,7 +79,7 @@ func DefaultSigmaOSTuning() SigmaOSTuning {
 		StopBackoff:   500 * time.Millisecond,
 		StopTimeout:   60 * time.Second,
 		ProbePeriod:   time.Second,
-		Oversubscribe: 1.0,
+		Oversubscribe: 4.0,
 		QueueSamples:  2,
 	}
 }
