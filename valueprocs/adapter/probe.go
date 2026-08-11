@@ -139,6 +139,13 @@ func (p *Probe) Close() { p.once.Do(func() { close(p.quit) }) }
 //
 // A max says the cluster is full when any one signal saturates, which is the
 // right reading when each signal is blind to a different way of being full.
+//
+// The memory term prefers memAvailMB, what the kernel says can still be
+// allocated, over memFreeMB, the admission ledger. The ledger only moves when
+// a proc declares a reservation, so a machine filled by procs that declare
+// nothing reads as empty. The ledger is the fallback for a peer that does not
+// sample availability, which memAvailValid distinguishes from a machine
+// whose real availability is genuinely zero.
 func fold(loads map[string]*mschedproto.GetMSchedLoadRep, over float64) (policy.Occupancy, bool) {
 	var (
 		memFree, memTotal float64
@@ -146,7 +153,11 @@ func fold(loads map[string]*mschedproto.GetMSchedLoadRep, over float64) (policy.
 		cores             int64
 	)
 	for _, l := range loads {
-		memFree += float64(l.GetMemFreeMB())
+		if l.GetMemAvailValid() {
+			memFree += float64(l.GetMemAvailMB())
+		} else {
+			memFree += float64(l.GetMemFreeMB())
+		}
 		memTotal += float64(l.GetMemTotalMB())
 		// Weighted by cores, so a 32-core machine at 90% counts for more than
 		// a 2-core machine at 90%.

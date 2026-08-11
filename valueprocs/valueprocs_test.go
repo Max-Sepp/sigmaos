@@ -177,12 +177,20 @@ func TestMSchedLoad(t *testing.T) {
 	assert.NotEmpty(t, loads, "no machine reported")
 
 	for id, l := range loads {
-		db.DPrintf(db.TEST, "%v: memFree %vMB of %vMB, cpu %v%%, %v cores",
-			id, l.MemFreeMB, l.MemTotalMB, l.CpuUtil, l.NCores)
+		db.DPrintf(db.TEST, "%v: memFree %vMB (ledger) memAvail %vMB (real, valid=%v) of %vMB, cpu %v%%, %v cores",
+			id, l.MemFreeMB, l.MemAvailMB, l.MemAvailValid, l.MemTotalMB, l.CpuUtil, l.NCores)
 
 		assert.Greater(t, l.MemTotalMB, uint32(0), "%v total memory", id)
 		assert.LessOrEqual(t, l.MemFreeMB, l.MemTotalMB, "%v free exceeds total", id)
 		assert.Greater(t, l.NCores, int32(0), "%v cores", id)
+
+		// Real availability is what a squeeze moves; the ledger only moves
+		// when a proc declares a reservation. Sampled on a ticker like
+		// CpuUtil, but unlike CpuUtil the first reading is kept, so it should
+		// be populated by the time any RPC is answered.
+		assert.True(t, l.MemAvailValid, "%v did not report real available memory", id)
+		assert.Greater(t, l.MemAvailMB, uint32(0), "%v available memory", id)
+		assert.LessOrEqual(t, l.MemAvailMB, l.MemTotalMB, "%v available exceeds total", id)
 
 		// Utilization is a percentage. It may legitimately read zero: it is
 		// refreshed on a ticker and the first sample is discarded, so a

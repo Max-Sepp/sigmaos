@@ -99,6 +99,7 @@ const (
 	FSREADER       Tselector = "FSREADER"
 	SLEEPER_TIMING Tselector = "SLEEPER_TIMING"
 	MATMUL         Tselector = "MATMUL"
+	MEMFILLER      Tselector = "MEMFILLER"
 )
 
 // Etcd

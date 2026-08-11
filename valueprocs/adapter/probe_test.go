@@ -19,6 +19,15 @@ func machine(freeMB, totalMB uint32, cpu int64, cores int32) *mschedproto.GetMSc
 	}
 }
 
+// machineAvail is a machine that also reports what the kernel says is really
+// allocatable, which is what an msched that samples availability sends.
+func machineAvail(freeMB, availMB, totalMB uint32, cpu int64, cores int32) *mschedproto.GetMSchedLoadRep {
+	return &mschedproto.GetMSchedLoadRep{
+		MemFreeMB: freeMB, MemAvailMB: availMB, MemAvailValid: true,
+		MemTotalMB: totalMB, CpuUtil: cpu, NCores: cores,
+	}
+}
+
 func fleet(ms ...*mschedproto.GetMSchedLoadRep) map[string]*mschedproto.GetMSchedLoadRep {
 	out := make(map[string]*mschedproto.GetMSchedLoadRep, len(ms))
 	for i, m := range ms {
@@ -116,6 +125,29 @@ func TestFoldOverAFleet(t *testing.T) {
 			name: "memory pools across machines",
 			fl:   fleet(machine(0, 1000, 0, 1), machine(1000, 1000, 0, 1)),
 			busy: 0.5, slot: 2,
+		},
+		{
+			// The ledger says every byte is unclaimed because nothing running
+			// declared a reservation; the machine says a quarter is left.
+			// Believe the machine.
+			name: "real availability wins over an untouched ledger",
+			fl:   fleet(machineAvail(1000, 250, 1000, 0, 2)),
+			busy: 0.75, slot: 2,
+		},
+		{
+			// A machine with nothing left reports zero available, and the
+			// ledger beside it still claims every byte is unclaimed. Zero has
+			// to be believed, or the fullest machine reads as the emptiest.
+			name: "zero available is a reading, not a missing field",
+			fl:   fleet(machineAvail(1000, 0, 1000, 0, 1), machineAvail(1000, 1000, 1000, 0, 1)),
+			busy: 0.5, slot: 2,
+		},
+		{
+			// Mixed fleet: one msched samples availability, one is too old to
+			// and sends zero, so its ledger stands in.
+			name: "falls back per machine",
+			fl:   fleet(machineAvail(1000, 250, 1000, 0, 1), machine(500, 1000, 0, 1)),
+			busy: 0.625, slot: 2,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

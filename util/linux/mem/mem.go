@@ -47,6 +47,15 @@ func GetAvailableMem() proc.Tmem {
 	return getMem("MemAvailable")
 }
 
+// Amount of swap configured, in MB.
+//
+// Callers that create real memory pressure need this: with swap on,
+// MemAvailable stops meaning "allocatable without thrashing", so a squeeze
+// sized against it is neither the depth it claims nor reproducible.
+func GetSwapTotal() proc.Tmem {
+	return getMem("SwapTotal")
+}
+
 // getPSS reads the PSS (Proportional Set Size) for a given Linux PID in KB.
 // It reads from /proc/<pid>/smaps_rollup if available, otherwise falls back to /proc/<pid>/smaps.
 func getPSS(linuxPID int) (uint64, error) {
