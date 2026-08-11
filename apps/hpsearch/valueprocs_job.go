@@ -109,6 +109,12 @@ type TrialOutcome struct {
 	LastScore float64
 	HasScore  bool
 
+	// Elapsed is how long this trial actually ran, measured by the scheduler.
+	// It is the only honest cost for a stopped trial: Curves reconstructs
+	// where one got to by matching its last score against a regenerated curve,
+	// and near the asymptote neighbouring iterations are indistinguishable.
+	Elapsed time.Duration
+
 	// Stops and Runs are the scheduler's own accounting for this leaf, which
 	// is what makes "stopped" a confirmation rather than an assumption: a
 	// trial that neither finished nor was ever stopped is a third state, and
@@ -154,6 +160,7 @@ func (j *ValueProcsJob) Wait() ([]*TrialOutcome, error) {
 			ConfigId:  configId,
 			LastScore: n.Score,
 			HasScore:  n.HasScore,
+			Elapsed:   time.Duration(n.ElapsedMs) * time.Millisecond,
 			Stops:     int(n.Stops),
 			Runs:      n.Run,
 		}
@@ -203,6 +210,32 @@ func Best(outcomes []*TrialOutcome) *TrialOutcome {
 // matching how BestQuality scores a whole run.
 func curveQuality(c *Curve) float64 {
 	return BestScore(c.Scores, len(c.Scores))
+}
+
+// MeasuredCoreSeconds is what the search actually cost: every trial charged
+// one core for as long as it ran.
+//
+// This is what a saving should be quoted against rather than Curves' iteration
+// counts, which are exact for a trial that finished and a reconstruction for
+// one that was stopped.
+func MeasuredCoreSeconds(outcomes []*TrialOutcome) float64 {
+	total := 0.0
+	for _, o := range outcomes {
+		total += o.Elapsed.Seconds()
+	}
+	return total
+}
+
+// AnalyzeValueProcs is AnalyzeLive for this arm, whose cost the scheduler
+// measured rather than the curves implying it.
+//
+// Quality and the pruned count still come from the curves, which are exact for
+// a trial that finished; only the cost is replaced, because that is the one
+// figure Curves has to reconstruct for a trial that was stopped.
+func AnalyzeValueProcs(outcomes []*TrialOutcome, curves []*Curve, cfg *Config) *LivePruneResult {
+	r := AnalyzeLive(curves, cfg)
+	r.CoreSeconds = MeasuredCoreSeconds(outcomes)
+	return r
 }
 
 // NFinished is how many trials ran to completion. One is the ordinary case;

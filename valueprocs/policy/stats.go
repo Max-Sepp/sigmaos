@@ -37,6 +37,10 @@ type NodeView struct {
 	HasScore   bool
 	ScoreStale bool
 
+	// Elapsed is how long this leaf has run in total: every attempt that has
+	// ended, plus the one in flight.
+	Elapsed time.Duration
+
 	// Result is what a succeeded attempt reported, and is nil until then. It
 	// is opaque here: this package stores it so that whoever asked for the
 	// work can collect it, and never inspects it.
@@ -180,6 +184,7 @@ func (s *Scheduler) nodeView(n *node) NodeView {
 		v.Gradient = l.gradient
 		v.HasScore = l.hasScore
 		v.ScoreStale = s.stale(l)
+		v.Elapsed = s.elapsed(l)
 		v.Result = l.result
 	}
 	return v

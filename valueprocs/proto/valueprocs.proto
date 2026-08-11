@@ -197,6 +197,12 @@ message NodeStatus {
   bool scoreStale = 18;
 
   string pID = 19;                    // the current attempt's proc
+
+  // elapsedMs is how long this leaf has run in total, across every attempt
+  // plus the one in flight. It is measured because a stopped attempt reports
+  // nothing about how far it got, so a submitter reconstructing its cost from
+  // its last score is guessing.
+  int64 elapsedMs = 20;
 }
 
 message SchedStatsReq {}

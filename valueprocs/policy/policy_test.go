@@ -976,3 +976,143 @@ func TestStatsCountByReason(t *testing.T) {
 	assert.Equal(t, 3, st.NStops[StopOutrankedBySibling])
 	assert.Equal(t, 1, st.NRunning)
 }
+
+// TestElapsedIsMeasuredNotInferred pins the one cost figure a submitter cannot
+// work out for itself.
+//
+// A stopped attempt reports nothing about how far it got, so anything
+// reconstructing its cost from its last score is guessing -- and near the
+// asymptote of a converging curve, guessing badly. This is measured from the
+// two timestamps the scheduler already has.
+func TestElapsedIsMeasuredNotInferred(t *testing.T) {
+	s, f := newSched(testConfig())
+	sized(s, t0, 4)
+	submit(t, s, t0, "t", selG(t, 1, leavesG(t, 2)...))
+	startQueued(s, f, t0)
+
+	// While an attempt is in flight its elapsed grows with the clock, so a
+	// live status dump says what a run is costing rather than only what it
+	// cost.
+	mid := t0.Add(time.Second)
+	apply(s.Tick(mid))
+	assert.Equal(t, time.Second, nodeView(t, s, "t", "r.0").Elapsed)
+
+	// The quorum is one, so completing r.0 satisfies the tree and r.1 is
+	// stopped. Both ran for the same three seconds and both must say so.
+	end := t0.Add(3 * time.Second)
+	f.reset()
+	apply(s.OnRunCompleted(end, f0(s, "t", "r.0"), nil))
+	stopped(s, f, end)
+
+	assert.Equal(t, 3*time.Second, nodeView(t, s, "t", "r.0").Elapsed,
+		"the attempt that completed ran for three seconds")
+	assert.Equal(t, 3*time.Second, nodeView(t, s, "t", "r.1").Elapsed,
+		"and so did the one that was stopped, whatever its last score implies")
+}
+
+// TestElapsedAccumulatesAcrossAttempts is the case a single timestamp cannot
+// express: a leaf stopped and run again has spent both attempts, and charging
+// only the last would understate a leaf that was paused for capacity.
+func TestElapsedAccumulatesAcrossAttempts(t *testing.T) {
+	s, f := newSched(testConfig())
+	sized(s, t0, 1)
+	submit(t, s, t0, "t", selG(t, 1, leavesG(t, 1)...))
+	startQueued(s, f, t0)
+
+	// Two seconds in, the platform reports the attempt ended because it was
+	// asked to. The leaf returns to the pool and reconcile starts it again.
+	first := t0.Add(2 * time.Second)
+	f.reset()
+	apply(s.OnRunStopped(first, f0(s, "t", "r.0"), nil))
+	assert.Equal(t, 2*time.Second, nodeView(t, s, "t", "r.0").Elapsed)
+	startQueued(s, f, first)
+
+	apply(s.OnRunCompleted(first.Add(3*time.Second), f0(s, "t", "r.0"), nil))
+	assert.Equal(t, 5*time.Second, nodeView(t, s, "t", "r.0").Elapsed,
+		"two seconds before the stop and three after it")
+}
+
+// f0 is the reference to a leaf's current attempt, which is what every event
+// has to name: a requeue bumps the run number, so a test that hardcoded one
+// would report the previous attempt and be dropped as superseded.
+func f0(s *Scheduler, id TreeID, nid NodeID) RunRef {
+	return RunRef{Tree: id, Node: nid, Run: s.trees[id].nodes[nid].leaf.run}
+}
+
+// --- contraction with an arbiter --------------------------------------------
+//
+// Every contraction test above builds its scheduler with a nil arbiter, so
+// budgets hands back no limit, walk's overdraft is zero and shed cannot fire.
+// Production always has an arbiter (adapter installs FairShare), so those
+// tests pin sizing alone and say nothing about what sizing and the arbiter do
+// together -- which is where a lone tree on a shrinking cluster actually
+// lives.
+
+func squeezedArb(t *testing.T) (*Scheduler, *fake) {
+	t.Helper()
+	s, f := newSchedArb(testConfig(), evenSplit{})
+	sized(s, t0, 4)
+	submit(t, s, t0, "t", selG(t, 1, leavesG(t, 3)...))
+	startQueued(s, f, t0)
+	if !assert.Equal(t, 3, nodeView(t, s, "t", "r").Target,
+		"the search should start wide on an empty cluster") {
+		t.FailNow()
+	}
+	f.reset()
+	return s, f
+}
+
+// TestArbiterDoesNotRecollectWhatSizingGaveBack is the regression for a lone
+// tree collapsing to its quorum on any contraction at all.
+//
+// A single tree's share is the whole cluster, so budgets reports the same
+// deficit that afford has just sized the node down to cover. Both are counted
+// in slots and both are measuring the same slots, so a node asked to pay it
+// twice pays until it hits k.
+func TestArbiterDoesNotRecollectWhatSizingGaveBack(t *testing.T) {
+	s, f := squeezedArb(t)
+
+	apply(s.OnOccupancy(t0, Occupancy{Busy: 1.0, Slots: 2}))
+
+	assert.Equal(t, 2, nodeView(t, s, "t", "r").Target,
+		"two slots left means two candidates, exactly as with no arbiter")
+	assert.Len(t, f.stops(), 1, "the overdraft is one slot, so one candidate goes")
+}
+
+// TestArbiterContractionKeepsASearchWide is the same defect at the shape the
+// hyperparameter search actually submits, where paying twice is the difference
+// between a search of four trials and a search of one.
+func TestArbiterContractionKeepsASearchWide(t *testing.T) {
+	s, f := newSchedArb(testConfig(), evenSplit{})
+	sized(s, t0, 16)
+	submit(t, s, t0, "t", selG(t, 1, leavesG(t, 15)...))
+	startQueued(s, f, t0)
+	assert.Equal(t, 15, nodeView(t, s, "t", "r").Target)
+	f.reset()
+
+	apply(s.OnOccupancy(t0, Occupancy{Slots: 4}))
+
+	assert.Equal(t, 4, nodeView(t, s, "t", "r").Target,
+		"four slots left means the best four trials, not the quorum of one")
+}
+
+// TestArbiterStillCollectsFromATreeOverItsShare is the other half, and the
+// reason the fix subtracts rather than simply skipping shed: a real overdraft
+// owed to another tree must still be paid, whatever sizing did.
+func TestArbiterStillCollectsFromATreeOverItsShare(t *testing.T) {
+	s, f := newSchedArb(testConfig(), evenSplit{})
+	sized(s, t0, 4)
+	submit(t, s, t0, "first", selG(t, 1, leavesG(t, 4)...))
+	startQueued(s, f, t0)
+	assert.Equal(t, 4, nodeView(t, s, "first", "r").Target)
+	f.reset()
+
+	// A second tree halves the first one's share. Nothing about capacity
+	// changed, so sizing surrenders nothing and every slot handed over is the
+	// arbiter's doing.
+	submit(t, s, t0, "second", selG(t, 1, leavesG(t, 2)...))
+
+	assert.Equal(t, 2, nodeView(t, s, "first", "r").Target,
+		"half the cluster went to the newcomer")
+	assert.Len(t, f.stops(), 2)
+}

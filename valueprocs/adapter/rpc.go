@@ -293,6 +293,7 @@ func (s *Srv) nodeStatus(t policy.TreeID, n policy.NodeView) *proto.NodeStatus {
 	ns.Gradient = float64(n.Gradient)
 	ns.HasScore = n.HasScore
 	ns.ScoreStale = n.ScoreStale
+	ns.ElapsedMs = n.Elapsed.Milliseconds()
 	// The pid is the adapter's to supply: nothing above this package knows
 	// one, and it is only in flight while the attempt is.
 	if pid, ok := s.exec.PidOf(policy.RunRef{Tree: t, Node: n.ID, Run: n.Run}); ok {

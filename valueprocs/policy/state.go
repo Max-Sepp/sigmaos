@@ -124,6 +124,11 @@ type leafState struct {
 	queuedAt  time.Time
 	startedAt time.Time
 
+	// elapsed is how long this leaf ran, summed over every attempt that has
+	// ended. A stopped attempt says nothing about how far it got, so its cost
+	// has to be measured here or guessed at by whoever wanted it.
+	elapsed time.Duration
+
 	result []byte
 }
 

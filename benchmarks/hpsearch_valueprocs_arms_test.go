@@ -80,7 +80,7 @@ func (f *hpsearchVPFixture) runVP(t *testing.T, label string) (*hpsearch.LivePru
 	if !assert.Nil(t, err, "Error Wait: %v", err) {
 		return nil, trace, false
 	}
-	live := hpsearch.AnalyzeLive(j.Curves(outcomes), f.cfg)
+	live := hpsearch.AnalyzeValueProcs(outcomes, j.Curves(outcomes), f.cfg)
 	best := hpsearch.Best(outcomes)
 	if !assert.NotNil(t, best, "%v: no trial finished", label) {
 		return nil, trace, false

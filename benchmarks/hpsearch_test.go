@@ -208,7 +208,7 @@ func TestHPSearchValueProcs(t *testing.T) {
 	}
 	vpCurves := j.Curves(outcomes)
 	assert.Equal(t, cfg.NConfigs, len(vpCurves))
-	live := hpsearch.AnalyzeLive(vpCurves, cfg)
+	live := hpsearch.AnalyzeValueProcs(outcomes, vpCurves, cfg)
 	best := hpsearch.Best(outcomes)
 	if !assert.NotNil(t, best, "No trial finished") {
 		return

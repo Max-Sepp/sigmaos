@@ -214,6 +214,7 @@ func (s *Scheduler) OnRunCompleted(now time.Time, ref RunRef, result []byte) Eff
 		return nil
 	}
 	l := n.leaf
+	s.accrue(l)
 	l.rs, l.result, l.prev = RSucceeded, result, endNone
 	return s.reconcile(now)
 }
@@ -228,6 +229,7 @@ func (s *Scheduler) OnRunStopped(now time.Time, ref RunRef, partial []byte) Effe
 		return nil
 	}
 	l := n.leaf
+	s.accrue(l)
 	l.stops++
 	l.prev = endStopped
 	if len(partial) > 0 {
@@ -246,6 +248,7 @@ func (s *Scheduler) OnRunFailed(now time.Time, ref RunRef, k FailureKind, msg st
 		return nil
 	}
 	l := n.leaf
+	s.accrue(l)
 	l.attempts++
 	l.prev = endFailed
 	s.logf("failed %v %s: %v %s", ref, l.w.Name(), k, msg)
@@ -269,6 +272,32 @@ func (s *Scheduler) OnOccupancy(now time.Time, o Occupancy) Effect {
 func (s *Scheduler) Tick(now time.Time) Effect {
 	s.now = now
 	return s.reconcile(now)
+}
+
+// accrue adds the attempt that is ending to its leaf's running total.
+//
+// Every entry point that calls this rejects an event for an attempt that is no
+// longer charged, so an attempt is accrued exactly once however many late
+// events arrive for it. An attempt never observed running contributes nothing,
+// which is right: it held a slot but did no work.
+func (s *Scheduler) accrue(l *leafState) {
+	if l.startedAt.IsZero() {
+		return
+	}
+	if d := s.now.Sub(l.startedAt); d > 0 {
+		l.elapsed += d
+	}
+}
+
+// elapsed is what a leaf has run in total, counting the attempt in flight.
+func (s *Scheduler) elapsed(l *leafState) time.Duration {
+	e := l.elapsed
+	if l.rs.Charged() && !l.startedAt.IsZero() {
+		if d := s.now.Sub(l.startedAt); d > 0 {
+			e += d
+		}
+	}
+	return e
 }
 
 // requeue returns a leaf to the candidate pool under a fresh run number,
@@ -362,6 +391,7 @@ func (s *Scheduler) walk(t *tree, budget int) []func() {
 		if !n.isLeaf() {
 			if isActive {
 				s.retarget(n)
+				over = max(over-s.released(n), 0)
 				over -= s.shed(n, over, displaced)
 				s.assign(n, sel, why)
 			}
@@ -435,6 +465,22 @@ func (s *Scheduler) retarget(n *node) {
 	want = clampInt(s.confirm(n, clampInt(want, k, a), s.now), k, a)
 	n.target = want
 	n.racers = max(want-base, 0)
+}
+
+// released is how many charged slots a node's new target already gives up.
+//
+// Sizing and the arbiter are denominated in the same slots and, for a lone
+// tree, measure the same deficit: its share is the whole cluster, so a
+// shrinking cluster shows up once in afford and again in the budget. A node
+// asked to pay it twice pays down to its quorum, which is the difference
+// between a search of four trials and a search of one. So shed is owed only
+// whatever sizing did not already surrender.
+func (s *Scheduler) released(n *node) int {
+	ranked, keep := s.rank(n), 0
+	for i := 0; i < n.target && i < len(ranked); i++ {
+		keep += ranked[i].charged()
+	}
+	return max(n.charged()-keep, 0)
 }
 
 // shed shrinks a node's target to hand back capacity the arbiter has given to
