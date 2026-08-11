@@ -168,17 +168,31 @@ func TestCpuIsWeightedByCores(t *testing.T) {
 	assert.InDelta(t, 2.0/32.0, o.Busy, 0.001)
 }
 
+// TestOversubscribeBecomesProbeNotSlots pins where the factor lands. Slots is
+// what the machines can run and never more, so oversubscription shows up as
+// budget lent to attempts that have not reported yet -- while the total the
+// two add up to is still cores times the factor.
 func TestOversubscribeTurnsCoresIntoSlots(t *testing.T) {
 	fl := fleet(machine(1000, 1000, 0, 4), machine(1000, 1000, 0, 4))
 	o, _ := fold(fl, 1)
 	assert.Equal(t, 8, o.Slots)
+	assert.Equal(t, 0, o.Probe, "at one per core there is nothing to lend")
+
 	o, _ = fold(fl, 2.5)
-	assert.Equal(t, 20, o.Slots)
+	assert.Equal(t, 8, o.Slots, "the machines did not grow")
+	assert.Equal(t, 12, o.Probe)
+	assert.Equal(t, 20, o.Slots+o.Probe, "and the total admissible is unchanged")
 
 	// A nonsensical factor falls back to one slot per core rather than
 	// reporting a cluster with no capacity at all.
 	o, _ = fold(fl, 0)
 	assert.Equal(t, 8, o.Slots)
+	assert.Equal(t, 0, o.Probe)
+
+	// Undersubscription still lowers the honest ceiling, and lends nothing.
+	o, _ = fold(fl, 0.5)
+	assert.Equal(t, 4, o.Slots)
+	assert.Equal(t, 0, o.Probe)
 }
 
 func TestFoldRefusesToMeasureNothing(t *testing.T) {

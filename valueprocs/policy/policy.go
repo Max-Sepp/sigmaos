@@ -106,6 +106,9 @@ type Scheduler struct {
 
 	nCharged int
 	nRunning int
+	// nChargedReported is how many of the charged attempts have a tangent of
+	// their own, which is what separates a slot from a probe.
+	nChargedReported int
 
 	stats Stats
 }
@@ -701,7 +704,7 @@ func (s *Scheduler) stop(t *tree, n *node, kind StopReasonKind, best float64) fu
 // stop the same freed slot being promised to two claimants; it is not a model
 // of the cluster, which is what pressure is for.
 func (s *Scheduler) account() {
-	c, r := 0, 0
+	c, r, rep := 0, 0, 0
 	for _, id := range s.order {
 		for _, n := range s.trees[id].order {
 			if !n.isLeaf() {
@@ -709,22 +712,58 @@ func (s *Scheduler) account() {
 			}
 			if n.leaf.rs.Charged() {
 				c++
+				if n.leaf.hasScore {
+					rep++
+				}
 			}
 			if n.leaf.rs == RRunning {
 				r++
 			}
 		}
 	}
-	s.nCharged, s.nRunning = c, r
+	s.nCharged, s.nRunning, s.nChargedReported = c, r, rep
 }
 
-// free is how many more attempts may be charged. A platform that has not
+// free is how many more attempts may be charged at all: the machines' own
+// ceiling plus whatever is left of the probe budget. A platform that has not
 // reported its size yet imposes no ceiling.
+//
+// This is the hard limit, and it is the only one that ever refuses a start.
+// Sizing asks a different question and reads settled instead.
 func (s *Scheduler) free() int {
 	if s.occ.Slots <= 0 {
 		return math.MaxInt
 	}
-	return s.occ.Slots - s.nCharged
+	return s.occ.Slots + s.occ.Probe - s.nCharged
+}
+
+// probeHeld is how many charged attempts the probe budget is carrying: the
+// ones that have never reported, up to the size of the budget.
+//
+// Capping at the budget is what makes a zero budget mean exactly what it says.
+// An attempt is probe-funded only if a probe was there to fund it; past that
+// it is held against Slots like anything else, however little it has said.
+func (s *Scheduler) probeHeld() int {
+	return min(s.nCharged-s.nChargedReported, s.occ.Probe)
+}
+
+// settled is capacity net of the attempts held against it, and is what a node
+// is sized to.
+//
+// Probe-funded attempts are left out, which is what lets a node run wider than
+// the machine while it has nothing to rank, and what makes it narrow as the
+// reports come in rather than all at once: each report converts a probe back
+// into a slot and takes one off what the node can hold.
+func (s *Scheduler) settled() int {
+	if s.occ.Slots <= 0 {
+		return math.MaxInt
+	}
+	return s.occ.Slots - (s.nCharged - s.probeHeld())
+}
+
+// probeFree is how much of the probe budget is unspent.
+func (s *Scheduler) probeFree() int {
+	return s.occ.Probe - s.probeHeld()
 }
 
 // budgets asks the arbiter how many further starts each tree may make.
@@ -748,7 +787,9 @@ func (s *Scheduler) budgets() map[TreeID]int {
 	if len(views) == 0 {
 		return b
 	}
-	for _, sh := range s.arb.Arbitrate(views, Capacity{Slots: s.occ.Slots}) {
+	// Probes are included, so a tree running wide on work that has not reported
+	// yet is not read as overdrafted and made to give back what it was lent.
+	for _, sh := range s.arb.Arbitrate(views, Capacity{Slots: s.occ.Slots + s.occ.Probe}) {
 		// An arbiter is not trusted to name only trees that exist.
 		t, ok := s.trees[sh.Tree]
 		if !ok {

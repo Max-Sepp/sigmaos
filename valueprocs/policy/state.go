@@ -262,6 +262,42 @@ func (n *node) oldestStart() time.Time {
 	return t
 }
 
+// untried reports whether nothing beneath n has ever been attempted.
+func (n *node) untried() bool {
+	tried := false
+	n.eachLeaf(func(m *node) {
+		// A leaf on its first attempt still has run 0, so the state is what
+		// separates one that has never been placed from one that is running.
+		if m.leaf.run > 0 || m.leaf.rs != RIdle {
+			tried = true
+		}
+	})
+	return !tried
+}
+
+// probeEligible counts children a probe could still be spent on: alive,
+// holding nothing, and never attempted.
+//
+// A probe is a first look, and a child that has had one has spent it whether
+// or not it reported. Were a child stopped before reporting to keep its claim,
+// a node could never settle below its slots plus however many children were
+// cut short -- it would stop one to make room, admit the last one back, and
+// hold there.
+//
+// The cost is that a node with more children than Slots+Probe only ever looks
+// at the first cohort. That is worth knowing but is not this budget's to fix:
+// cycling unproven children through a full cluster is a sampling policy, and
+// it needs somewhere to put the partial progress it would keep discarding.
+func (n *node) probeEligible() int {
+	c := 0
+	for _, ch := range n.children {
+		if ch.state != NodeFailed && ch.charged() == 0 && ch.untried() {
+			c++
+		}
+	}
+	return c
+}
+
 // alive counts children that have not failed, the ceiling on how many of them
 // may run.
 func (n *node) alive() int {

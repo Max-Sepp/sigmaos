@@ -1116,3 +1116,258 @@ func TestArbiterStillCollectsFromATreeOverItsShare(t *testing.T) {
 		"half the cluster went to the newcomer")
 	assert.Len(t, f.stops(), 2)
 }
+
+// --- the probe budget -------------------------------------------------------
+//
+// Slots is what the machines can run; Probe is concurrency lent to attempts
+// that have never reported. A node with nothing to rank cannot spend width
+// well, so the loan buys the one thing that changes that, and is repaid as the
+// reports arrive.
+
+func probed(s *Scheduler, now time.Time, slots, probe int) {
+	apply(s.OnOccupancy(now, Occupancy{Slots: slots, Probe: probe}))
+}
+
+// reportRunning pushes a score from every running leaf of a flat node, lowest
+// index best, so the ranking a contraction acts on is determined rather than a
+// tie. round keeps successive reports distinct, since a report restating what
+// was already known is dropped and reconciles nothing.
+//
+// Only running leaves, because that is the only kind the scheduler accepts a
+// score from -- a stopped attempt is not reporting anything, and a test that
+// pretended otherwise would be measuring a code path that cannot happen.
+func reportRunning(s *Scheduler, id TreeID, round int) {
+	for i, c := range s.trees[id].nodes["r"].children {
+		if !c.isLeaf() || c.leaf.rs != RRunning {
+			continue
+		}
+		sc := Score(float64(100-i)/100 + float64(round)/1000)
+		apply(s.OnScore(t0, refOf(id, c.id, c.leaf.run), sc, 0))
+	}
+}
+
+// settle runs reports and terminal events until the tree stops moving, and
+// returns the width after each round.
+func settleWidths(s *Scheduler, f *fake, id TreeID, rounds int) []int {
+	out := []int{s.trees[id].nodes["r"].target}
+	for r := 1; r <= rounds; r++ {
+		reportRunning(s, id, r)
+		stopped(s, f, t0)
+		apply(s.Tick(t0))
+		out = append(out, s.trees[id].nodes["r"].target)
+	}
+	return out
+}
+
+// TestProbeOpensASearchThenNarrowsToTheMachine is the hyperparameter search's
+// shape: fifteen trials on a four-core host.
+//
+// Every trial runs at first, because nothing has said anything and a ranking of
+// fifteen unknowns is not a ranking. As they report, the loan is repaid and the
+// search narrows to what the machines can actually run -- which is where
+// pruning starts buying the survivors speed rather than merely ending trials.
+func TestProbeOpensASearchThenNarrowsToTheMachine(t *testing.T) {
+	s, f := newSchedArb(testConfig(), evenSplit{})
+	probed(s, t0, 4, 12)
+	submit(t, s, t0, "t", selG(t, 1, leavesG(t, 15)...))
+	startQueued(s, f, t0)
+
+	assert.Equal(t, 15, nodeView(t, s, "t", "r").Target,
+		"a node with nothing to rank runs every child")
+	assert.Equal(t, 15, s.Stats().NRunning)
+
+	// One report at a time, lowest index best, so the widths are recorded at
+	// the granularity the scheduler actually decides at. A whole round of
+	// reports is fifteen reconciles and would hide the shape of the descent.
+	root := s.trees["t"].nodes["r"]
+	var w []int
+	for i, c := range root.children {
+		if c.leaf.rs != RRunning {
+			continue
+		}
+		apply(s.OnScore(t0, refOf("t", c.id, c.leaf.run), Score(float64(100-i)/100), 0))
+		w = append(w, root.target)
+	}
+
+	// Downwards, and never back. A search that jumped straight to four would be
+	// picking its survivors off whichever trials reported first, which is a race
+	// rather than a ranking.
+	for i := 1; i < len(w); i++ {
+		assert.LessOrEqual(t, w[i], w[i-1], "widths %v: width grew back at step %d", w, i)
+	}
+	assert.Greater(t, len(distinct(w)), 2,
+		"widths %v: the descent should pass through intermediate widths", w)
+	assert.Less(t, w[len(w)-1], 15, "widths %v: it should have started narrowing", w)
+
+	// Once the stops land it settles on the machine's own concurrency, rather
+	// than continuing down to the quorum of one.
+	stopped(s, f, t0)
+	for i := 0; i < 10; i++ {
+		apply(s.Tick(t0))
+	}
+	assert.Equal(t, 4, nodeView(t, s, "t", "r").Target, "widths %v", w)
+	assert.Equal(t, 4, s.Stats().NRunning, "and no churn once it has settled")
+
+	// The survivors are the best-ranked trials, which is the point of narrowing
+	// on reports rather than on arrival.
+	for i := 0; i < 4; i++ {
+		assert.Equal(t, RRunning, nodeView(t, s, "t", NodeID(fmt.Sprintf("r.%d", i))).RunState,
+			"widths %v: trial %d scored highest and should have survived", w, i)
+	}
+}
+
+func distinct(xs []int) []int {
+	seen, out := map[int]bool{}, []int{}
+	for _, x := range xs {
+		if !seen[x] {
+			seen[x], out = true, append(out, x)
+		}
+	}
+	return out
+}
+
+// TestProbeNarrowsACodedQuorumToK is the coded-computation shape: nine workers
+// racing for a quorum of six. The floor is the quorum rather than the machine,
+// since a node held below k has spent everything it still holds for nothing.
+func TestProbeNarrowsACodedQuorumToK(t *testing.T) {
+	s, f := newSchedArb(testConfig(), evenSplit{})
+	probed(s, t0, 4, 12)
+	submit(t, s, t0, "t", selG(t, 6, leavesG(t, 9)...))
+	startQueued(s, f, t0)
+
+	assert.Equal(t, 9, nodeView(t, s, "t", "r").Target, "all nine race at first")
+
+	w := settleWidths(s, f, "t", 8)
+	assert.Equal(t, 6, w[len(w)-1],
+		"widths %v: the surplus goes once the workers can be told apart, and the quorum does not", w)
+	assert.Equal(t, 6, s.Stats().NRunning)
+}
+
+// TestProbeIsBoundedByTheTotal pins that the loan is a loan and not a licence:
+// a tree with far more children than the cluster can hold still stops at
+// Slots+Probe, the ceiling that applied before probes existed.
+func TestProbeIsBoundedByTheTotal(t *testing.T) {
+	s, f := newSchedArb(testConfig(), evenSplit{})
+	probed(s, t0, 4, 12)
+	submit(t, s, t0, "t", selG(t, 1, leavesG(t, 40)...))
+	startQueued(s, f, t0)
+
+	assert.Equal(t, 16, s.Stats().NRunning,
+		"four slots and twelve probes, and nothing beyond them")
+	assert.Equal(t, 0, s.free())
+}
+
+// TestProbeIsSpentByBeingTriedNotByReporting is what lets a node settle at all.
+//
+// A probe is a first look, and a child that has had one has spent it whether or
+// not it reported. Were a child cut short before reporting to keep its claim,
+// the node would stop one to make room, admit that one straight back, and hold
+// above the machine it was supposed to narrow to.
+func TestProbeIsSpentByBeingTriedNotByReporting(t *testing.T) {
+	s, f := newSchedArb(testConfig(), evenSplit{})
+	probed(s, t0, 4, 12)
+	submit(t, s, t0, "t", selG(t, 1, leavesG(t, 15)...))
+	startQueued(s, f, t0)
+	settleWidths(s, f, "t", 8)
+	assert.Equal(t, 4, s.Stats().NRunning)
+
+	// Eleven trials are now idle, and several were stopped before they ever
+	// reported. None of them may buy its way back in.
+	idle := 0
+	for _, c := range s.trees["t"].nodes["r"].children {
+		if c.leaf.rs == RIdle && !c.leaf.hasScore {
+			idle++
+		}
+	}
+	assert.Greater(t, idle, 0, "the test needs a trial that was cut short unproven")
+	for i := 0; i < 10; i++ {
+		apply(s.Tick(t0))
+	}
+	assert.Equal(t, 4, s.Stats().NRunning)
+}
+
+// TestSilentWorkKeepsItsProbe is the other side of the rule, and it is honest
+// rather than accidental: an attempt that is running and has reported nothing
+// is holding a probe, and there are no grounds to take it back. A scheduler
+// told nothing cannot narrow on the strength of it.
+func TestSilentWorkKeepsItsProbe(t *testing.T) {
+	s, f := newSchedArb(testConfig(), evenSplit{})
+	probed(s, t0, 2, 3)
+	submit(t, s, t0, "t", selG(t, 1, leavesG(t, 5)...))
+	startQueued(s, f, t0)
+	assert.Equal(t, 5, s.Stats().NRunning, "two slots and three probes")
+
+	for i := 0; i < 10; i++ {
+		apply(s.Tick(t0))
+	}
+	assert.Equal(t, 5, s.Stats().NRunning,
+		"nothing reported, so nothing justifies narrowing")
+}
+
+// TestProbeDropsADuplicatePerTaskThenRacesTheStraggler is MapReduce's shape:
+// a task per child of the outer Select, each task an inner Select(1, primary,
+// duplicate).
+//
+// It is the case the two ledgers have to apportion across sibling nodes rather
+// than within one. Capacity is global and spent as the walk goes, so the pairs
+// cannot each believe they have the whole cluster.
+func TestProbeDropsADuplicatePerTaskThenRacesTheStraggler(t *testing.T) {
+	s, f := newSchedArb(testConfig(), evenSplit{})
+	probed(s, t0, 4, 12)
+	pair := func(i int) Group {
+		return selG(t, 1, leafG(t, fmt.Sprintf("m%d", i)), leafG(t, fmt.Sprintf("m%d-dup", i)))
+	}
+	submit(t, s, t0, "t", selG(t, 5, pair(0), pair(1), pair(2), pair(3), pair(4)))
+	startQueued(s, f, t0)
+	assert.Equal(t, 10, s.Stats().NRunning,
+		"nothing has reported, so every attempt of every task runs")
+
+	// Every attempt reports healthy progress. With the loan repaid there is no
+	// case for running a task twice, so each pair gives up one.
+	report := func(nid NodeID, sc Score, g Gradient) {
+		c := s.trees["t"].nodes[nid]
+		if c.leaf.rs == RRunning {
+			apply(s.OnScore(t0, refOf("t", nid, c.leaf.run), sc, g))
+		}
+	}
+	for r := 1; r <= 4; r++ {
+		for i := 0; i < 5; i++ {
+			report(NodeID(fmt.Sprintf("r.%d.0", i)), Score(float64(r)/10), 1)
+			report(NodeID(fmt.Sprintf("r.%d.1", i)), Score(float64(r)/10), 1)
+		}
+		stopped(s, f, t0)
+		apply(s.Tick(t0))
+	}
+	assert.Equal(t, 5, s.Stats().NRunning, "one attempt per task")
+
+	// Now task 0's surviving attempt stalls: still running, converting no more
+	// time into progress. Its partner is worth more on the evidence both of
+	// them reported, so the attempt this task is represented by has to change.
+	f.reset()
+	for r := 5; r <= 8; r++ {
+		report("r.0.0", 0.4, 0)
+		report("r.0.1", 0.4, 0)
+		for i := 1; i < 5; i++ {
+			report(NodeID(fmt.Sprintf("r.%d.0", i)), Score(float64(r)/10), 1)
+			report(NodeID(fmt.Sprintf("r.%d.1", i)), Score(float64(r)/10), 1)
+		}
+		stopped(s, f, t0)
+		startQueued(s, f, t0)
+		apply(s.Tick(t0))
+	}
+
+	// The straggler's own attempt is not what carries the task any more. Which
+	// is the whole speculative-execution result, reached by ranking rather than
+	// by a slowdown threshold.
+	assert.Equal(t, RRunning, nodeView(t, s, "t", "r.0.1").RunState,
+		"the duplicate is what task 0 is now running")
+	assert.NotEqual(t, RRunning, nodeView(t, s, "t", "r.0.0").RunState,
+		"and the stalled attempt is not")
+
+	// The healthy tasks are untouched: nothing about them justifies a second
+	// attempt, and a rule that duplicated them anyway is the one being replaced.
+	for _, nid := range []NodeID{"r.1", "r.2", "r.3", "r.4"} {
+		assert.Equal(t, 1, nodeView(t, s, "t", nid).Target,
+			"%v is healthy and should still be running one attempt", nid)
+	}
+}

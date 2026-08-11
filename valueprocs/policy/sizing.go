@@ -86,6 +86,14 @@ func ParseSizing(s string) (Sizing, error) {
 // tree is a different question and is still shed's, on the arbiter's
 // instruction.
 //
+// The ledger has two halves, and the second is what lets a node be wide before
+// it has grounds to be narrow. Slots is what the machines can run. Probe is
+// concurrency lent to children nothing has been said about, because a node with
+// nothing to rank cannot spend width well and the only thing that changes that
+// is running them. A report repays the loan: from then on that child is held
+// against Slots, so a node opens at Slots+Probe and closes on Slots as the
+// evidence arrives, one child at a time rather than all at once.
+//
 // Growth is withheld while this scheduler's own attempts cannot be placed.
 // Queueing delay is the one term here measured from inside -- it rises because
 // work this scheduler started is sitting unplaced -- so it is the honest test of
@@ -104,12 +112,17 @@ func (s *Scheduler) afford(n *node, k, a int) int {
 	if s.cfg.Sizing == SizingProportional {
 		return clampInt(k+int(math.Round((1-s.pressure)*float64(a-k))), k, a)
 	}
-	// free is unbounded until the platform reports a size, and a node can use no
-	// more than it has children in any case. Capping first is also what keeps
+	// settled is unbounded until the platform reports a size, and a node can use
+	// no more than it has children in any case. Capping first is also what keeps
 	// that unbounded value out of the addition below.
-	f := min(s.free(), a)
+	f := min(s.settled(), a)
 	if f > 0 {
 		f = int(float64(f) * (1 - s.delay))
 	}
-	return clampInt(n.holding()+f, k, a)
+	// What the probe budget will lend on top, for children there is nothing to
+	// say about yet. It only ever adds: a spent budget is not a debt to be
+	// collected here, because contraction is settled's to express and letting
+	// a spent probe subtract as well would charge the same report twice.
+	p := min(s.probeFree(), n.probeEligible())
+	return clampInt(n.holding()+f+p, k, a)
 }

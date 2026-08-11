@@ -97,8 +97,19 @@ type Launch struct {
 // Occupancy is how contended the platform reports itself to be. The platform
 // decides how to compute Busy; this package only folds and smooths it.
 type Occupancy struct {
-	Busy       float64            // [0,1], already saturated by the platform
-	Slots      int                // concurrency ceiling
+	Busy  float64 // [0,1], already saturated by the platform
+	Slots int     // concurrency ceiling: what the machines can actually run
+
+	// Probe is how many attempts may be held beyond Slots while they have
+	// never reported.
+	//
+	// It is not a second resource. It is the same one, lent against evidence
+	// that does not exist yet and repaid the moment it arrives, since an
+	// attempt that has reported is sized against Slots from then on. A node
+	// with nothing to rank cannot spend width well, and the loan buys the one
+	// thing that changes that: a child that runs says something about itself.
+	Probe int
+
 	Components map[string]float64 // diagnostics only; never read by policy
 }
 
