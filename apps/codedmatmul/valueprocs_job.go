@@ -103,6 +103,9 @@ func (j *ValueProcsJob) Wait() (*mat.Dense, []*Sample, QuorumStats, error) {
 		}
 		finishedBlocks[wr.Idx] = mat.NewDense(wr.Rows, wr.Cols, wr.Data)
 		samples = append(samples, &Sample{Idx: wr.Idx, WR: wr, Used: true})
+		// The tree stops the surplus once K leaves complete, so whoever
+		// completed is whoever the job did not wait past.
+		stats.QuorumIdx = append(stats.QuorumIdx, wr.Idx)
 	}
 	sort.Slice(samples, func(a, b int) bool { return samples[a].Idx < samples[b].Idx })
 

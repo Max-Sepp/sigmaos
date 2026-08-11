@@ -2,6 +2,7 @@ package codedmatmul
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -193,6 +194,7 @@ func (j *Job) Wait(cancelSurplus bool) (*mat.Dense, []*Sample, QuorumStats, erro
 				done = append(done, i)
 			}
 			sort.Ints(done)
+			stats.QuorumIdx = slices.Clone(done)
 			db.DPrintf(db.ALWAYS, "Job.Wait: quorum of %d reached at %v via workers %v", j.cfg.K, stats.Makespan, done)
 			if cancelSurplus && !reaped {
 				reaped = true
