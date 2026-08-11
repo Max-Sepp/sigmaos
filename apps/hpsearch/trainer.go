@@ -120,7 +120,7 @@ func RunTrainer(args []string) {
 	asymptote, scores := syntheticCurve(seed, maxIters)
 	for i := range scores {
 		// Simulate one iteration of training.
-		SleepBurn(iterDur)
+		Burn(iterDur)
 		db.DPrintf(db.HPSEARCH, "hp-trainer config %d iter %d score %f", configId, i, scores[i])
 	}
 

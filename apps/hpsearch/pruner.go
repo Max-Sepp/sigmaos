@@ -99,7 +99,7 @@ func RunPruningTrainer(args []string) {
 	behindStreak := 0
 	for i := range scores {
 		// Simulate one iteration of training, then publish the score.
-		SleepBurn(iterDur)
+		Burn(iterDur)
 		publishProgress(sc.FsLib, progressDir, configId, i, scores[i])
 
 		// Track how many iterations in a row we've trailed the best sibling.
