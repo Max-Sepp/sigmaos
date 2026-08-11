@@ -219,10 +219,13 @@ func realAvailMB(sc *sigmaclnt.SigmaClnt) int {
 // The fillers declare no reservation of their own: the load is real, so
 // declaring one would put them back in the admission ledger the applications
 // are no longer in, and change what the applications compete against.
+// Errorf rather than Fatalf throughout: the step and pulse shapes inject from
+// their own goroutine, and Fatalf outside the test's goroutine exits that
+// goroutine instead of failing the test.
 func injectContentionMem(t *testing.T, sc *sigmaclnt.SigmaClnt) []*proc.Proc {
 	kids, err := fillerTargets(sc)
 	if err != nil || len(kids) == 0 {
-		t.Fatalf("contention: cannot list machines to squeeze: %v (%d found)", err, len(kids))
+		t.Errorf("contention: cannot list machines to squeeze: %v (%d found)", err, len(kids))
 		return nil
 	}
 
@@ -362,6 +365,11 @@ func (c *contention) schedule() {
 	select {
 	case <-time.After(contentionOnset):
 	case <-c.stop:
+		// The job finished before its own squeeze was due, so this run is
+		// uncontended whatever its level says. Said out loud because the
+		// alternative is a cell labelled with pressure it never saw.
+		db.DPrintf(db.ALWAYS, "contention: NEVER APPLIED, the job finished before the %v onset; this run is uncontended despite shape=%v free_mb=%v",
+			contentionOnset, contentionShape, contentionFreeMB)
 		return
 	}
 	db.DPrintf(db.ALWAYS, "contention: onset at +%v", contentionOnset)
@@ -372,6 +380,8 @@ func (c *contention) schedule() {
 	select {
 	case <-time.After(contentionLift):
 	case <-c.stop:
+		db.DPrintf(db.ALWAYS, "contention: job finished before the +%v lift, so the squeeze was never released within the run",
+			contentionOnset+contentionLift)
 		return
 	}
 	db.DPrintf(db.ALWAYS, "contention: lift at +%v", contentionOnset+contentionLift)
@@ -436,7 +446,7 @@ func (c *contention) inject() {
 	after := realAvailMB(c.sc)
 	c.summarize(before, after)
 	if d := after - contentionFreeMB; d > ContentionDeliveryTolMB || d < -ContentionDeliveryTolMB {
-		c.t.Fatalf("contention: refusing, asked to leave %vMB free but %vMB is available after filling (was %vMB); the run would not be at its labelled level",
+		c.t.Errorf("contention: asked to leave %vMB free but %vMB is available after filling (was %vMB); this run is not at its labelled level",
 			contentionFreeMB, after, before)
 	}
 }

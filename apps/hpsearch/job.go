@@ -61,7 +61,7 @@ type Config struct {
 func DefaultConfig() *Config {
 	return &Config{
 		NConfigs: 15,
-		MaxIters: 20,
+		MaxIters: 300,
 		IterDur:  50 * time.Millisecond,
 		Seed:     7159623, // Fixed to make the synthetic curves reproducible
 		Margin:   PruneMargin,
