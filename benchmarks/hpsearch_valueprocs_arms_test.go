@@ -420,6 +420,34 @@ func treeLedger(vpc clnt.Observer, tid string) string {
 		st.NRunning, st.NCharged, target, fmtBound(st.Share), fmtBound(st.Budget))
 }
 
+// rootQuorum is the k of a tree's root: how many children have to be running
+// for it to be satisfied, and so the width below which giving anything up
+// costs the tree everything it still holds for nothing. Zero if unreadable,
+// which makes a bound built on it vacuous rather than wrong.
+func rootQuorum(vpc clnt.Observer, tid string) int {
+	st, err := vpc.Status(tid)
+	if err != nil || len(st.Nodes) == 0 {
+		return 0
+	}
+	return int(st.Nodes[0].K) // preorder, so the first node is the root
+}
+
+// treeHolding is how many slots a tree occupies, running or not.
+//
+// Charged rather than running, which is the difference between asking what a
+// tree is doing and asking what it is costing everyone else. An attempt that
+// has been started and is waiting to be placed holds its slot against capacity
+// exactly as a running one does, so a competitor sampled between those two
+// states reads as zero while it is in fact holding the half of the machine the
+// search just gave it -- which would make a correct split look like a collapse.
+func treeHolding(vpc clnt.Observer, tid string) int {
+	st, err := vpc.Status(tid)
+	if err != nil {
+		return -1
+	}
+	return int(st.NCharged)
+}
+
 // awaitWidth waits for a tree's running count to satisfy ok, and returns the
 // width that satisfied it. It fails the test on timeout, quoting what it saw
 // instead.
@@ -525,16 +553,29 @@ func TestHPSearchValueProcsSqueeze(t *testing.T) {
 		return
 	}
 
-	// At most its share. Stated as a bound rather than as the exact half,
-	// because which tree lands on the odd slot depends on the order reports
-	// arrive in, and the claim is that the search gives capacity up rather
-	// than that it gives up a particular slot.
+	// A band, and both edges are a claim.
+	//
+	// At or below half the machine is what the competitor is entitled to. At or
+	// above the quorum is what the search must keep: a tree held short of its
+	// own k has spent everything it still holds for nothing, so a search driven
+	// down to one trial has not shared the machine, it has stopped searching.
+	// Both outcomes used to happen -- eleven runs in forty-two kept the full
+	// width and the other thirty-one collapsed to the quorum -- and a bound with
+	// only an upper edge called the second of those a pass.
+	//
+	// Not pinned to the exact half, because which tree lands on an odd slot
+	// depends on the order reports arrive in. What distinguishes a share from a
+	// collapse is instead recorded: the landing point and the competitor's own
+	// width go in the summary, so the difference is legible in every sweep log
+	// rather than only in a verdict where both read the same.
+	quorum := rootQuorum(f.vpc, j.TID())
 	narrowed, squeezed := awaitWidth(t, f.vpc, j.TID(), "squeezed by a second tree",
-		func(n int) bool { return n > 0 && n <= slots/2 })
+		func(n int) bool { return n >= quorum && n <= slots/2 })
 	squeezedAt := time.Since(smp.start)
 	// Both trees, while the competitor is still up: whether the search gave up
 	// its share or collapsed past it is a comparison between the two, and after
 	// the cancel below there is nothing left to compare against.
+	competitor := treeHolding(f.vpc, burnTid)
 	db.DPrintf(db.ALWAYS, "HPSearch value-procs squeeze: at the squeeze, search %v; burners %v",
 		treeLedger(f.vpc, j.TID()), treeLedger(f.vpc, burnTid))
 
@@ -543,8 +584,12 @@ func TestHPSearchValueProcsSqueeze(t *testing.T) {
 	_, released := awaitWidth(t, f.vpc, j.TID(), "released", full)
 
 	trace := smp.reportTrace("HPSearch value-procs squeeze")
-	db.DPrintf(db.ALWAYS, "HPSearch value-procs squeeze: explored to %d, settled at %d after %v, squeezed to %d by %v, %d burners; trace %v",
-		explored, slots, alone.Round(time.Second), narrowed, squeezedAt.Round(time.Second), len(burners), trace)
+	// The quorum and the competitor's width are appended rather than inserted,
+	// so that notes/sweep_to_csv.py's pattern for this line still matches and
+	// every log already collected keeps its meaning.
+	db.DPrintf(db.ALWAYS, "HPSearch value-procs squeeze: explored to %d, settled at %d after %v, squeezed to %d by %v, %d burners, quorum %d, competitor holding %d; trace %v",
+		explored, slots, alone.Round(time.Second), narrowed, squeezedAt.Round(time.Second),
+		len(burners), quorum, competitor, trace)
 
 	// Stated as the two transitions rather than as levels, because a run that
 	// never moved and a run that moved and moved back reduce to the same
