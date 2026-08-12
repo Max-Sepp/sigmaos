@@ -165,6 +165,14 @@ type tree struct {
 	submitted time.Time
 	cancelled bool
 
+	// share and budget are what the arbiter last granted this tree and what
+	// that leaves after what it holds. They are recorded for a reader rather
+	// than read back by any decision -- walk is handed the budget directly --
+	// and start at Unbounded so a tree that has not been arbitrated yet reports
+	// the absence of a limit rather than a limit of zero.
+	share  int
+	budget int
+
 	// order is preorder, so iterating it backwards visits every child before
 	// its parent and one pass settles the whole tree. Iterating it rather
 	// than the map is also what makes reconcile deterministic.

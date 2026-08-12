@@ -167,6 +167,20 @@ message TreeStatusRep {
   int32 nRunning = 6;
   int32 nCharged = 7;
   repeated NodeStatus nodes = 8;
+
+  // share is how many slots the arbiter last granted this tree, and budget is
+  // what that leaves once what the tree already holds is subtracted. Budget is
+  // signed: below zero is an overdraft the tree owes back, which is the only
+  // thing that makes shed fire, so a squeeze that did not happen is diagnosed
+  // by reading these two rather than by inferring them from widths.
+  //
+  // Both carry math.MaxInt64 when nothing bounds them -- no arbiter installed,
+  // or no size reported by the platform. That is a sentinel rather than a zero
+  // or a negative because both of those are meaningful here: a budget of -2 is
+  // a real overdraft of two slots, and reading it as "unknown" would hide the
+  // one case worth seeing. Same for settled in SchedStatsRep.
+  int64 share = 9;
+  int64 budget = 10;
 }
 
 message NodeStatus {
@@ -251,4 +265,20 @@ message SchedStatsRep {
   int64 nUnrequestedEvicts = 15;
 
   uint64 epoch = 16;
+
+  // The slot ledger, which is what sizing decides on. slots above is only its
+  // first term, and reporting that term alone is what made a search that
+  // refused to narrow impossible to explain from outside: every remaining
+  // quantity had to be guessed at from widths.
+  //
+  // probe is the whole exploration budget and probeHeld is how much of it is
+  // actually being carried -- attempts that are charged and have never
+  // reported. settled is capacity net of everything held against it,
+  // slots - (nCharged - probeHeld), and is signed: below zero is the
+  // contraction sizing is asking for. nChargedReported is what separates a
+  // slot from a probe, and is the term that liquidates the budget.
+  int32 probe = 17;
+  int32 probeHeld = 18;
+  int64 settled = 19;
+  int32 nChargedReported = 20;
 }

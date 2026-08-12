@@ -764,7 +764,8 @@ func (s *Scheduler) budgets() map[TreeID]int {
 	// leaves the cluster-wide ceiling as the only one.
 	b := make(map[TreeID]int, len(s.trees))
 	for _, id := range s.order {
-		b[id] = math.MaxInt
+		b[id] = Unbounded
+		s.trees[id].share, s.trees[id].budget = Unbounded, Unbounded
 	}
 	if s.arb == nil {
 		return b
@@ -792,6 +793,7 @@ func (s *Scheduler) budgets() map[TreeID]int {
 		// it is what the tree has to give back, and clamping it away is what
 		// would let the first tree to arrive keep a full cluster to itself.
 		b[sh.Tree] = sh.Slots - t.root.charged()
+		t.share, t.budget = sh.Slots, b[sh.Tree]
 	}
 	return b
 }
@@ -813,6 +815,8 @@ func buildTree(spec TreeSpec) (*tree, error) {
 		label:     spec.Label,
 		attrs:     spec.Attrs,
 		submitted: spec.Submitted,
+		share:     Unbounded,
+		budget:    Unbounded,
 		nodes:     make(map[NodeID]*node),
 	}
 	root, err := t.build(spec.Root, nil, "r")

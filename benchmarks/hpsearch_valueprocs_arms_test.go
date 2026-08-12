@@ -398,6 +398,28 @@ func treeWidth(vpc clnt.Observer, tid string) int {
 	return int(st.NRunning)
 }
 
+// treeLedger is why a tree is as wide as it is, in the terms the engine
+// decided on: what the arbiter granted it, what that leaves after what it
+// holds, and what its root is currently aiming at.
+//
+// A width on its own cannot distinguish a tree that refused to narrow from one
+// with nothing to narrow for. Budget below zero is an overdraft and is the only
+// thing that makes shed fire, so a squeeze that did not happen is diagnosed by
+// reading it rather than by inferring it from the width that failed to appear.
+func treeLedger(vpc clnt.Observer, tid string) string {
+	st, err := vpc.Status(tid)
+	if err != nil {
+		return fmt.Sprintf("unreadable (%v)", err)
+	}
+	target := -1
+	if len(st.Nodes) > 0 {
+		// Preorder, so the first node is the root.
+		target = int(st.Nodes[0].Target)
+	}
+	return fmt.Sprintf("running=%d charged=%d rootTarget=%d share=%v budget=%v",
+		st.NRunning, st.NCharged, target, fmtBound(st.Share), fmtBound(st.Budget))
+}
+
 // awaitWidth waits for a tree's running count to satisfy ok, and returns the
 // width that satisfied it. It fails the test on timeout, quoting what it saw
 // instead.
@@ -421,8 +443,12 @@ func awaitWidth(t *testing.T, vpc clnt.Observer, tid, why string, ok func(int) b
 		}
 		time.Sleep(VPSampleInterval)
 	}
+	// The ledger goes in the failure rather than in the loop. This is the one
+	// moment it is needed and the one moment nobody can go back and ask for it,
+	// and polling it every 100ms for the whole run would bury the trace it is
+	// meant to explain.
 	assert.Fail(t, "tree never reached the expected width",
-		"%v: last saw %d after %v", why, last, SqueezeSettle)
+		"%v: last saw %d after %v; %v", why, last, SqueezeSettle, treeLedger(vpc, tid))
 	return last, false
 }
 
@@ -506,6 +532,11 @@ func TestHPSearchValueProcsSqueeze(t *testing.T) {
 	narrowed, squeezed := awaitWidth(t, f.vpc, j.TID(), "squeezed by a second tree",
 		func(n int) bool { return n > 0 && n <= slots/2 })
 	squeezedAt := time.Since(smp.start)
+	// Both trees, while the competitor is still up: whether the search gave up
+	// its share or collapsed past it is a comparison between the two, and after
+	// the cancel below there is nothing left to compare against.
+	db.DPrintf(db.ALWAYS, "HPSearch value-procs squeeze: at the squeeze, search %v; burners %v",
+		treeLedger(f.vpc, j.TID()), treeLedger(f.vpc, burnTid))
 
 	// And takes it back when the competitor goes.
 	assert.Nil(t, f.vpc.Cancel(burnTid), "Error Cancel")

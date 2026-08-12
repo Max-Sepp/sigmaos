@@ -18,6 +18,8 @@ package benchmarks_test
 
 import (
 	"fmt"
+	"math"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -48,6 +50,33 @@ type vpSample struct {
 	nRunning int
 	nCharged int
 	slots    int
+
+	// The rest of the slot ledger. Widths alone cannot say why a width was
+	// chosen: a search that refuses to narrow looks identical to one that has
+	// nothing to narrow for, and telling them apart from outside means
+	// reconstructing arithmetic the engine already did. settled is the term
+	// sizing decides on and probeHeld is what keeps it from going negative,
+	// so a stuck width is read off these two directly.
+	probe     int
+	probeHeld int
+	settled   int64
+	nReported int
+}
+
+// unbounded is what a ledger figure carries when nothing limits it -- the
+// platform has reported no size, or no arbiter divides capacity -- matching
+// policy.Unbounded on a 64-bit host. Zero and negative are both meaningful in
+// these fields, a settled of -4 being a real contraction of four slots, so
+// "no ceiling" needs a value of its own rather than one of theirs.
+const unbounded = int64(math.MaxInt64)
+
+// fmtBound keeps the sentinel out of the logs as a twenty-digit number, which
+// reads as a measurement rather than as the absence of one.
+func fmtBound(v int64) string {
+	if v == unbounded {
+		return "none"
+	}
+	return strconv.FormatInt(v, 10)
 }
 
 // vpSummary reduces a trace to the numbers a claim is stated in.
@@ -143,12 +172,16 @@ func (s *vpSampler) run() {
 		began := time.Now()
 		if ss, err := s.c.SchedStats(); err == nil {
 			sm := vpSample{
-				since:    time.Since(s.start),
-				pressure: ss.GetPressure(),
-				busy:     ss.GetBusy(),
-				nRunning: int(ss.GetNRunning()),
-				nCharged: int(ss.GetNCharged()),
-				slots:    int(ss.GetSlots()),
+				since:     time.Since(s.start),
+				pressure:  ss.GetPressure(),
+				busy:      ss.GetBusy(),
+				nRunning:  int(ss.GetNRunning()),
+				nCharged:  int(ss.GetNCharged()),
+				slots:     int(ss.GetSlots()),
+				probe:     int(ss.GetProbe()),
+				probeHeld: int(ss.GetProbeHeld()),
+				settled:   ss.GetSettled(),
+				nReported: int(ss.GetNChargedReported()),
 			}
 			if comp := ss.GetComponents(); comp != nil {
 				sm.memP, sm.cpuP = comp["mem"], comp["cpu"]
@@ -301,8 +334,12 @@ func (s *vpSampler) reportTrace(label string) vpSummary {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for _, sm := range s.samples {
-		db.DPrintf(db.ALWAYS, "%v: sched sample t=%.1fs running=%d charged=%d slots=%d pressure=%.3f busy=%.3f mem=%.3f cpu=%.3f",
-			label, sm.since.Seconds(), sm.nRunning, sm.nCharged, sm.slots, sm.pressure, sm.busy, sm.memP, sm.cpuP)
+		// The ledger goes at the end so that the existing prefix still parses:
+		// notes/sweep_to_csv.py's pattern for this line is unanchored, and every
+		// log already collected keeps its meaning.
+		db.DPrintf(db.ALWAYS, "%v: sched sample t=%.1fs running=%d charged=%d slots=%d pressure=%.3f busy=%.3f mem=%.3f cpu=%.3f probe=%d held=%d settled=%v reported=%d",
+			label, sm.since.Seconds(), sm.nRunning, sm.nCharged, sm.slots, sm.pressure, sm.busy, sm.memP, sm.cpuP,
+			sm.probe, sm.probeHeld, fmtBound(sm.settled), sm.nReported)
 	}
 	return sum
 }

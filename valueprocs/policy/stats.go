@@ -70,6 +70,19 @@ type TreeView struct {
 	NRunning  int
 	NCharged  int
 	Nodes     []NodeView
+
+	// Share is how many slots the arbiter last granted this tree and Budget is
+	// what that leaves after what the tree already holds. Budget is signed:
+	// below zero is an overdraft the tree owes back, and an overdraft is the
+	// only thing that makes shed fire. So a squeeze that failed to happen is
+	// read off these two directly, rather than inferred from the widths it
+	// failed to produce.
+	//
+	// Both are Unbounded when nothing limits the tree. They are from the last
+	// reconcile, not this instant, which is also the pair the decisions were
+	// actually made on.
+	Share  int
+	Budget int
 }
 
 // Stats is everything needed to explain the scheduler's behaviour from
@@ -87,6 +100,22 @@ type Stats struct {
 	NRunning int
 	NCharged int
 	Slots    int
+
+	// The rest of the slot ledger. Slots alone is only its first term, and
+	// reporting that term by itself is what made a search that refused to
+	// narrow impossible to explain from outside: every other quantity in the
+	// decision had to be guessed at from the widths it produced.
+	//
+	// Probe is the whole exploration budget; ProbeHeld is how much of it is
+	// actually being carried, meaning attempts charged but never reported.
+	// Settled is capacity net of everything held against it and is signed,
+	// below zero being the contraction sizing is asking for. NChargedReported
+	// is the term that liquidates the budget: it is what separates a slot from
+	// a probe.
+	Probe            int
+	ProbeHeld        int
+	Settled          int
+	NChargedReported int
 
 	NStarts map[StartReasonKind]int
 	NStops  map[StopReasonKind]int
@@ -116,6 +145,10 @@ func (s *Scheduler) Stats() Stats {
 	st.NRunning = s.nRunning
 	st.NCharged = s.nCharged
 	st.Slots = s.occ.Slots
+	st.Probe = s.occ.Probe
+	st.ProbeHeld = s.probeHeld()
+	st.Settled = s.settled()
+	st.NChargedReported = s.nChargedReported
 
 	st.Components = maps.Clone(s.occ.Components)
 	st.NStarts = maps.Clone(s.stats.NStarts)
@@ -164,6 +197,8 @@ func (s *Scheduler) treeView(t *tree) TreeView {
 		Submitted: t.submitted,
 		NRunning:  t.root.running(),
 		NCharged:  t.root.charged(),
+		Share:     t.share,
+		Budget:    t.budget,
 		Nodes:     make([]NodeView, 0, len(t.order)),
 	}
 	for _, n := range t.order {

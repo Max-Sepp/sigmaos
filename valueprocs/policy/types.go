@@ -24,6 +24,7 @@ package policy
 
 import (
 	"fmt"
+	"math"
 	"time"
 )
 
@@ -114,6 +115,15 @@ type Occupancy struct {
 type Capacity struct {
 	Slots int
 }
+
+// Unbounded is what a reported ledger figure carries when nothing limits it:
+// the platform has reported no size, or no arbiter divides capacity between
+// trees.
+//
+// It is a sentinel rather than a zero or a negative because both of those are
+// meaningful in the same fields. A budget of -2 is a real overdraft of two
+// slots, and reading it as "unknown" would hide the one case worth looking at.
+const Unbounded = math.MaxInt
 
 // FailureKind separates a run worth retrying from one that never will be.
 type FailureKind uint8

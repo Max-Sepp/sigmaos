@@ -262,6 +262,8 @@ func (s *Srv) TreeStatus(ctx fs.CtxI, req proto.TreeStatusReq, rep *proto.TreeSt
 	rep.SubmittedUnixNs = v.Submitted.UnixNano()
 	rep.NRunning = int32(v.NRunning)
 	rep.NCharged = int32(v.NCharged)
+	rep.Share = int64(v.Share)
+	rep.Budget = int64(v.Budget)
 	rep.Nodes = make([]*proto.NodeStatus, 0, len(v.Nodes))
 	for _, n := range v.Nodes {
 		rep.Nodes = append(rep.Nodes, s.nodeStatus(v.ID, n))
@@ -314,6 +316,13 @@ func (s *Srv) SchedStats(ctx fs.CtxI, req proto.SchedStatsReq, rep *proto.SchedS
 	rep.NRunning = int32(st.NRunning)
 	rep.NCharged = int32(st.NCharged)
 	rep.Slots = int32(st.Slots)
+	rep.Probe = int32(st.Probe)
+	rep.ProbeHeld = int32(st.ProbeHeld)
+	// Widened rather than clamped: Settled carries Unbounded when the platform
+	// has reported no size, and int32 cannot hold it. The others are counts of
+	// attempts and are bounded by what the cluster can run.
+	rep.Settled = int64(st.Settled)
+	rep.NChargedReported = int32(st.NChargedReported)
 	rep.NScoreDropped = int32(st.NScoreDropped)
 
 	// Counted by kind rather than totalled: a flat count cannot answer
