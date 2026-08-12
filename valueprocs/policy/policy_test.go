@@ -1393,3 +1393,32 @@ func TestQueuedWorkWithholdsProbesToo(t *testing.T) {
 		"a budget that can only be spent into a queue is not a budget")
 	assert.Empty(t, f.starts())
 }
+
+// TestScoreOnlyPeersLeaveCandidatesAtNothing pins a trap.
+//
+// An application may report scores and no rate -- hpsearch does, its curve
+// having no derivative it can honestly claim -- so every peer's gradient is 0
+// and a candidate borrowing one is worth nothing.
+//
+// Skipping those peers, so the candidate falls back on NominalRate instead,
+// looks like the fix and is not. The fallback is NominalRate*Wmax, a constant
+// on no application's scale, and against scores in [0,1] it clears the quorum
+// bar forever: the node re-widens on every reconcile and never converges. The
+// fallback is also the one place Score's rescaling invariance does not hold.
+func TestScoreOnlyPeersLeaveCandidatesAtNothing(t *testing.T) {
+	s, f := newSchedArb(testConfig(), evenSplit{})
+	probed(s, t0, 2, 0)
+	submit(t, s, t0, "t", selG(t, 1, leavesG(t, 4)...))
+	startQueued(s, f, t0)
+	assert.Equal(t, 2, s.Stats().NRunning)
+
+	// Both report a rising score and claim no rate.
+	for i := 0; i < 2; i++ {
+		apply(s.OnScore(t0, refOf("t", NodeID(fmt.Sprintf("r.%d", i)), 0), Score(float64(9-i)/10), 0))
+	}
+
+	assert.Equal(t, 0.0, nodeView(t, s, "t", "r.2").Value,
+		"a candidate borrowing a peer that claims no rate is worth nothing")
+	assert.Equal(t, 2, nodeView(t, s, "t", "r").Target,
+		"so capacity sizes the node, and the value loop admits no one")
+}
