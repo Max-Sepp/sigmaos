@@ -962,6 +962,119 @@ func TestArbiterNeverShedsBelowQuorum(t *testing.T) {
 	assert.Equal(t, 4, nodeView(t, s, "first", "r").NRunning)
 }
 
+// TestTwoSearchesSplitTheMachineRatherThanCollapse is the case the whole
+// arbitration path exists for, and the one it used to get wrong in both halves
+// at once.
+//
+// Two elastic searches, four slots. Each should end up running two. What
+// happened before was that the arbiter divided Slots+Probe -- sixteen on a
+// four-core host, a cluster four times the size of the real one -- so two trees
+// holding four apiece were both comfortably inside a share of eight and nothing
+// was ever asked to give anything back. The only thing that did contract was
+// sizing, on the global ledger, where a tree reads its neighbour's holdings as
+// its own overdraft and gives up the whole of it: not a half share but a
+// collapse to the quorum, one trial each.
+func TestTwoSearchesSplitTheMachineRatherThanCollapse(t *testing.T) {
+	s, f := newSchedArb(testConfig(), evenSplit{})
+	probed(s, t0, 4, 12)
+
+	submit(t, s, t0, "first", selG(t, 1, leavesG(t, 8)...))
+	startQueued(s, f, t0)
+	settleWidths(s, f, "first", 8)
+	startQueued(s, f, t0)
+	assert.Equal(t, 4, nodeView(t, s, "first", "r").Target,
+		"alone, a search narrows to what the machines can run")
+
+	submit(t, s, t0, "second", selG(t, 1, leavesG(t, 8)...))
+	startQueued(s, f, t0)
+	for i := 0; i < 12; i++ {
+		reportRunning(s, "first", 100+i)
+		reportRunning(s, "second", 100+i)
+		stopped(s, f, t0)
+		startQueued(s, f, t0)
+		apply(s.Tick(t0))
+	}
+
+	first := nodeView(t, s, "first", "r").Target
+	second := nodeView(t, s, "second", "r").Target
+	assert.Equal(t, 2, first, "the incumbent keeps its half, not its quorum")
+	assert.Equal(t, 2, second, "and the newcomer gets the other half")
+	assert.Equal(t, 4, s.Stats().NCharged, "between them, exactly the machine")
+}
+
+// TestOneTreeIsSizedExactlyAsTheClusterIs is the guard on sizing having become
+// per-tree.
+//
+// A lone tree's share is the whole cluster and its charge is the whole charge,
+// so its budget works out to precisely settled -- the global figure sizing used
+// to read unconditionally. Every single-tree property therefore has to be
+// unchanged by construction rather than by having been re-checked, and this
+// pins the arithmetic that makes that true. Were the two to drift apart, the
+// symptom would be every uncontended benchmark quietly changing width.
+func TestOneTreeIsSizedExactlyAsTheClusterIs(t *testing.T) {
+	s, f := newSchedArb(testConfig(), evenSplit{})
+	probed(s, t0, 4, 12)
+	submit(t, s, t0, "t", selG(t, 1, leavesG(t, 15)...))
+	startQueued(s, f, t0)
+
+	for round := 0; round < 10; round++ {
+		budget := s.budgets()["t"]
+		assert.Equal(t, s.settled(), budget,
+			"round %d: a lone tree's budget is the cluster's own ledger", round)
+		reportRunning(s, "t", round)
+		stopped(s, f, t0)
+		startQueued(s, f, t0)
+		apply(s.Tick(t0))
+	}
+	assert.Equal(t, 4, nodeView(t, s, "t", "r").Target,
+		"and it still settles where it always did")
+}
+
+// TestSharedCapacityDeflatesAsProbesAreRepaid pins what the arbiter is handed.
+//
+// The probe budget is capacity lent against evidence that does not exist yet,
+// so while it is outstanding it is real concurrency and belongs in what is
+// divided. Once an attempt reports it is standing on a slot like any other, and
+// leaving the loan in the total is what let a four-core host be divided as
+// though it were a sixteen-core one.
+func TestSharedCapacityDeflatesAsProbesAreRepaid(t *testing.T) {
+	s, f := newSchedArb(testConfig(), evenSplit{})
+	probed(s, t0, 4, 12)
+	submit(t, s, t0, "t", selG(t, 1, leavesG(t, 15)...))
+	startQueued(s, f, t0)
+
+	// Fifteen charged and nothing reported: the loan is fully drawn, so what is
+	// divided is the slots plus every probe being carried.
+	assert.Equal(t, 12, s.probeHeld())
+	assert.Equal(t, 16, s.occ.Slots+s.probeHeld())
+
+	// Reports arrive and the search settles. The loan is repaid and the
+	// divisible cluster is the machines alone.
+	//
+	// Driven to a settled state rather than checked after one round, because
+	// mid-descent some attempts are charged and stopping without ever having
+	// reported -- which is a probe still outstanding, correctly. The claim is
+	// about where the total lands, not about every step of getting there.
+	settleWidths(s, f, "t", 8)
+	assert.Equal(t, 0, s.probeHeld(), "every survivor stands on its own report")
+	assert.Equal(t, 4, s.occ.Slots+s.probeHeld(),
+		"so what is divisible is the machines, not the machines times four")
+}
+
+// TestNoArbiterStillSizesOnTheCluster pins the fallback. A budget is Unbounded
+// where nothing divides capacity, and an unbounded budget is not a licence to
+// run unbounded work -- sizing drops back to the cluster's own ledger, which is
+// the only ceiling there is.
+func TestNoArbiterStillSizesOnTheCluster(t *testing.T) {
+	s, f := newSched(testConfig()) // nil arbiter
+	probed(s, t0, 4, 0)
+	submit(t, s, t0, "t", selG(t, 1, leavesG(t, 9)...))
+	startQueued(s, f, t0)
+	assert.Equal(t, Unbounded, s.budgets()["t"])
+	assert.Equal(t, 4, nodeView(t, s, "t", "r").Target,
+		"no share to size on, so the cluster's slots are the ceiling")
+}
+
 // --- reporting -------------------------------------------------------------
 
 func TestStatsCountByReason(t *testing.T) {

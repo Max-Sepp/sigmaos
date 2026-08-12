@@ -368,12 +368,17 @@ func (s *Scheduler) walk(t *tree, budget int) []func() {
 	why := make(map[NodeID]StartReasonKind, len(t.order)) // on what grounds
 	displaced := make(map[NodeID]bool, len(t.order))      // lost its slot to another tree, not to a sibling
 
-	// One number, both signs meaningful. Positive is headroom to start into;
+	// One number, both signs meaningful. Positive is headroom to grow into;
 	// negative is an overdraft, which is what a tree holds after the arbiter
 	// divides capacity between more trees than there were before. Giving it
 	// back is the only way a tree submitted onto a busy cluster ever runs.
+	//
+	// Both halves reach sizing, which is why it is passed on unclamped: a node
+	// grows into the positive half and contracts by the negative one, and a
+	// share the node never sees is a share only shed can enforce -- one stop at
+	// a time, down to the quorum, rather than by sizing the node to what it was
+	// actually granted.
 	over := max(-budget, 0)
-	budget = max(budget, 0)
 
 	for _, n := range t.order {
 		// Wantedness flows down: the root decides its own, a child inherits it.
@@ -393,7 +398,15 @@ func (s *Scheduler) walk(t *tree, budget int) []func() {
 		// An interior node spends no capacity; it only sizes and ranks children.
 		if !n.isLeaf() {
 			if isActive {
-				s.retarget(n)
+				s.retarget(n, budget)
+				// Sizing now contracts a tree to its share directly, so most of
+				// what a shrinking share costs is dropped here rather than by
+				// shed, and would otherwise be recorded as having been outranked
+				// by a sibling. It was not: the sibling did nothing, another
+				// tree was given the slot. Attribution follows the cause.
+				if budget < 0 {
+					s.displacedByShare(n, displaced)
+				}
 				over = max(over-s.released(n), 0)
 				over -= s.shed(n, over, displaced)
 				s.assign(n, sel, why)
@@ -408,14 +421,24 @@ func (s *Scheduler) walk(t *tree, budget int) []func() {
 		case !isActive && l.rs.Charged() && l.rs != RStopping:
 			kind, best := s.stopReason(t, n, displaced[n.id])
 			fs = append(fs, s.stop(t, n, kind, best))
-		// Wanted and idle, if the tree's share and the cluster both allow it.
-		case isActive && l.rs == RIdle && budget > 0 && s.free() > 0:
+		// Wanted and idle, if the cluster has room. The share is not asked
+		// again here: retarget has already sized this node against it and
+		// shed has already taken back whatever the arbiter reassigned, both
+		// before the walk reached any leaf, so a second test against the same
+		// share refuses starts that the target above it just sanctioned.
+		//
+		// It matters once the share is honest. A tree whose required work
+		// exceeds its share -- five tasks on four slots, a search opening
+		// wider than the machine -- is overdrafted for as long as it runs, so
+		// a budget gate would bar it from ever starting anything again,
+		// including the duplicate that races a stalled attempt. That is the
+		// one start a full cluster most needs to allow.
+		case isActive && l.rs == RIdle && s.free() > 0:
 			k := why[n.id]
 			if k == 0 {
 				k = StartSlackRedundancy
 			}
 			fs = append(fs, s.start(t, n, k))
-			budget--
 		}
 	}
 	return fs
@@ -442,7 +465,7 @@ func (s *Scheduler) walk(t *tree, budget int) []func() {
 // The same two steps prune a search, shed a coded quorum's surplus and race a
 // straggler. Nothing here knows which it is doing; only k relative to n and
 // what the applications reported differ.
-func (s *Scheduler) retarget(n *node) {
+func (s *Scheduler) retarget(n *node, budget int) {
 	a := n.alive()
 	if a == 0 {
 		n.target, n.racers, n.pending = 0, 0, 0
@@ -452,7 +475,7 @@ func (s *Scheduler) retarget(n *node) {
 
 	k := clampInt(n.k, 0, a)
 	ranked := s.rank(n)
-	base := s.afford(n, k, a)
+	base := s.afford(n, k, a, budget)
 
 	// Ranked descending, so once one candidate fails to clear the bar every
 	// one after it fails too.
@@ -484,6 +507,29 @@ func (s *Scheduler) released(n *node) int {
 		keep += ranked[i].charged()
 	}
 	return max(n.charged()-keep, 0)
+}
+
+// displacedByShare marks the children a node is losing because its tree was
+// granted less than it holds.
+//
+// It is the sizing counterpart of what shed marks, and exists because the two
+// now reach the same outcome by different routes: a tree sized on its own
+// budget gives the slots back through afford, leaving shed with nothing to
+// collect and the resulting stops indistinguishable from a sibling winning a
+// ranking. Only the ranking says anything about the leaf, so conflating them
+// would report a search as having pruned work it had merely been made to
+// surrender.
+//
+// Everything past the target that still holds a slot, on the same ranking
+// retarget admitted down, so the marks name the children actually about to be
+// stopped.
+func (s *Scheduler) displacedByShare(n *node, displaced map[NodeID]bool) {
+	ranked := s.rank(n)
+	for i := n.target; i < len(ranked); i++ {
+		if ranked[i].charged() > 0 {
+			displaced[ranked[i].id] = true
+		}
+	}
 }
 
 // shed shrinks a node's target to hand back capacity the arbiter has given to
@@ -782,7 +828,17 @@ func (s *Scheduler) budgets() map[TreeID]int {
 	}
 	// Probes are included, so a tree running wide on work that has not reported
 	// yet is not read as overdrafted and made to give back what it was lent.
-	for _, sh := range s.arb.Arbitrate(views, Capacity{Slots: s.occ.Slots + s.occ.Probe}) {
+	//
+	// What is held, though, and not the whole budget. The budget is a constant
+	// -- cores times the oversubscription factor -- so lending all of it
+	// unconditionally hands the arbiter a cluster several times the size of the
+	// one that exists, and it cannot see an overdraft until every tree together
+	// exceeds that. On a four-core host at a factor of four, two trees holding
+	// four apiece are each well inside a share of eight, so shed never fires and
+	// nothing is ever divided. Charging only what is carried deflates capacity
+	// as the reports arrive, exactly as settled already does, and is what makes
+	// the two halves of the same ledger agree.
+	for _, sh := range s.arb.Arbitrate(views, Capacity{Slots: s.occ.Slots + s.probeHeld()}) {
 		// An arbiter is not trusted to name only trees that exist.
 		t, ok := s.trees[sh.Tree]
 		if !ok {

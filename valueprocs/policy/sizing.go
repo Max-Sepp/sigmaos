@@ -105,14 +105,25 @@ func ParseSizing(s string) (Sizing, error) {
 // reaches optimistically; walk still refuses to start anything the cluster has
 // no room for, so what that costs is an ambitious target in a trace rather than
 // an oversubscribed machine.
-func (s *Scheduler) afford(n *node, k, a int) int {
+func (s *Scheduler) afford(n *node, k, a, budget int) int {
 	if s.cfg.Sizing == SizingProportional {
 		return clampInt(k+int(math.Round((1-s.pressure)*float64(a-k))), k, a)
 	}
-	// settled is unbounded until the platform reports a size, and a node can use
-	// no more than it has children in any case. Capping first is also what keeps
-	// that unbounded value out of the addition below.
-	f := min(s.settled(), a)
+	// The tree's own ledger where there is one, the cluster's where there is
+	// not. They are the same quantity for a lone tree -- its share is the whole
+	// cluster and its charge is the whole charge, so budget works out to exactly
+	// settled -- and they part company only once trees compete, which is the
+	// case settled gets wrong. Settled subtracts every tree's charge from the
+	// slots, so a tree reads its neighbour's holdings as its own overdraft and
+	// contracts by the whole of it, arriving at its quorum rather than at its
+	// share. Two searches on four slots then run one trial each instead of two.
+	f := budget
+	if f == Unbounded {
+		f = s.settled()
+	}
+	// A node can use no more children than it has, and capping first is also
+	// what keeps an unbounded value out of the addition below.
+	f = min(f, a)
 	if f > 0 {
 		f = int(float64(f) * (1 - s.delay))
 	}
