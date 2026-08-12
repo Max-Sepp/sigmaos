@@ -398,26 +398,32 @@ func treeWidth(vpc clnt.Observer, tid string) int {
 	return int(st.NRunning)
 }
 
-// awaitWidth waits for a tree's running count to satisfy ok, and reports
-// whether it did. It fails the test on timeout, quoting what it saw instead.
+// awaitWidth waits for a tree's running count to satisfy ok, and returns the
+// width that satisfied it. It fails the test on timeout, quoting what it saw
+// instead.
+//
+// The width is returned rather than only a yes, so that a caller reporting
+// what happened quotes the measurement rather than the bound it was tested
+// against. A phase admitting "at most half" that is summarised as "half" reads
+// as a result when it is a restatement of the assertion.
 //
 // Width is waited for rather than slept for because the delays are not
 // constants: a contraction has to clear ConfirmFor, and the reports driving it
 // arrive at whatever rate the trials manage under whatever share of the
 // machine they have at the time.
-func awaitWidth(t *testing.T, vpc clnt.Observer, tid, why string, ok func(int) bool) bool {
+func awaitWidth(t *testing.T, vpc clnt.Observer, tid, why string, ok func(int) bool) (int, bool) {
 	deadline := time.Now().Add(SqueezeSettle)
 	last := -1
 	for time.Now().Before(deadline) {
 		if last = treeWidth(vpc, tid); last >= 0 && ok(last) {
 			db.DPrintf(db.ALWAYS, "squeeze: %v -- %v is running %d", why, tid, last)
-			return true
+			return last, true
 		}
 		time.Sleep(VPSampleInterval)
 	}
 	assert.Fail(t, "tree never reached the expected width",
 		"%v: last saw %d after %v", why, last, SqueezeSettle)
-	return false
+	return last, false
 }
 
 // TestHPSearchValueProcsSqueeze is the half of the sizing claim that memory
@@ -459,8 +465,18 @@ func TestHPSearchValueProcsSqueeze(t *testing.T) {
 
 	full := func(n int) bool { return n == slots }
 
+	// Explored wide first, and waited for separately, because the width on the
+	// way up passes through the width being settled at. Without this the
+	// "uncontended" wait below is satisfied by the fourth trial starting --
+	// which it was, in about a second -- and the test then reports a search
+	// that narrowed to the machine without one ever having happened.
+	explored, ok := awaitWidth(t, f.vpc, j.TID(), "exploring", func(n int) bool { return n > slots })
+	if !ok {
+		return
+	}
+
 	// Alone, the search narrows to what the machines can run.
-	if !awaitWidth(t, f.vpc, j.TID(), "uncontended", full) {
+	if _, ok := awaitWidth(t, f.vpc, j.TID(), "uncontended", full); !ok {
 		return
 	}
 	alone := time.Since(smp.start)
@@ -487,17 +503,17 @@ func TestHPSearchValueProcsSqueeze(t *testing.T) {
 	// because which tree lands on the odd slot depends on the order reports
 	// arrive in, and the claim is that the search gives capacity up rather
 	// than that it gives up a particular slot.
-	squeezed := awaitWidth(t, f.vpc, j.TID(), "squeezed by a second tree",
+	narrowed, squeezed := awaitWidth(t, f.vpc, j.TID(), "squeezed by a second tree",
 		func(n int) bool { return n > 0 && n <= slots/2 })
 	squeezedAt := time.Since(smp.start)
 
 	// And takes it back when the competitor goes.
 	assert.Nil(t, f.vpc.Cancel(burnTid), "Error Cancel")
-	released := awaitWidth(t, f.vpc, j.TID(), "released", full)
+	_, released := awaitWidth(t, f.vpc, j.TID(), "released", full)
 
 	trace := smp.reportTrace("HPSearch value-procs squeeze")
-	db.DPrintf(db.ALWAYS, "HPSearch value-procs squeeze: settled at %d after %v, squeezed to %d by %v, %d burners; trace %v",
-		slots, alone.Round(time.Second), slots/2, squeezedAt.Round(time.Second), len(burners), trace)
+	db.DPrintf(db.ALWAYS, "HPSearch value-procs squeeze: explored to %d, settled at %d after %v, squeezed to %d by %v, %d burners; trace %v",
+		explored, slots, alone.Round(time.Second), narrowed, squeezedAt.Round(time.Second), len(burners), trace)
 
 	// Stated as the two transitions rather than as levels, because a run that
 	// never moved and a run that moved and moved back reduce to the same
