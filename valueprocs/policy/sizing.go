@@ -119,10 +119,14 @@ func (s *Scheduler) afford(n *node, k, a int) int {
 	if f > 0 {
 		f = int(float64(f) * (1 - s.delay))
 	}
-	// What the probe budget will lend on top, for children there is nothing to
-	// say about yet. It only ever adds: a spent budget is not a debt to be
-	// collected here, because contraction is settled's to express and letting
-	// a spent probe subtract as well would charge the same report twice.
+	// What the probe budget lends on top, for children there is nothing to say
+	// about yet. It only ever adds -- contraction is settled's to express, and
+	// letting a spent probe subtract too would charge the same report twice --
+	// and a queue withholds it, since a probe buys a child's first report and
+	// one that cannot be placed reports nothing.
 	p := min(s.probeFree(), n.probeEligible())
+	if p > 0 {
+		p = int(float64(p) * (1 - s.delay))
+	}
 	return clampInt(n.holding()+f+p, k, a)
 }

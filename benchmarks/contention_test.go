@@ -376,20 +376,38 @@ func (c *contention) schedule() {
 			contentionOnset, contentionShape, contentionFreeMB)
 		return
 	}
-	db.DPrintf(db.ALWAYS, "contention: onset at +%v", contentionOnset)
+	onsetAt := time.Now()
+	db.DPrintf(db.ALWAYS, "contention: onset at +%v", c.elapsed())
 	c.inject()
 	if contentionShape != ShapePulse {
 		return
 	}
+
+	// Due a fixed time after the squeeze was called for, not after it finished
+	// arriving: a ramp of several gigabytes takes seconds -- sixteen in one
+	// recorded run -- and would otherwise push the release past the job's end.
+	remain := time.Until(onsetAt.Add(contentionLift))
+	if remain <= 0 {
+		db.DPrintf(db.ALWAYS, "contention: the ramp outlasted the %v lift, so the squeeze is released as soon as it arrived and this run saw no pulse",
+			contentionLift)
+	}
+	lift := time.NewTimer(remain)
+	defer lift.Stop()
 	select {
-	case <-time.After(contentionLift):
+	case <-lift.C:
 	case <-c.stop:
-		db.DPrintf(db.ALWAYS, "contention: job finished before the +%v lift, so the squeeze was never released within the run",
-			contentionOnset+contentionLift)
+		db.DPrintf(db.ALWAYS, "contention: job finished %v in, before the lift due at +%v, so the squeeze was never released within the run",
+			c.elapsed(), contentionOnset+contentionLift)
 		return
 	}
-	db.DPrintf(db.ALWAYS, "contention: lift at +%v", contentionOnset+contentionLift)
+	db.DPrintf(db.ALWAYS, "contention: lift at +%v", c.elapsed())
 	c.clear()
+}
+
+// elapsed is measured rather than restated from the flags: the flags say when
+// a thing was due, and the cases worth seeing are the ones where it was late.
+func (c *contention) elapsed() time.Duration {
+	return time.Since(c.startedAt).Round(time.Millisecond)
 }
 
 // watch takes the squeeze away if the host gets closer to the OOM killer than

@@ -1371,3 +1371,25 @@ func TestProbeDropsADuplicatePerTaskThenRacesTheStraggler(t *testing.T) {
 			"%v is healthy and should still be running one attempt", nid)
 	}
 }
+
+// TestQueuedWorkWithholdsProbesToo is TestQueuedWorkWithholdsGrowth for the
+// probe half of the ledger: a budget that can only be spent into a queue buys
+// no reports, so it is not spent.
+func TestQueuedWorkWithholdsProbesToo(t *testing.T) {
+	s, f := newSchedArb(testConfig(), evenSplit{})
+	// One slot, and the attempt is never reported running, so it sits queued.
+	probed(s, t0, 1, 0)
+	submit(t, s, t0, "t", selG(t, 1, leavesG(t, 3)...))
+	assert.Len(t, f.starts(), 1)
+	assert.Equal(t, RQueued, nodeView(t, s, "t", "r.0").RunState)
+
+	// A budget appears, but nothing can be placed with it.
+	late := t0.Add(2 * testConfig().QueueDelayTarget)
+	f.reset()
+	probed(s, late, 1, 12)
+
+	assert.Equal(t, 1.0, s.Stats().DelayPressure, "the attempt is fully overdue")
+	assert.Equal(t, 1, nodeView(t, s, "t", "r").Target,
+		"a budget that can only be spent into a queue is not a budget")
+	assert.Empty(t, f.starts())
+}
