@@ -195,7 +195,7 @@ func TestHPSearchValueProcs(t *testing.T) {
 	// once everything has stopped and so cannot say how wide the search ever
 	// got or against what pressure -- which is the quantity the pruning claim
 	// is actually about.
-	smp := startVPSampler(vpc)
+	smp := startVPSamplerAt(vpc, ctn.startedAt)
 	j, err := hpsearch.StartValueProcsJob(vpc, cfg)
 	if !assert.Nil(t, err, "Error StartValueProcsJob: %v", err) {
 		smp.summarize()

@@ -127,7 +127,7 @@ func TestCodedMatMul(t *testing.T) {
 	// Sampled, because the claim this arm exists to test is that the number of
 	// workers admitted at once falls from N toward K as the cluster fills, and
 	// makespan alone cannot show that.
-	smp := startVPSampler(vpc)
+	smp := startVPSamplerAt(vpc, ctn.startedAt)
 	valueProcs := runCodedMatMulValueProcsArm(t, vpc, cfg, &want, "valueprocs")
 	trace := smp.reportTrace("CodedMatMul valueprocs")
 

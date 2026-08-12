@@ -19,15 +19,23 @@ package benchmarks_test
 import (
 	"fmt"
 	"sync"
+	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 
 	db "sigmaos/debug"
 	"sigmaos/valueprocs/clnt"
 )
 
-// VPSampleInterval is how often the sampler polls. Fast enough to catch the
-// admission changes in a job measured in seconds, slow enough that the RPCs
+// VPSampleInterval is the shortest gap between two polls. Fast enough to catch
+// the admission changes in a job measured in seconds, slow enough that the RPCs
 // are not themselves a load on what is being measured.
+//
+// It is a floor rather than a period. Under load a SchedStats round trip has
+// been measured at several hundred milliseconds, so the real cadence is
+// whatever the scheduler can answer at, and every sample carries the moment it
+// was taken so that an uneven series is still summarised correctly.
 const VPSampleInterval = 100 * time.Millisecond
 
 // vpSample is one observation of the scheduler's state.
@@ -84,16 +92,29 @@ type vpSampler struct {
 	done chan struct{}
 }
 
-// startVPSampler begins polling. The caller must stop it.
+// startVPSampler begins polling, timing samples from now. The caller must stop
+// it.
 //
 // A failed poll is dropped rather than retried or reported: the scheduler is
 // reachable or it is not, the benchmark's own assertions will say so, and a
 // sampler that failed loudly would turn a diagnostic into a second source of
 // test failures.
 func startVPSampler(c clnt.Observer) *vpSampler {
+	return startVPSamplerAt(c, time.Now())
+}
+
+// startVPSamplerAt is startVPSampler timing samples from a caller-supplied
+// moment, so that a trace can be read against a clock something else owns.
+//
+// The clock that matters is the contention schedule's: an onset due at +8s and
+// a lift at +38s mean nothing against a sampler that started when the job did,
+// since the job starts after whatever ran before it. Sharing the epoch is what
+// makes "the width changed 2s after the squeeze landed" a statement the trace
+// can support.
+func startVPSamplerAt(c clnt.Observer, epoch time.Time) *vpSampler {
 	s := &vpSampler{
 		c:     c,
-		start: time.Now(),
+		start: epoch,
 		stop:  make(chan struct{}),
 		done:  make(chan struct{}),
 	}
@@ -101,19 +122,26 @@ func startVPSampler(c clnt.Observer) *vpSampler {
 	return s
 }
 
+// run polls back to back, no faster than VPSampleInterval.
+//
+// The interval is enforced after the round trip rather than by a ticker,
+// because a ticker whose period is shorter than the RPC drops ticks silently:
+// the poll rate collapses to the RPC rate and the series quietly becomes
+// unevenly spaced while still looking periodic. Pacing from the end of each
+// call keeps one request in flight, never queues a backlog against a scheduler
+// that is already slow, and makes the resulting gaps honest -- which is why
+// every sample carries when it was taken and reduce weights by that.
 func (s *vpSampler) run() {
 	defer close(s.done)
-	tick := time.NewTicker(VPSampleInterval)
-	defer tick.Stop()
 	for {
 		select {
 		case <-s.stop:
 			return
-		case <-tick.C:
-			ss, err := s.c.SchedStats()
-			if err != nil {
-				continue
-			}
+		default:
+		}
+
+		began := time.Now()
+		if ss, err := s.c.SchedStats(); err == nil {
 			sm := vpSample{
 				since:    time.Since(s.start),
 				pressure: ss.GetPressure(),
@@ -128,6 +156,18 @@ func (s *vpSampler) run() {
 			s.mu.Lock()
 			s.samples = append(s.samples, sm)
 			s.mu.Unlock()
+		}
+
+		wait := VPSampleInterval - time.Since(began)
+		if wait <= 0 {
+			continue
+		}
+		t := time.NewTimer(wait)
+		select {
+		case <-s.stop:
+			t.Stop()
+			return
+		case <-t.C:
 		}
 	}
 }
@@ -164,13 +204,27 @@ func (s *vpSampler) window(from, to time.Duration) vpSummary {
 	return reduce(in)
 }
 
+// reduce summarises a trace.
+//
+// Means are weighted by how long each sample stood for rather than by sample
+// count, because the series is not evenly spaced: polls are paced by what the
+// scheduler can answer, and it answers slowest exactly when it is busiest. An
+// unweighted mean therefore under-counts the crowded stretches, which are the
+// ones every claim here is about.
+//
+// Leading and trailing samples where the scheduler held nothing are dropped.
+// A sampler started on the contention clock runs while some earlier arm is
+// still going, and averaging the width of a job over time before it was
+// submitted would report a narrower search than ever ran. Only the ends are
+// trimmed: a gap in the middle is the job, and belongs in the average.
 func reduce(samples []vpSample) vpSummary {
+	samples = trimIdle(samples)
 	out := vpSummary{n: len(samples)}
 	if out.n == 0 {
 		return out
 	}
-	var sumRunning, sumPressure float64
-	for _, sm := range samples {
+	var sumRunning, sumPressure, sumW float64
+	for i, sm := range samples {
 		if sm.nRunning > out.maxRunning {
 			out.maxRunning = sm.nRunning
 		}
@@ -189,12 +243,44 @@ func reduce(samples []vpSample) vpSummary {
 		if sm.slots > out.slots {
 			out.slots = sm.slots
 		}
-		sumRunning += float64(sm.nRunning)
-		sumPressure += sm.pressure
+		// A sample stands for the stretch up to the next one. The last stands
+		// for as long as the one before it did, there being nothing after it to
+		// measure against.
+		w := VPSampleInterval.Seconds()
+		switch {
+		case i+1 < len(samples):
+			w = (samples[i+1].since - sm.since).Seconds()
+		case i > 0:
+			w = (sm.since - samples[i-1].since).Seconds()
+		}
+		if w <= 0 {
+			w = VPSampleInterval.Seconds()
+		}
+		sumRunning += float64(sm.nRunning) * w
+		sumPressure += sm.pressure * w
+		sumW += w
 	}
-	out.meanRunning = sumRunning / float64(out.n)
-	out.meanPressure = sumPressure / float64(out.n)
+	out.meanRunning = sumRunning / sumW
+	out.meanPressure = sumPressure / sumW
 	return out
+}
+
+// trimIdle drops the runs of samples at each end where the scheduler held
+// nothing. A trace that is idle throughout is left alone, since there is
+// nothing to centre on and a summary of no samples explains less than a
+// summary of idle ones.
+func trimIdle(samples []vpSample) []vpSample {
+	lo, hi := 0, len(samples)
+	for lo < hi && samples[lo].nCharged == 0 {
+		lo++
+	}
+	for hi > lo && samples[hi-1].nCharged == 0 {
+		hi--
+	}
+	if lo == hi {
+		return samples
+	}
+	return samples[lo:hi]
 }
 
 // report stops the sampler, logs the summary under a caller-supplied label,
@@ -219,4 +305,67 @@ func (s *vpSampler) reportTrace(label string) vpSummary {
 			label, sm.since.Seconds(), sm.nRunning, sm.nCharged, sm.slots, sm.pressure, sm.busy, sm.memP, sm.cpuP)
 	}
 	return sum
+}
+
+// --- reduce -----------------------------------------------------------------
+
+func vpAt(sinceMs int, running, charged int, pressure float64) vpSample {
+	return vpSample{
+		since:    time.Duration(sinceMs) * time.Millisecond,
+		nRunning: running, nCharged: charged, pressure: pressure, slots: 4,
+	}
+}
+
+// TestReduceWeightsByTimeNotBySampleCount is the bias the old summary carried.
+//
+// Polls are paced by what the scheduler can answer and it answers slowest when
+// it is busiest, so the crowded stretches are exactly the ones with fewest
+// samples in them. Counting samples reports the quiet stretch the run spent
+// least time in.
+func TestReduceWeightsByTimeNotBySampleCount(t *testing.T) {
+	// Width 12 for four seconds, sampled once because the scheduler was
+	// labouring, then width 2 for one second sampled every 100ms.
+	got := []vpSample{vpAt(0, 12, 12, 1.0)}
+	for ms := 4000; ms <= 5000; ms += 100 {
+		got = append(got, vpAt(ms, 2, 2, 0.0))
+	}
+	r := reduce(got)
+
+	assert.InDelta(t, 10.0, r.meanRunning, 0.5,
+		"four of the five seconds were spent at width 12")
+	assert.InDelta(t, 0.8, r.meanPressure, 0.05)
+	assert.Equal(t, 12, r.maxRunning)
+}
+
+// TestReduceIgnoresIdleEnds covers a sampler started on the contention clock,
+// which runs while some earlier arm is still going. Averaging a job's width
+// over time before it was submitted reports a narrower search than ever ran.
+func TestReduceIgnoresIdleEnds(t *testing.T) {
+	var got []vpSample
+	for ms := 0; ms < 3000; ms += 100 {
+		got = append(got, vpAt(ms, 0, 0, 0.2)) // the baseline arm, not this one
+	}
+	for ms := 3000; ms < 4000; ms += 100 {
+		got = append(got, vpAt(ms, 8, 8, 0.9))
+	}
+	for ms := 4000; ms < 6000; ms += 100 {
+		got = append(got, vpAt(ms, 0, 0, 0.1)) // and after it finished
+	}
+	r := reduce(got)
+
+	assert.InDelta(t, 8.0, r.meanRunning, 0.01, "only the stretch it was running counts")
+	assert.Equal(t, 10, r.n)
+}
+
+// TestReduceKeepsAnIdleTraceWhole is the corner: a job that never ran should
+// report as idle rather than as no samples at all, since the second explains
+// less than the first.
+func TestReduceKeepsAnIdleTraceWhole(t *testing.T) {
+	var got []vpSample
+	for ms := 0; ms < 500; ms += 100 {
+		got = append(got, vpAt(ms, 0, 0, 0.3))
+	}
+	r := reduce(got)
+	assert.Equal(t, 5, r.n)
+	assert.Equal(t, 0.0, r.meanRunning)
 }

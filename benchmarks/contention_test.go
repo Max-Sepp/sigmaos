@@ -310,6 +310,10 @@ type contention struct {
 	t  *testing.T
 	sc *sigmaclnt.SigmaClnt
 
+	// startedAt is the clock the onset and lift are measured from, so anything
+	// else watching the run can line its own trace up against the schedule.
+	startedAt time.Time
+
 	mu    sync.Mutex
 	procs []*proc.Proc
 
@@ -330,7 +334,7 @@ type contention struct {
 // measured. The other two shapes return immediately and inject later, so the
 // clock the onset is measured from is the moment the caller starts its job.
 func startContention(t *testing.T, sc *sigmaclnt.SigmaClnt) *contention {
-	c := &contention{t: t, sc: sc, stop: make(chan struct{}), done: make(chan struct{})}
+	c := &contention{t: t, sc: sc, startedAt: time.Now(), stop: make(chan struct{}), done: make(chan struct{})}
 	if !anyContentionEnabled() {
 		db.DPrintf(db.ALWAYS, "startContention: disabled (neither -contention_free_mb nor -contention_cpu_procs set), running uncontended")
 		close(c.done)
