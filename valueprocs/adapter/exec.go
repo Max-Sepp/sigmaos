@@ -62,17 +62,12 @@ type SigmaOSTuning struct {
 	// ProbePeriod is how often the cluster is measured.
 	ProbePeriod time.Duration
 
-	// Oversubscribe is how much concurrency to admit per core.
-	//
-	// One slot per core is what the machines can honestly run, and that is all
-	// Occupancy.Slots ever reports. Anything above one becomes Occupancy.Probe
-	// instead: concurrency lent to attempts that have never reported, so a
-	// tree with nothing to rank can run every child long enough to learn
-	// something and then narrow to what the machines can actually run.
-	//
-	// So this is an exploration budget rather than a claim about capacity, and
-	// raising it widens the opening of a search without leaving it permanently
-	// oversubscribed.
+	// Oversubscribe is how much concurrency to admit per core. One slot per
+	// core is what the machines can honestly run and is all Occupancy.Slots
+	// ever reports; anything above one becomes Occupancy.Probe instead. So
+	// this is an exploration budget rather than a claim about capacity, and
+	// raising it widens the opening of a search without leaving it
+	// permanently oversubscribed.
 	Oversubscribe float64
 
 	// QueueSamples is how many besched shards to ask for queue depth. The

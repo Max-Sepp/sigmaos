@@ -724,12 +724,10 @@ func (s *Scheduler) account() {
 	s.nCharged, s.nRunning, s.nChargedReported = c, r, rep
 }
 
-// free is how many more attempts may be charged at all: the machines' own
-// ceiling plus whatever is left of the probe budget. A platform that has not
-// reported its size yet imposes no ceiling.
-//
-// This is the hard limit, and it is the only one that ever refuses a start.
-// Sizing asks a different question and reads settled instead.
+// free is how many more attempts may be charged at all, against the machines'
+// ceiling and the probe budget together; a platform that has not reported its
+// size imposes neither. It is the only limit that refuses a start -- sizing
+// asks a different question and reads settled.
 func (s *Scheduler) free() int {
 	if s.occ.Slots <= 0 {
 		return math.MaxInt
@@ -737,23 +735,17 @@ func (s *Scheduler) free() int {
 	return s.occ.Slots + s.occ.Probe - s.nCharged
 }
 
-// probeHeld is how many charged attempts the probe budget is carrying: the
-// ones that have never reported, up to the size of the budget.
-//
-// Capping at the budget is what makes a zero budget mean exactly what it says.
-// An attempt is probe-funded only if a probe was there to fund it; past that
-// it is held against Slots like anything else, however little it has said.
+// probeHeld is how many charged attempts the budget is carrying. Capping at
+// the budget is what makes a zero budget mean what it says: an attempt is
+// probe-funded only if a probe was there to fund it, and is held against Slots
+// past that however little it has said.
 func (s *Scheduler) probeHeld() int {
 	return min(s.nCharged-s.nChargedReported, s.occ.Probe)
 }
 
-// settled is capacity net of the attempts held against it, and is what a node
-// is sized to.
-//
-// Probe-funded attempts are left out, which is what lets a node run wider than
-// the machine while it has nothing to rank, and what makes it narrow as the
-// reports come in rather than all at once: each report converts a probe back
-// into a slot and takes one off what the node can hold.
+// settled is capacity net of what is held against it, and is what a node is
+// sized to. Probe-funded attempts are left out, so each report converts a
+// probe back into a slot and narrows the node by one.
 func (s *Scheduler) settled() int {
 	if s.occ.Slots <= 0 {
 		return math.MaxInt

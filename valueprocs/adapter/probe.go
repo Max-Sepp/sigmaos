@@ -177,10 +177,9 @@ func fold(loads map[string]*mschedproto.GetMSchedLoadRep, over float64) (policy.
 	if over <= 0 {
 		over = 1
 	}
-	// Total admissible concurrency is what it always was, cores times the
-	// factor; the split says which part of it is honest. Slots is what the
-	// machines can actually run and the remainder is lent, so a factor at or
-	// below one lowers Slots and leaves nothing to lend.
+	// Total admissible concurrency is cores times the factor, as it always
+	// was; the split says which part of it is honest. A factor at or below one
+	// therefore lowers Slots and leaves nothing to lend.
 	total := int(float64(cores) * over)
 	slots := min(int(cores), total)
 	return policy.Occupancy{

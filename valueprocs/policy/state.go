@@ -278,16 +278,11 @@ func (n *node) untried() bool {
 // probeEligible counts children a probe could still be spent on: alive,
 // holding nothing, and never attempted.
 //
-// A probe is a first look, and a child that has had one has spent it whether
-// or not it reported. Were a child stopped before reporting to keep its claim,
-// a node could never settle below its slots plus however many children were
-// cut short -- it would stop one to make room, admit the last one back, and
-// hold there.
-//
-// The cost is that a node with more children than Slots+Probe only ever looks
-// at the first cohort. That is worth knowing but is not this budget's to fix:
-// cycling unproven children through a full cluster is a sampling policy, and
-// it needs somewhere to put the partial progress it would keep discarding.
+// Never attempted rather than never reported. A probe is a first look and a
+// child cut short before reporting has still had one; were it to keep its
+// claim, a node would stop one child to make room and admit that one straight
+// back, holding above the machine forever. The cost is that a node with more
+// children than Slots+Probe only ever looks at its first cohort.
 func (n *node) probeEligible() int {
 	c := 0
 	for _, ch := range n.children {

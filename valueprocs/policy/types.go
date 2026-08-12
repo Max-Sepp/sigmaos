@@ -101,13 +101,10 @@ type Occupancy struct {
 	Slots int     // concurrency ceiling: what the machines can actually run
 
 	// Probe is how many attempts may be held beyond Slots while they have
-	// never reported.
-	//
-	// It is not a second resource. It is the same one, lent against evidence
-	// that does not exist yet and repaid the moment it arrives, since an
-	// attempt that has reported is sized against Slots from then on. A node
-	// with nothing to rank cannot spend width well, and the loan buys the one
-	// thing that changes that: a child that runs says something about itself.
+	// never reported: the same capacity, lent against evidence that does not
+	// exist yet and repaid when it arrives, since a reported attempt is sized
+	// against Slots from then on. A node with nothing to rank cannot spend
+	// width well, and running a child is the only thing that changes that.
 	Probe int
 
 	Components map[string]float64 // diagnostics only; never read by policy
