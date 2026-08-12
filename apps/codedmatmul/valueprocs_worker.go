@@ -49,7 +49,11 @@ func RunValueProcsWorker(args []string) {
 	}
 	db.DPrintf(db.CODEDMATMUL, "codedmatmul-worker-vp start idx %d N %d K %d r %d D %d W %d tiles %d repeats %d seed %d", idx, n, k, r, d, w, tiles, repeats, seed)
 
-	c, err := vproc.Start()
+	// Graceful, so that a worker the scheduler sheds can say how far it got.
+	// Under the default the proc is killed where it stands, and the slabs it
+	// computed are lost -- which for the surplus of a coded quorum is exactly
+	// the work the arm is supposed to be judged on not having wasted.
+	c, err := vproc.Start(vproc.WithGracefulEvict())
 	if err != nil {
 		db.DFatalf("RunValueProcsWorker: vproc.Start: %v", err)
 	}
@@ -129,13 +133,18 @@ func RunValueProcsWorker(args []string) {
 	db.DPrintf(db.CODEDMATMUL, "codedmatmul-worker-vp %d done complete %v slabsDone %d elapsed %v", idx, complete, slabsDone, elapsed)
 
 	wr := WorkerResult{Idx: idx, Rows: r, Cols: w, Complete: complete, Elapsed: elapsed, SlabsDone: slabsDone}
-	if complete {
+	switch {
+	case complete:
 		wr.Data = Y.RawMatrix().Data
 		c.Complete(wr)
-	} else {
-		// Only reachable if TiledMultiply returns early for a reason other
-		// than eviction (e.g. a future error path); default self-termination
-		// means eviction itself never gets here.
+	case c.Cancelled():
+		// Shed as surplus. The block is unusable and deliberately not sent,
+		// but the slab count is what the surplus cost and is the only account
+		// of it: a stopped attempt reports no result, so without this the
+		// work it did before being stopped is invisible to whoever submitted
+		// the tree.
+		c.StoppedWith(wr)
+	default:
 		c.Fatal(fmt.Errorf("codedmatmul-worker-vp %d: incomplete after %d/%d slabs", idx, slabsDone, tiles*repeats))
 	}
 }

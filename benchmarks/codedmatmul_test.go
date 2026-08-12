@@ -39,8 +39,13 @@ func runCodedMatMulArm(t *testing.T, sc *sigmaclnt.SigmaClnt, cfg *codedmatmul.C
 		return nil
 	}
 	res := codedmatmul.Analyze(samples, stats)
-	db.DPrintf(db.ALWAYS, "CodedMatMul %s: makespan %v, total %.2f core-s, wasted %.2f core-s, %d evicted, quorum from %v",
-		name, res.Makespan, res.TotalCoreSeconds, res.WastedCoreSeconds, res.NEvicted, res.QuorumIdx)
+	// The residency figures keep their existing wording and position so that
+	// notes/sweep_to_csv.py's pattern still matches and logs already collected
+	// keep their meaning. The slab counts, which are the ones arms should be
+	// compared on, are appended.
+	db.DPrintf(db.ALWAYS, "CodedMatMul %s: makespan %v, total %.2f core-s, wasted %.2f core-s, %d evicted, quorum from %v, %d slabs, %d wasted slabs",
+		name, res.Makespan, res.TotalResidencySeconds, res.WastedResidencySeconds,
+		res.NEvicted, res.QuorumIdx, res.TotalSlabs, res.WastedSlabs)
 	return res
 }
 
@@ -49,8 +54,9 @@ func runCodedMatMulArm(t *testing.T, sc *sigmaclnt.SigmaClnt, cfg *codedmatmul.C
 // surplus once the K-quorum is reached is valuesched's own policy, not
 // something the coordinator asks for.
 //
-// No arm reserves anything, so this one's core-seconds are directly
-// comparable with the rest.
+// No arm reserves anything, so this one's figures are directly comparable with
+// the rest. Its shed workers now report the slabs they computed before being
+// stopped, so its work total accounts for the surplus rather than omitting it.
 func runCodedMatMulValueProcsArm(t *testing.T, c clnt.Runner, cfg *codedmatmul.Config, want *mat.Dense, name string) *codedmatmul.Result {
 	j, err := codedmatmul.StartValueProcsJob(c, cfg)
 	if !assert.Nil(t, err, "%s: StartValueProcsJob err %v", name, err) {
@@ -68,8 +74,8 @@ func runCodedMatMulValueProcsArm(t *testing.T, c clnt.Runner, cfg *codedmatmul.C
 	if err != nil {
 		db.DPrintf(db.ALWAYS, "%s: NAttemptsStopped err %v", name, err)
 	}
-	db.DPrintf(db.ALWAYS, "CodedMatMul %s: makespan %v, mcpu=0 (unreserved), %d attempts stopped (surplus reclaimed), quorum from %v",
-		name, res.Makespan, stopped, res.QuorumIdx)
+	db.DPrintf(db.ALWAYS, "CodedMatMul %s: makespan %v, mcpu=0 (unreserved), %d attempts stopped (surplus reclaimed), quorum from %v, %d slabs, %d wasted slabs",
+		name, res.Makespan, stopped, res.QuorumIdx, res.TotalSlabs, res.WastedSlabs)
 	if st, err := j.Status(); err == nil {
 		db.DPrintf(db.ALWAYS, "CodedMatMul %s final tree: %s", name, dumpTreeStatus(st))
 	} else {
@@ -175,8 +181,15 @@ func TestCodedMatMul(t *testing.T) {
 
 	db.DPrintf(db.ALWAYS, "CodedMatMul makespan: uncoded-barrier %v, coded-no-cancel %v, coded-reap %v, valueprocs %v",
 		uncoded.Makespan, codedNoCancel.Makespan, codedReap.Makespan, valueProcs.Makespan)
+	// Two lines, because the two quantities rank the arms differently and
+	// conflating them is what the slab count exists to stop. Residency keeps
+	// its wording so the existing pattern still matches; work is the one to
+	// compare on, since a slab is the same slab in every arm.
 	db.DPrintf(db.ALWAYS, "CodedMatMul compute: uncoded-barrier %.2f, coded-no-cancel %.2f, coded-reap %.2f, valueprocs %.2f core-s",
-		uncoded.TotalCoreSeconds, codedNoCancel.TotalCoreSeconds, codedReap.TotalCoreSeconds, valueProcs.TotalCoreSeconds)
+		uncoded.TotalResidencySeconds, codedNoCancel.TotalResidencySeconds,
+		codedReap.TotalResidencySeconds, valueProcs.TotalResidencySeconds)
+	db.DPrintf(db.ALWAYS, "CodedMatMul work: uncoded-barrier %d, coded-no-cancel %d, coded-reap %d, valueprocs %d slabs",
+		uncoded.TotalSlabs, codedNoCancel.TotalSlabs, codedReap.TotalSlabs, valueProcs.TotalSlabs)
 	db.DPrintf(db.ALWAYS, "CodedMatMul admitted width: N=%d K=%d, valueprocs running max=%d mean=%.2f of %d slots, pressure max=%.3f mean=%.3f",
 		cfg.N, cfg.K, trace.maxRunning, trace.meanRunning, trace.slots, trace.maxPressure, trace.meanPressure)
 
