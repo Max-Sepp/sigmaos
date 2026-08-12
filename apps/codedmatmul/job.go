@@ -40,6 +40,41 @@ type Config struct {
 	StragglerIdx []int // worker indices that get Repeats instead of 1 (i.e. list of workers which are made stragglers)
 	Tiles        int   // TiledMultiply slab count
 	Seed         int64
+
+	// Passes is how many times an ordinary worker recomputes its block, and is
+	// how this workload is made to last longer. Zero means one.
+	//
+	// Work scales with it and memory does not, which is why it exists: the
+	// multiply is O(r*D*W) but the operands are O(r*D + D*W), so lengthening
+	// the job by scaling any matrix dimension costs gigabytes across N workers
+	// while repeating the multiply costs nothing. A straggler does Passes
+	// times Repeats, so the ratio that makes it a straggler is unchanged.
+	//
+	// It matters because a scheduling decision takes time to make. A job that
+	// finishes before its scheduler can propose, hold and apply a change to
+	// how many workers run has not tested the scheduler; it has measured how
+	// long the job takes to start.
+	Passes int
+}
+
+// passes is Passes with its zero value read as one, so a Config written before
+// this field existed still describes the job it used to.
+func (c *Config) passes() int {
+	if c.Passes <= 0 {
+		return 1
+	}
+	return c.Passes
+}
+
+// repeatsFor is how many passes worker idx runs: the nominal count, times the
+// straggler factor if this is one of the stragglers.
+func (c *Config) repeatsFor(idx int) int {
+	for _, s := range c.StragglerIdx {
+		if s == idx {
+			return c.passes() * c.Repeats
+		}
+	}
+	return c.passes()
 }
 
 func DefaultConfig() *Config {
@@ -50,7 +85,29 @@ func DefaultConfig() *Config {
 		StragglerIdx: []int{0},
 		Tiles:        8,
 		Seed:         7159623,
+		Passes:       1,
 	}
+}
+
+// LongPasses is what the long-running arm sets Passes to.
+//
+// Chosen from the measured short run rather than picked: an ordinary worker
+// covers its eight slabs in about two seconds there, so ten passes puts every
+// arm in the twenty-second range. That is long enough for the tree to open at
+// N, be told which workers are ahead, hold the proposal to narrow, and run
+// narrowed for most of the job -- the sequence the short arm cannot complete
+// before it finishes.
+const LongPasses = 10
+
+// LongConfig is DefaultConfig scaled up in time and nothing else.
+//
+// Same matrices, same quorum, same straggler, same memory: only how many times
+// each worker recomputes its block changes, so a result here is comparable
+// with the short arm's rather than being a different experiment.
+func LongConfig() *Config {
+	c := DefaultConfig()
+	c.Passes = LongPasses
+	return c
 }
 
 type Job struct {
@@ -109,18 +166,10 @@ func StartJob(sc *sigmaclnt.SigmaClnt, cfg *Config) (*Job, error) {
 		return nil, err
 	}
 
-	stragglers := make(map[int]bool, len(cfg.StragglerIdx))
-	for _, i := range cfg.StragglerIdx {
-		stragglers[i] = true
-	}
-
 	procs := make([]*proc.Proc, cfg.N)
 	for i := 0; i < cfg.N; i++ {
-		repeats := 1
-		if stragglers[i] {
-			repeats = cfg.Repeats
-		}
-		p, err := SpawnWorker(sc, i, cfg.N, cfg.K, r, cfg.D, cfg.W, cfg.Tiles, repeats, cfg.Seed, progressDir)
+		p, err := SpawnWorker(sc, i, cfg.N, cfg.K, r, cfg.D, cfg.W, cfg.Tiles,
+			cfg.repeatsFor(i), cfg.Seed, progressDir)
 		if err != nil {
 			return nil, err
 		}

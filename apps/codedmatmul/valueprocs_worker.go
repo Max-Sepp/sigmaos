@@ -12,27 +12,28 @@ import (
 	"sigmaos/valueprocs/vproc"
 )
 
-func parseValueProcsWorkerArgs(args []string) (idx, n, k, r, d, w, tiles, repeats int, seed int64, err error) {
-	fields := []*int{&idx, &n, &k, &r, &d, &w, &tiles, &repeats}
+func parseValueProcsWorkerArgs(args []string) (idx, n, k, r, d, w, tiles, repeats, passes int, seed int64, err error) {
+	fields := []*int{&idx, &n, &k, &r, &d, &w, &tiles, &repeats, &passes}
 	for i, f := range fields {
 		*f, err = strconv.Atoi(args[i])
 		if err != nil {
-			return 0, 0, 0, 0, 0, 0, 0, 0, 0, fmt.Errorf("arg %d (%v) not an int: %w", i, args[i], err)
+			return 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, fmt.Errorf("arg %d (%v) not an int: %w", i, args[i], err)
 		}
 	}
-	seed, err = strconv.ParseInt(args[8], 10, 64)
+	seed, err = strconv.ParseInt(args[9], 10, 64)
 	if err != nil {
-		return 0, 0, 0, 0, 0, 0, 0, 0, 0, fmt.Errorf("seed %v not an int: %w", args[8], err)
+		return 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, fmt.Errorf("seed %v not an int: %w", args[9], err)
 	}
-	return idx, n, k, r, d, w, tiles, repeats, seed, nil
+	return idx, n, k, r, d, w, tiles, repeats, passes, seed, nil
 }
 
 // RunValueProcsWorker is the entry point for the codedmatmul-worker-vp proc,
 // the value-procs-scheduled counterpart of RunWorker.
 //
-// Args are [workerIdx, N, K, r, D, W, tiles, repeats, seed] -- the same as
-// RunWorker, minus progressDir: there is no separate progress-broadcast
-// mechanism here, since c.Score reports progress to the scheduler directly.
+// Args are [workerIdx, N, K, r, D, W, tiles, repeats, passes, seed]: RunWorker's
+// list minus progressDir, since c.Score reports progress to the scheduler
+// directly rather than broadcasting it to a directory, and plus passes, the
+// nominal workload this worker's rate is reported against.
 //
 // Cancellation and scoring both replace hand-rolled machinery RunWorker
 // still carries: vproc.Start's default self-termination on eviction stands
@@ -40,14 +41,14 @@ func parseValueProcsWorkerArgs(args []string) (idx, n, k, r, d, w, tiles, repeat
 // straight to TiledMultiply in place of that goroutine's atomic.Bool, since
 // TiledMultiply already takes exactly that type.
 func RunValueProcsWorker(args []string) {
-	if len(args) != 9 {
+	if len(args) != 10 {
 		db.DFatalf("RunValueProcsWorker: wrong number of args %v", args)
 	}
-	idx, n, k, r, d, w, tiles, repeats, seed, err := parseValueProcsWorkerArgs(args)
+	idx, n, k, r, d, w, tiles, repeats, passes, seed, err := parseValueProcsWorkerArgs(args)
 	if err != nil {
 		db.DFatalf("RunValueProcsWorker: %v", err)
 	}
-	db.DPrintf(db.CODEDMATMUL, "codedmatmul-worker-vp start idx %d N %d K %d r %d D %d W %d tiles %d repeats %d seed %d", idx, n, k, r, d, w, tiles, repeats, seed)
+	db.DPrintf(db.CODEDMATMUL, "codedmatmul-worker-vp start idx %d N %d K %d r %d D %d W %d tiles %d repeats %d passes %d seed %d", idx, n, k, r, d, w, tiles, repeats, passes, seed)
 
 	// Graceful, so that a worker the scheduler sheds can say how far it got.
 	// Under the default the proc is killed where it stands, and the slabs it
@@ -78,13 +79,21 @@ func RunValueProcsWorker(args []string) {
 	// extrapolates along it, so reporting a flat curve while the score climbs
 	// would be a claim never to finish.
 	//
-	// Normalizing against one pass, rather than against this worker's own
-	// total, is what makes a straggler visible. A worker is handed no expected
-	// duration, so its first slab sets the scale: one pass is tiles slabs, and
-	// a worker doing four passes covers the job at a quarter of the rate. Were
-	// each worker normalized against its own workload they would all report 1
-	// and a straggler would be indistinguishable from a healthy peer, which is
-	// the one comparison this application exists to make.
+	// Normalizing against what an ordinary worker is asked for, rather than
+	// against this worker's own total, is what makes a straggler visible. A
+	// worker is handed no expected duration, so its first slab sets the scale:
+	// a nominal workload is passes*tiles slabs, and a worker doing four times
+	// that covers the job at a quarter of the rate. Were each worker
+	// normalized against its own workload they would all report 1 and a
+	// straggler would be indistinguishable from a healthy peer, which is the
+	// one comparison this application exists to make.
+	//
+	// The nominal count travels with the work rather than being assumed to be
+	// one pass. Assuming it would make every worker report 1/passes once the
+	// job is lengthened, which is not a claim about being slow -- it is the
+	// same healthy rate against a longer yardstick -- and it would push every
+	// incumbent's value below what an unproven candidate is presumed to be
+	// worth, inviting the scheduler to swap running work for guesses.
 	var (
 		reps     int     // repeats completed, counted by the fraction wrapping
 		lastFrac float64 // last within-pass fraction, to notice the wrap
@@ -110,8 +119,8 @@ func RunValueProcsWorker(args []string) {
 		}
 		grad := 0.0
 		if dt > 0 {
-			onePass := time.Duration(tiles) * perSlab
-			grad = (done - lastDone) / (dt.Seconds() / onePass.Seconds())
+			nominal := time.Duration(passes*tiles) * perSlab
+			grad = (done - lastDone) / (dt.Seconds() / nominal.Seconds())
 		}
 		lastDone, lastAt = done, now
 		c.Score(done, grad)

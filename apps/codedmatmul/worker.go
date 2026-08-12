@@ -36,6 +36,9 @@ func NewWorkerResult(data interface{}) (*WorkerResult, error) {
 	return wr, err
 }
 
+// The classical worker takes no nominal pass count. It reports no gradient --
+// its progress goes to a directory rather than to a scheduler -- so the one
+// thing that count is for does not arise here.
 func parseWorkerArgs(args []string) (idx, n, k, r, d, w, tiles, repeats int, seed int64, progressDir string, err error) {
 	fields := []*int{&idx, &n, &k, &r, &d, &w, &tiles, &repeats}
 	for i, f := range fields {

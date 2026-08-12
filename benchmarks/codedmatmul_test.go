@@ -85,6 +85,33 @@ func runCodedMatMulValueProcsArm(t *testing.T, c clnt.Runner, cfg *codedmatmul.C
 }
 
 func TestCodedMatMul(t *testing.T) {
+	runCodedMatMulSuite(t, codedmatmul.DefaultConfig(), "TestCodedMatMul")
+}
+
+// TestCodedMatMulLong is TestCodedMatMul on a workload that lasts long enough
+// for the scheduler to do something.
+//
+// The short arm's job is over in about two seconds. Narrowing from N toward the
+// quorum takes longer than that to happen at all -- the workers have to start,
+// report, and have a smaller target proposed, held and applied -- so what that
+// arm measures is a policy with no time to decide anything. Its width never
+// comes down: peak N, a median of two workers stopped.
+//
+// Every arm runs the same lengthened workload, because the point is a
+// comparison and a value-procs number is worth nothing beside classical numbers
+// taken on a different job. Only Config.Passes differs from the short suite:
+// same matrices, same quorum, same straggler, same memory.
+func TestCodedMatMulLong(t *testing.T) {
+	runCodedMatMulSuite(t, codedmatmul.LongConfig(), "TestCodedMatMulLong")
+}
+
+// runCodedMatMulSuite runs all four arms against one config.
+//
+// Shared rather than duplicated so that the long and short suites cannot drift
+// into measuring different things: the arms, the reference C, the assertions
+// and the log lines are literally the same code, and the config is the only
+// input that differs.
+func runCodedMatMulSuite(t *testing.T, cfg *codedmatmul.Config, label string) {
 	mrts, err := test.NewMultiRealmTstate(t, []sp.Trealm{REALM1})
 	if !assert.Nil(t, err, "Error New Tstate: %v", err) {
 		return
@@ -99,9 +126,8 @@ func TestCodedMatMul(t *testing.T) {
 	ctn := startContention(t, sc)
 	defer ctn.release()
 
-	cfg := codedmatmul.DefaultConfig()
-	db.DPrintf(db.ALWAYS, "TestCodedMatMul: cfg M=%d D=%d W=%d N=%d K=%d Repeats=%d StragglerIdx=%v (workers reserve nothing)",
-		cfg.M, cfg.D, cfg.W, cfg.N, cfg.K, cfg.Repeats, cfg.StragglerIdx)
+	db.DPrintf(db.ALWAYS, "%s: cfg M=%d D=%d W=%d N=%d K=%d Repeats=%d StragglerIdx=%v Passes=%d (workers reserve nothing)",
+		label, cfg.M, cfg.D, cfg.W, cfg.N, cfg.K, cfg.Repeats, cfg.StragglerIdx, cfg.Passes)
 	r := cfg.M / cfg.K
 
 	// Reference C, computed once directly (not via the harness) from the
