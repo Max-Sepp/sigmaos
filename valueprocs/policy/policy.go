@@ -378,7 +378,15 @@ func (s *Scheduler) walk(t *tree, budget int) []func() {
 	// share the node never sees is a share only shed can enforce -- one stop at
 	// a time, down to the quorum, rather than by sizing the node to what it was
 	// actually granted.
-	over := max(-budget, 0)
+	//
+	// Only a contended overdraft is shed's, though. A lone tree goes over its
+	// budget every time it repays a probe, and collecting that here would route
+	// every narrowing step through a path that applies at once and answers to no
+	// hold. Sizing owns it instead, where confirm can damp it. See contended.
+	over := 0
+	if s.contended() {
+		over = max(-budget, 0)
+	}
 
 	for _, n := range t.order {
 		// Wantedness flows down: the root decides its own, a child inherits it.
@@ -804,6 +812,38 @@ func (s *Scheduler) probeFree() int {
 	return s.occ.Probe - s.probeHeld()
 }
 
+// shareable reports whether a tree is one the arbiter should be dividing
+// capacity between: still wanted, and not already finished with it.
+func (s *Scheduler) shareable(t *tree) bool {
+	return !t.cancelled && !t.done()
+}
+
+// contended reports whether more than one tree is competing for capacity,
+// which is what separates the two reasons a budget goes negative.
+//
+// A tree can be over its budget because the arbiter handed part of what it
+// holds to somebody else, or because the cluster it was measured against got
+// smaller -- most often because its own probes were repaid, which happens to
+// every search as it narrows. Only the first is a reassignment, and only a
+// reassignment is shed's to collect: a newcomer waiting on capacity should not
+// also wait out a hold timer, whereas a search narrowing on its own evidence
+// should be damped exactly as any other sizing decision is. Without the
+// distinction every ordinary narrowing step goes through shed, which applies
+// at once and answers to no hold, so the hysteresis is silently gone and the
+// stops are recorded as capacity lost to a higher tree that does not exist.
+func (s *Scheduler) contended() bool {
+	n := 0
+	for _, id := range s.order {
+		if s.shareable(s.trees[id]) {
+			n++
+			if n > 1 {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // budgets asks the arbiter how many further starts each tree may make.
 func (s *Scheduler) budgets() map[TreeID]int {
 	// Unlimited until an arbiter says otherwise, so every early return below
@@ -819,7 +859,7 @@ func (s *Scheduler) budgets() map[TreeID]int {
 	// Only trees that could still use capacity are worth dividing between.
 	views := make([]TreeView, 0, len(s.order))
 	for _, id := range s.order {
-		if t := s.trees[id]; !t.cancelled && !t.done() {
+		if t := s.trees[id]; s.shareable(t) {
 			views = append(views, s.treeView(t))
 		}
 	}

@@ -658,8 +658,15 @@ func TestNoOscillation(t *testing.T) {
 // A cooldown would not have it. Its window is about how recently the last
 // change was made rather than about whether anything consistent is being asked
 // for, so a proposal flipping every tick still lands once per window. A hold
-// timer restarts whenever the proposal changes, so a node whose value estimate
-// will not settle stays exactly where it is, indefinitely.
+// timer restarts whenever the case for moving weakens, so a node whose value
+// estimate will not settle stays exactly where it is, indefinitely.
+//
+// This is the case that decides how "the proposal is unchanged" has to be
+// read. Alternating between six and one while holding eight is two proposals
+// that agree on the direction and disagree on how far, and reading the
+// agreement alone as continuity would land the deeper of them -- a signal that
+// cannot make up its mind recorded as though it had. Every other tick is a
+// retreat, and a retreat starts the clock again.
 func TestAlternatingProposalNeverApplies(t *testing.T) {
 	cfg := proportionalConfig()
 	cfg.ConfirmFor = 5 * time.Second
@@ -680,6 +687,102 @@ func TestAlternatingProposalNeverApplies(t *testing.T) {
 		assert.Equal(t, settled, nodeView(t, s, "t", "r").Target,
 			"a proposal that never repeats must never be applied")
 	}
+}
+
+// TestASearchNarrowsBeforeTheLastTrialHasReported is what the hold rule buys,
+// measured where it is paid for.
+//
+// Fifteen trials narrow one step at a time, because each first report repays
+// one probe and takes one slot back. Restarting the clock on every step meant
+// the first narrowing waited for the last report -- the whole descent held
+// hostage to the slowest attempt, on a host where that attempt is slow for
+// exactly the reason the narrowing was wanted. Here the clock starts when the
+// descent does, so trials are pruned while the rest are still reporting.
+func TestASearchNarrowsBeforeTheLastTrialHasReported(t *testing.T) {
+	cfg := testConfig()
+	cfg.ConfirmFor = 5 * time.Second
+	s, f := newSchedArb(cfg, evenSplit{})
+	probed(s, t0, 4, 12)
+	submit(t, s, t0, "t", selG(t, 1, leavesG(t, 15)...))
+	startQueued(s, f, t0)
+	assert.Equal(t, 15, nodeView(t, s, "t", "r").Target, "it opens on everything")
+
+	// One report per second, best first, so the descent is driven at the
+	// granularity the scheduler actually decides at.
+	root := s.trees["t"].nodes["r"]
+	reportedWhenNarrowed := -1
+	for i, c := range root.children {
+		if c.leaf.rs != RRunning {
+			continue
+		}
+		at := t0.Add(time.Duration(i+1) * time.Second)
+		apply(s.OnScore(at, refOf("t", c.id, c.leaf.run), Score(float64(100-i)/100), 0))
+		if reportedWhenNarrowed < 0 && root.target < 15 {
+			reportedWhenNarrowed = s.nChargedReported
+		}
+	}
+
+	if assert.Greater(t, reportedWhenNarrowed, 0, "the search never narrowed at all") {
+		assert.Less(t, reportedWhenNarrowed, 15,
+			"it waited for all fifteen to report, which is the wait the hold "+
+				"rule exists to remove")
+	}
+
+	// And it still lands where it should, rather than merely landing sooner.
+	stopped(s, f, t0.Add(time.Minute))
+	for i := 0; i < 10; i++ {
+		apply(s.Tick(t0.Add(time.Duration(60+i*10) * time.Second)))
+	}
+	assert.Equal(t, 4, nodeView(t, s, "t", "r").Target,
+		"the machine's own concurrency, not the quorum")
+}
+
+// TestHoldSurvivesAContinuingTrendAndRestartsOnAReversal is the timing rule
+// itself, driven directly because what it is about is which of two events
+// restarts a clock and that is invisible in a width.
+//
+// A search narrowing from fifteen proposes fourteen, then thirteen, then
+// twelve, one step per report, because each first report repays one probe.
+// Under a rule that restarted on any change, the clock restarted on every
+// report and nothing landed until the descent stopped -- which is until the
+// slowest of fifteen attempts had reported, on a host where that attempt is
+// slow precisely because the narrowing has not happened yet.
+func TestHoldSurvivesAContinuingTrendAndRestartsOnAReversal(t *testing.T) {
+	cfg := testConfig()
+	cfg.ConfirmFor = 5 * time.Second
+	cfg.JumpFraction = 2 // nothing here skips the hold by being large
+	s, f := newSched(cfg)
+	submit(t, s, t0, "t", selG(t, 1, leavesG(t, 15)...))
+	startQueued(s, f, t0)
+
+	n := s.trees["t"].nodes["r"]
+	n.target, n.pending, n.pendingSince = 15, 0, time.Time{}
+
+	// One clock, started by the first step and not restarted by the rest.
+	for i, want := range []int{14, 13, 12, 11} {
+		at := t0.Add(time.Duration(i+1) * time.Second)
+		assert.Equal(t, 15, s.confirm(n, want, at),
+			"proposing %d at +%ds should not land yet", want, i+1)
+	}
+	assert.Equal(t, 10, s.confirm(n, 10, t0.Add(6*time.Second)),
+		"five seconds after the descent began, not after it ended")
+
+	// Crossing the target is the reversal the hold exists for.
+	n.target, n.pending, n.pendingSince = 10, 0, time.Time{}
+	assert.Equal(t, 10, s.confirm(n, 8, t0.Add(10*time.Second)))
+	assert.Equal(t, 10, s.confirm(n, 12, t0.Add(14*time.Second)),
+		"the other side of the target is a new proposal")
+	assert.Equal(t, 10, s.confirm(n, 12, t0.Add(18*time.Second)),
+		"and waits out the hold from the crossing, not from before it")
+	assert.Equal(t, 12, s.confirm(n, 12, t0.Add(19*time.Second)))
+
+	// shed puts the smaller target on the table with the clock running, so that
+	// restoring it has to be confirmed rather than simply undoing the arbiter.
+	// A restore is a reversal and still waits.
+	n.target, n.pending, n.pendingSince = 4, 4, t0.Add(20*time.Second)
+	assert.Equal(t, 4, s.confirm(n, 6, t0.Add(24*time.Second)),
+		"undoing a shed is confirmed, not assumed")
+	assert.Equal(t, 6, s.confirm(n, 6, t0.Add(29*time.Second)))
 }
 
 func TestStalenessDoesNotStop(t *testing.T) {

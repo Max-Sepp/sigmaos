@@ -136,14 +136,46 @@ func (s *Scheduler) confirm(n *node, want int, now time.Time) int {
 		}
 	}
 
-	// A proposal that differs from the one on the table replaces it and starts
-	// its clock again; one that repeats leaves the clock running. The elapsed
-	// check then follows in the same pass rather than waiting for the next
-	// reconcile, so that a zero hold time means "apply at once" instead of
+	// What restarts the clock is a reversal, not a change. A proposal that
+	// keeps moving the way the one on the table was already moving is more
+	// evidence for the move, not less, and treating each step of it as a fresh
+	// proposal is what made a converging node unable to converge.
+	//
+	// A search opening on fifteen trials narrows one step at a time, because
+	// each first report repays one probe and takes exactly one slot back. Under
+	// a rule that reset on any change, the proposal was different on every one
+	// of those reports and the clock restarted on every one of them, so nothing
+	// could be applied until the descent stopped -- which is to say, until the
+	// slowest of fifteen attempts had reported. Convergence was hostage to the
+	// last straggler rather than paced by the evidence, and on a host running
+	// fifteen CPU-bound procs across four cores that straggler is slow for the
+	// very reason the narrowing was wanted.
+	//
+	// Continuing means two things, and both are needed. The proposal must be on
+	// the same side of the target, so that crossing it starts again; and it
+	// must not have come back towards it, so that a proposal easing off is
+	// treated as the change of mind it is. Together they say the case for
+	// moving has only strengthened since the clock started.
+	//
+	// The second half is what keeps an unstable signal from landing anything.
+	// A node holding fifteen, offered six and one alternately, is offered a
+	// retreat on every other tick, so the clock restarts on every other tick
+	// and neither proposal is ever on the table for a whole hold. A descent
+	// through fourteen, thirteen, twelve never retreats, so it is not
+	// interrupted. Without the second half the alternating case would land the
+	// deeper of its two proposals, which is a signal that cannot make up its
+	// mind being read as agreement.
+	//
+	// The elapsed check follows in the same pass rather than waiting for the
+	// next reconcile, so that a zero hold time means "apply at once" instead of
 	// "apply one reconcile later".
-	if want != n.pending || n.pendingSince.IsZero() {
-		n.pending, n.pendingSince = want, now
+	sameWay := !n.pendingSince.IsZero() &&
+		(want > n.target) == (n.pending > n.target) &&
+		abs(want-n.target) >= abs(n.pending-n.target)
+	if !sameWay {
+		n.pendingSince = now
 	}
+	n.pending = want
 	if now.Sub(n.pendingSince) >= s.cfg.ConfirmFor {
 		n.pending, n.pendingSince = want, time.Time{}
 		return want
