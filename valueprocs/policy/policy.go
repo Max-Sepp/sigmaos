@@ -596,8 +596,11 @@ func (s *Scheduler) shed(n *node, over int, displaced map[NodeID]bool) int {
 	n.racers = max(n.racers-dropped, 0)
 	// Put the smaller target on the table as the proposal being held, so that
 	// retarget on the next reconcile has to confirm restoring it rather than
-	// simply undoing the arbiter.
+	// simply undoing the arbiter. Recorded as a shrink for the same reason:
+	// without it the growth fast-path would hand the slot straight back, which
+	// on a node whose slack is one it always could.
 	n.pending, n.pendingSince = n.target, s.now
+	n.shrankAt = s.now
 	return freed
 }
 

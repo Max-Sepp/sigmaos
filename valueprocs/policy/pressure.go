@@ -129,7 +129,27 @@ func (s *Scheduler) confirm(n *node, want int, now time.Time) int {
 	// A jump is measured against the node's slack, since a change of one is the
 	// entirety of a two-child node's discretion and a rounding error in a
 	// fifteen-child one's. A node with no slack has nothing to confirm.
-	if slack := n.alive() - n.k; slack > 0 && want > n.target {
+	// Not, though, when it would take back what this node has just given up.
+	//
+	// The exemption is for acting on new evidence, and a node that shrank a
+	// moment ago has just been told there is no room. Growing back into that
+	// is not responsiveness, it is hunting: dropping a child frees the very
+	// capacity that then justifies re-adding it, and the cycle repeats at
+	// whatever rate the hold allows.
+	//
+	// A two-child race is where this bites, because slack there is one and any
+	// growth is therefore the whole of it -- so the fast-path always fires,
+	// re-admission is free, and only the drop is ever paid for. Measured on
+	// MapReduce's Select(1, primary, duplicate) reduce tree, that ratchet cost
+	// one start and one stop per hold time, indefinitely: 87 cycles in thirty
+	// seconds at a one-second hold and 15 at five, all of them work that was
+	// begun and thrown away.
+	//
+	// Once the hold has passed without a shrink the exemption returns, so the
+	// first duplicate of a straggler is still admitted at once, which is what
+	// the fast-path is for.
+	grownBack := !n.shrankAt.IsZero() && now.Sub(n.shrankAt) < s.cfg.ConfirmFor
+	if slack := n.alive() - n.k; slack > 0 && want > n.target && !grownBack {
 		if float64(want-n.target)/float64(slack) >= s.cfg.JumpFraction {
 			n.pending, n.pendingSince = want, time.Time{}
 			return want
@@ -177,6 +197,9 @@ func (s *Scheduler) confirm(n *node, want int, now time.Time) int {
 	}
 	n.pending = want
 	if now.Sub(n.pendingSince) >= s.cfg.ConfirmFor {
+		if want < n.target {
+			n.shrankAt = now
+		}
 		n.pending, n.pendingSince = want, time.Time{}
 		return want
 	}

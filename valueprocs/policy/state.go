@@ -152,6 +152,10 @@ type node struct {
 	// on the table to be applied, and a changing one restarts its own clock.
 	pending      int
 	pendingSince time.Time
+
+	// shrankAt is when this node last gave a child up, and is what stops the
+	// growth fast-path from immediately taking it back. See confirm.
+	shrankAt time.Time
 }
 
 func (n *node) isLeaf() bool { return n.leaf != nil }

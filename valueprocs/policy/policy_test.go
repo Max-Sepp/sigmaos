@@ -1520,6 +1520,103 @@ func TestSilentWorkKeepsItsProbe(t *testing.T) {
 		"nothing reported, so nothing justifies narrowing")
 }
 
+// TestGrowthFastPathDoesNotUndoAFreshShrink pins the rule that stops a node
+// hunting.
+//
+// Growth may skip the hold when it is large relative to the node's slack, so
+// that a straggler's duplicate is raced at once. On a two-child node slack is
+// one, so every growth is the whole of it and the exemption always applies --
+// which means re-admission is free while only the drop is ever paid for. Left
+// alone that ratchets: dropping a child frees the capacity that justifies
+// re-adding it, and the pair cycles for as long as the tree runs.
+func TestGrowthFastPathDoesNotUndoAFreshShrink(t *testing.T) {
+	cfg := testConfig()
+	cfg.ConfirmFor = time.Second
+	s, f := newSched(cfg)
+	submit(t, s, t0, "t", selG(t, 1, leavesG(t, 2)...))
+	startQueued(s, f, t0)
+
+	n := s.trees["t"].nodes["r"]
+	n.target, n.pending, n.pendingSince, n.shrankAt = 2, 0, time.Time{}, time.Time{}
+
+	// confirm only answers; retarget is what applies the answer, so this test
+	// has to do that itself or the node never actually moves.
+	propose := func(want int, at time.Time) int {
+		n.target = s.confirm(n, want, at)
+		return n.target
+	}
+
+	// The drop is held, as any shrink is, and lands a second later.
+	assert.Equal(t, 2, propose(1, t0))
+	assert.Equal(t, 1, propose(1, t0.Add(time.Second)))
+
+	// Growing straight back is the whole of this node's slack, so the
+	// fast-path would take it -- but it is undoing a shrink from a moment ago.
+	assert.Equal(t, 1, propose(2, t0.Add(1100*time.Millisecond)),
+		"a slot given up a moment ago is not taken straight back")
+
+	// Once the hold has passed without another shrink, the exemption returns,
+	// which is what keeps a straggler raceable promptly.
+	n.pending, n.pendingSince = 0, time.Time{}
+	assert.Equal(t, 2, propose(2, t0.Add(3*time.Second)),
+		"the fast-path is for new evidence and must still fire on it")
+}
+
+// TestARacePairDoesNotThrashItsDuplicate is the same rule at the shape it was
+// found in: MapReduce's reduce tree, three Select(1, primary, duplicate) pairs
+// on a cluster with room for one duplicate between them.
+//
+// Every pair sees the same tree budget and each proposes taking the one spare
+// slot, so the surplus is admitted, the ledger goes negative, and it is dropped
+// again. What the hold rule bounds is how often that can repeat: without it the
+// cycle ran at the hold time, indefinitely, and every turn of it was a proc
+// started and thrown away.
+func TestARacePairDoesNotThrashItsDuplicate(t *testing.T) {
+	const hold = time.Second
+	cfg := testConfig()
+	cfg.ConfirmFor = hold
+	s, f := newSchedArb(cfg, evenSplit{})
+	probed(s, t0, 4, 12)
+	pair := func(i int) Group {
+		return selG(t, 1, leafG(t, fmt.Sprintf("r%d", i)), leafG(t, fmt.Sprintf("r%d-dup", i)))
+	}
+	submit(t, s, t0, "mr", selG(t, 3, pair(0), pair(1), pair(2)))
+	startQueued(s, f, t0)
+	f.reset()
+
+	// Thirty seconds of healthy reports from every attempt, primaries slightly
+	// ahead so the ranking is decided rather than a tie.
+	const steps, tick = 60, 500 * time.Millisecond
+	for step := 1; step <= steps; step++ {
+		now := t0.Add(time.Duration(step) * tick)
+		for i := 0; i < 3; i++ {
+			for j, off := range []float64{0, -0.001} {
+				nid := NodeID(fmt.Sprintf("r.%d.%d", i, j))
+				if c := s.trees["mr"].nodes[nid]; c.leaf.rs == RRunning {
+					apply(s.OnScore(now, refOf("mr", nid, c.leaf.run), Score(float64(step)/100+off), 1))
+				}
+			}
+		}
+		stopped(s, f, now)
+		startQueued(s, f, now)
+		apply(s.Tick(now))
+	}
+
+	stops := 0
+	for _, n := range s.trees["mr"].order {
+		if n.isLeaf() {
+			stops += n.leaf.stops
+		}
+	}
+	// A pair may give its duplicate up and take it back no faster than one
+	// hold each way, so three pairs over thirty seconds cannot exceed this.
+	// Before the rule the same run produced 87, one cycle per hold.
+	limit := 3 * int(time.Duration(steps)*tick/(2*hold))
+	assert.LessOrEqual(t, stops, limit,
+		"three race pairs thrashed %d times in %v; a cycle costs a proc start and a stop",
+		stops, time.Duration(steps)*tick)
+}
+
 // TestProbeDropsADuplicatePerTaskThenRacesTheStraggler is MapReduce's shape:
 // a task per child of the outer Select, each task an inner Select(1, primary,
 // duplicate).
