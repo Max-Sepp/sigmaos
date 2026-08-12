@@ -54,6 +54,19 @@ type Config struct {
 	// before it is applied. It is a hold time, not a cooldown: it asks how
 	// long this proposal has been on the table, never how recently the last
 	// one was applied, so a node is never deaf to what happens next.
+	//
+	// It is paid for in compute, not in latency, and that is what decides the
+	// value. A search holding a proposal to narrow keeps every trial it is
+	// about to prune running for the whole hold, and pays that on each step of
+	// a descent rather than once. Measured over fifteen trials on four cores,
+	// five seconds cost about a tenth of the total compute against one second,
+	// while moving the time to settle by only a few seconds.
+	//
+	// Zero is worse than either, and not by a little: with nothing held, a
+	// search prunes on whichever trial happens to be ahead at the moment the
+	// ledger moves, which on a concave progress curve is the fastest riser
+	// rather than the best eventual result. It lost the best configuration
+	// outright in two runs of five.
 	ConfirmFor time.Duration
 
 	QueueDelayTarget time.Duration // queue dwell that reads as full pressure
@@ -68,8 +81,15 @@ type Config struct {
 	Sizing Sizing
 }
 
-// DefaultConfig returns tuning suitable for a cluster of long-running batch
-// work.
+// DefaultConfig returns tuning for work measured in seconds to minutes.
+//
+// The timing here used to be described as suiting long-running batch work, and
+// was chosen to match that description rather than measured against anything.
+// The jobs it actually schedules run for between two seconds and two minutes,
+// which is short enough that a hold time picked for a slower world was costing
+// a tenth of a search's compute. Timings are settable at runtime (see
+// adapter.TuningEnv) precisely so the next such claim can be checked rather
+// than asserted.
 func DefaultConfig() Config {
 	return Config{
 		MaxAttempts:      3,
@@ -80,7 +100,7 @@ func DefaultConfig() Config {
 		Hstale:           0.35,
 		NominalRate:      1.0,
 		JumpFraction:     0.5,
-		ConfirmFor:       5 * time.Second,
+		ConfirmFor:       time.Second,
 		QueueDelayTarget: 2 * time.Second,
 		EWMAAlpha:        0.3,
 	}
