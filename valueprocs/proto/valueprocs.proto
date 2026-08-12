@@ -198,11 +198,23 @@ message NodeStatus {
 
   string pID = 19;                    // the current attempt's proc
 
-  // elapsedMs is how long this leaf has run in total, across every attempt
-  // plus the one in flight. It is measured because a stopped attempt reports
-  // nothing about how far it got, so a submitter reconstructing its cost from
-  // its last score is guessing.
+  // elapsedMs is how long this leaf has been resident in total, across every
+  // attempt plus the one in flight.
+  //
+  // Residency, not work. An attempt sharing a core with fourteen others is
+  // resident far longer than it is running, so this overstates cost by the
+  // oversubscription factor -- by most, that is, exactly when a search is
+  // widest. Use partial for cost.
   int64 elapsedMs = 20;
+
+  // partial is what this leaf's last stopped attempt handed back, opaque here
+  // and meaningful only to whoever submitted the work.
+  //
+  // It is the same bytes the next attempt receives as its resume token, and
+  // this is the only way they reach the submitter. An attempt that is stopped
+  // reports no result, so without it the submitter's sole account of what the
+  // attempt achieved -- or cost -- is an inference from its last score.
+  bytes partial = 21;
 }
 
 message SchedStatsReq {}

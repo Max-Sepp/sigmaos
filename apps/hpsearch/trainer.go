@@ -45,6 +45,34 @@ func NewCurve(data interface{}) (*Curve, error) {
 	return c, err
 }
 
+// TrialProgress is what a stopped trainer hands back: how many iterations it
+// got through, counting every attempt at this config rather than only the one
+// being stopped.
+//
+// Iterations rather than a duration, because iterations are what the work is
+// denominated in. A trainer burns a fixed quantum per iteration, so this
+// times IterDur is the CPU it consumed -- the same unit the baseline's
+// CoreSeconds is in, and comparable to it. How long it was resident is not:
+// under a wide search a trial holds a fraction of a core and is resident for
+// several times what it runs for.
+//
+// Cumulative because a stopped trial can be requeued and started again, and
+// it restarts the curve from the beginning rather than resuming. The work the
+// earlier attempt did was still done and still cost the machine, so each
+// attempt adds its own iterations to what it was handed.
+type TrialProgress struct {
+	ConfigId int
+	Iters    int
+}
+
+// NewTrialProgress decodes a TrialProgress back out of a proc.Status's
+// StatusData.
+func NewTrialProgress(data interface{}) (*TrialProgress, error) {
+	p := &TrialProgress{}
+	err := mapstructure.Decode(data, p)
+	return p, err
+}
+
 // syntheticCurve deterministically generates a per-config learning curve
 // from a seed: score(i) = asymptote*(1-exp(-k*i)) + noise. Asymptote and
 // convergence rate k are themselves derived from the seed, so different

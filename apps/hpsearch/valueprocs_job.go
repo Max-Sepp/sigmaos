@@ -109,11 +109,22 @@ type TrialOutcome struct {
 	LastScore float64
 	HasScore  bool
 
-	// Elapsed is how long this trial actually ran, measured by the scheduler.
-	// It is the only honest cost for a stopped trial: Curves reconstructs
-	// where one got to by matching its last score against a regenerated curve,
-	// and near the asymptote neighbouring iterations are indistinguishable.
+	// Elapsed is how long this trial was resident, measured by the scheduler.
+	// It is not what the trial cost: a trial sharing four cores with fourteen
+	// others is resident for several times what it runs for, and by the widest
+	// margin exactly when the search is widest. Iters is the cost.
 	Elapsed time.Duration
+
+	// Iters is how many iterations this trial got through, over every attempt
+	// at it, and HasIters whether that is known rather than inferred.
+	//
+	// Known for a trial that finished, whose curve is its own record, and for
+	// one that reported a TrialProgress as it was stopped. Unknown for one
+	// that was stopped without reporting -- it raced the eviction, or died --
+	// which is a hole in the accounting worth seeing rather than papering
+	// over, so it is a flag and not a zero.
+	Iters    int
+	HasIters bool
 
 	// Stops and Runs are the scheduler's own accounting for this leaf, which
 	// is what makes "stopped" a confirmation rather than an assumption: a
@@ -164,12 +175,19 @@ func (j *ValueProcsJob) Wait() ([]*TrialOutcome, error) {
 			Stops:     int(n.Stops),
 			Runs:      n.Run,
 		}
+		// What earlier stopped attempts spent. For a trial that was stopped
+		// and left alone this is its whole cost; for one that went on to
+		// finish it is what the finishing attempt's curve does not cover.
+		if prior, ok := progressOf(n.Partial); ok {
+			o.Iters, o.HasIters = prior, true
+		}
 		if res, ok := results[n.NodeID]; ok {
 			c, err := NewCurve(res.Status.Data())
 			if err != nil {
 				return nil, fmt.Errorf("hpsearch valueprocs: decode config %d: %w", configId, err)
 			}
 			o.Finished, o.Curve = true, c
+			o.Iters, o.HasIters = o.Iters+len(c.Scores), true
 		}
 		out[configId] = o
 	}
@@ -212,18 +230,59 @@ func curveQuality(c *Curve) float64 {
 	return BestScore(c.Scores, len(c.Scores))
 }
 
-// MeasuredCoreSeconds is what the search actually cost: every trial charged
-// one core for as long as it ran.
+// progressOf decodes what a stopped attempt handed back, reporting false when
+// there was nothing to decode.
+func progressOf(partial []byte) (int, bool) {
+	if len(partial) == 0 {
+		return 0, false
+	}
+	st, err := proc.StatusFromBytes(partial)
+	if err != nil || st == nil {
+		return 0, false
+	}
+	p, err := NewTrialProgress(st.Data())
+	if err != nil {
+		return 0, false
+	}
+	return p.Iters, true
+}
+
+// MeasuredCoreSeconds is what the search cost, in the same unit the baseline's
+// CoreSeconds is quoted in: iterations run times the CPU an iteration burns.
 //
-// This is what a saving should be quoted against rather than Curves' iteration
-// counts, which are exact for a trial that finished and a reconstruction for
-// one that was stopped.
-func MeasuredCoreSeconds(outcomes []*TrialOutcome) float64 {
+// A trainer's iteration is a fixed quantum of work, so this is the CPU the
+// search consumed and the two figures subtract. Residency would not: summing
+// how long each trial was resident counts a trial that held a fifteenth of the
+// machine the same as one that had it to itself, which inflates the total by
+// the oversubscription factor and does so most when pruning is working
+// hardest.
+//
+// curves supplies the fallback for a trial that was stopped without reporting,
+// where all that is left is Curves' reconstruction of where its last score put
+// it. NMeasured says how many trials avoided it.
+func MeasuredCoreSeconds(outcomes []*TrialOutcome, curves []*Curve, cfg *Config) float64 {
+	iterSec := cfg.IterDur.Seconds()
 	total := 0.0
-	for _, o := range outcomes {
-		total += o.Elapsed.Seconds()
+	for i, o := range outcomes {
+		switch {
+		case o.HasIters:
+			total += float64(o.Iters) * iterSec
+		case i < len(curves) && curves[i] != nil:
+			total += float64(len(curves[i].Scores)) * iterSec
+		}
 	}
 	return total
+}
+
+// NMeasured counts trials whose cost was reported rather than reconstructed.
+func NMeasured(outcomes []*TrialOutcome) int {
+	n := 0
+	for _, o := range outcomes {
+		if o.HasIters {
+			n++
+		}
+	}
+	return n
 }
 
 // AnalyzeValueProcs is AnalyzeLive for this arm, whose cost the scheduler
@@ -234,7 +293,7 @@ func MeasuredCoreSeconds(outcomes []*TrialOutcome) float64 {
 // figure Curves has to reconstruct for a trial that was stopped.
 func AnalyzeValueProcs(outcomes []*TrialOutcome, curves []*Curve, cfg *Config) *LivePruneResult {
 	r := AnalyzeLive(curves, cfg)
-	r.CoreSeconds = MeasuredCoreSeconds(outcomes)
+	r.CoreSeconds = MeasuredCoreSeconds(outcomes, curves, cfg)
 	return r
 }
 

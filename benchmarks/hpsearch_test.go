@@ -216,9 +216,9 @@ func TestHPSearchValueProcs(t *testing.T) {
 	db.DPrintf(db.ALWAYS, "HPSearch value-procs selection: %d of %d trials finished, application picked config %d",
 		hpsearch.NFinished(outcomes), cfg.NConfigs, best.ConfigId)
 
-	db.DPrintf(db.ALWAYS, "HPSearch value-procs: actual %.2f core-s, value-procs %.2f core-s (saved %.1f%%), %d/%d configs pruned",
+	db.DPrintf(db.ALWAYS, "HPSearch value-procs: actual %.2f core-s, value-procs %.2f core-s (saved %.1f%%), %d/%d configs pruned, %d/%d costs measured",
 		base.ActualCoreSeconds, live.CoreSeconds, (base.ActualCoreSeconds-live.CoreSeconds)/base.ActualCoreSeconds*100,
-		live.NPruned, cfg.NConfigs)
+		live.NPruned, cfg.NConfigs, hpsearch.NMeasured(outcomes), cfg.NConfigs)
 	db.DPrintf(db.ALWAYS, "HPSearch value-procs quality: best-all %.3f, best-kept %.3f, quality lost %.3f, width max=%d mean=%.2f of %d slots, pressure max=%.3f mean=%.3f",
 		base.BestQualityAll, live.BestQuality, base.BestQualityAll-live.BestQuality,
 		trace.maxRunning, trace.meanRunning, trace.slots, trace.maxPressure, trace.meanPressure)

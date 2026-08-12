@@ -45,6 +45,17 @@ type NodeView struct {
 	// is opaque here: this package stores it so that whoever asked for the
 	// work can collect it, and never inspects it.
 	Result []byte
+
+	// Partial is what this leaf's last stopped attempt handed back, and is nil
+	// for one that has never been stopped or that reported nothing.
+	//
+	// It is the same bytes the next attempt receives as its resume token, and
+	// it is surfaced here for a different reader: what a stopped attempt got
+	// through is the only account of what it cost, and whoever submitted the
+	// work is the one who needs that. Wall-clock residency cannot stand in for
+	// it, since an attempt sharing a core with fourteen others is resident far
+	// longer than it is running.
+	Partial []byte
 }
 
 // TreeView is one tree's reportable state. It is also what an Arbiter divides
@@ -186,6 +197,7 @@ func (s *Scheduler) nodeView(n *node) NodeView {
 		v.ScoreStale = s.stale(l)
 		v.Elapsed = s.elapsed(l)
 		v.Result = l.result
+		v.Partial = l.resume
 	}
 	return v
 }

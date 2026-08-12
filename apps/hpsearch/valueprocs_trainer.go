@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	db "sigmaos/debug"
+	"sigmaos/proc"
 	"sigmaos/util/burn"
 	"sigmaos/valueprocs/vproc"
 )
@@ -40,10 +41,14 @@ func RunValueProcsTrainer(args []string) {
 	}
 	db.DPrintf(db.HPSEARCH, "hp-trainer-vp start config %d seed %d maxIters %d iterDur %v args %v", configId, seed, maxIters, iterDur, args)
 
-	c, err := vproc.Start()
+	// Graceful, so that a pruned trial can say how far it got. That number is
+	// the only account of what the trial cost -- see TrialProgress -- and a
+	// proc that dies on the eviction takes it with it.
+	c, err := vproc.Start(vproc.WithGracefulEvict())
 	if err != nil {
 		db.DFatalf("RunValueProcsTrainer: vproc.Start: %v", err)
 	}
+	prior := priorIters(c.ResumeToken())
 
 	// Generate the full curve upfront, exactly as RunTrainer does.
 	asymptote, scores := syntheticCurve(seed, maxIters)
@@ -71,6 +76,14 @@ func RunValueProcsTrainer(args []string) {
 	// a concave curve would make the ranking follow something other than
 	// quality.
 	for i := range scores {
+		// Before the burn rather than after, so that i is the count of
+		// iterations that finished rather than one that includes the one this
+		// attempt was interrupted partway through.
+		if c.Cancelled() {
+			db.DPrintf(db.HPSEARCH, "hp-trainer-vp config %d stopped at iter %d of %d (%d prior)", configId, i, len(scores), prior)
+			c.StoppedWith(TrialProgress{ConfigId: configId, Iters: prior + i})
+			return
+		}
 		burn.For(iterDur)
 		// A silent trainer runs the same work and reports none of it, which is
 		// what an application that only knows its answer at the end looks like
@@ -85,4 +98,26 @@ func RunValueProcsTrainer(args []string) {
 	// the true one: the negative controls corrupt the scheduler's view of this
 	// trial, never the record a benchmark measures quality against.
 	c.Complete(Curve{ConfigId: configId, Seed: seed, Asymptote: asymptote, Scores: scores})
+}
+
+// priorIters is what earlier stopped attempts at this config already spent.
+//
+// A token that will not decode is reported and treated as nothing, because
+// the alternative is to fail a trial that is running perfectly well over an
+// accounting field. It undercounts that config's cost, which the log names.
+func priorIters(tok []byte) int {
+	if len(tok) == 0 {
+		return 0
+	}
+	st, err := proc.StatusFromBytes(tok)
+	if err != nil || st == nil {
+		db.DPrintf(db.HPSEARCH, "hp-trainer-vp: resume token of %d bytes did not unmarshal: %v", len(tok), err)
+		return 0
+	}
+	p, err := NewTrialProgress(st.Data())
+	if err != nil {
+		db.DPrintf(db.HPSEARCH, "hp-trainer-vp: resume token %v: %v", st, err)
+		return 0
+	}
+	return p.Iters
 }
