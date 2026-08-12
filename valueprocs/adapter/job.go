@@ -1,6 +1,9 @@
 package adapter
 
 import (
+	"os"
+	"strings"
+
 	db "sigmaos/debug"
 	"sigmaos/ft/procgroupmgr"
 	"sigmaos/proc"
@@ -43,10 +46,47 @@ func StartJobSignal(sc *sigmaclnt.SigmaClnt, mcpu proc.Tmcpu, sig policy.Signal)
 // baking them into the binary is what lets one deployment serve every arm, so a
 // comparison between them does not also compare builds.
 func StartJobArm(sc *sigmaclnt.SigmaClnt, mcpu proc.Tmcpu, sig policy.Signal, sz policy.Sizing) *Job {
-	args := []string{sig.String(), sz.String()}
+	args := append([]string{sig.String(), sz.String()}, tuningArgs()...)
 	cfg := procgroupmgr.NewProcGroupConfig(1, "valuesched", args, mcpu, valueprocs.VALUESCHEDREL)
-	db.DPrintf(db.VALUEPROC, "starting valuesched signal %v sizing %v", sig, sz)
+	db.DPrintf(db.VALUEPROC, "starting valuesched signal %v sizing %v tuning %v",
+		sig, sz, tuningArgs())
 	return &Job{pgm: cfg.StartGrpMgr(sc)}
+}
+
+// TuningEnv names the environment variable carrying tuning overrides to every
+// valuesched started from this process, as space-separated key=value pairs:
+//
+//	VALUESCHED_TUNING="confirmFor=1s probePeriod=250ms"
+//
+// It is an environment variable rather than an argument to each caller because
+// of who sets it. A sweep varies one knob per cell from a shell script and runs
+// go test; the benchmarks in between are a dozen call sites that have no
+// opinion on the value and would only be passing it along. Threading it through
+// all of them would make every arm's signature carry a parameter none of them
+// reads.
+const TuningEnv = "VALUESCHED_TUNING"
+
+// tuningArgs reads the overrides, checking them here rather than leaving it to
+// the service.
+//
+// The service does validate them, but it validates them inside a container,
+// where the failure is a proc that exited and a client that eventually times
+// out. A typo in a sweep variable would then cost the whole run and look like
+// an infrastructure fault. Failing in the process that has the misspelling, at
+// the moment it is used, is what makes it a one-line fix instead.
+func tuningArgs() []string {
+	args := strings.Fields(os.Getenv(TuningEnv))
+	if len(args) == 0 {
+		return nil
+	}
+	// applyTuning reads from argTuning onwards, so give it the positions it
+	// expects rather than teaching it a second layout.
+	probe := append([]string{"valuesched", valueprocs.VALUESCHEDREL, "value", "headroom"}, args...)
+	cfg := DefaultServiceConfig()
+	if err := applyTuning(&cfg, probe); err != nil {
+		db.DFatalf("%v=%q: %v", TuningEnv, os.Getenv(TuningEnv), err)
+	}
+	return args
 }
 
 // Stop shuts the service down.

@@ -2,6 +2,7 @@ package adapter
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -89,4 +90,100 @@ func TestSignalFromArgsDefaults(t *testing.T) {
 func TestSignalFromArgsRejectsGarbage(t *testing.T) {
 	_, err := signalFromArgs([]string{"valuesched", valueprocs.VALUESCHEDREL, "occupancy"})
 	assert.NotNil(t, err)
+}
+
+// TestTuningOverridesTheDefaults is the point of the whole surface: a sweep
+// varies a knob per cell, and a knob that needs a rebuild is a knob nobody
+// sweeps.
+func TestTuningOverridesTheDefaults(t *testing.T) {
+	cfg := DefaultServiceConfig()
+	err := applyTuning(&cfg, []string{
+		"valuesched", valueprocs.VALUESCHEDREL, "value", "headroom",
+		"confirmFor=1500ms", "probePeriod=250ms", "oversubscribe=2.5",
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, 1500*time.Millisecond, cfg.Policy.ConfirmFor)
+	assert.Equal(t, 250*time.Millisecond, cfg.SigmaOS.ProbePeriod)
+	assert.Equal(t, 2.5, cfg.SigmaOS.Oversubscribe)
+}
+
+// TestTuningIsOptionalAndIndependent covers the vectors every existing caller
+// passes, which name an arm and nothing else, and the ones that set a single
+// knob. Naming one must not disturb the others; a knob nobody mentions keeps
+// the default it was built with.
+func TestTuningIsOptionalAndIndependent(t *testing.T) {
+	base := DefaultServiceConfig()
+	for _, args := range [][]string{
+		{"valuesched"},
+		{"valuesched", valueprocs.VALUESCHEDREL},
+		{"valuesched", valueprocs.VALUESCHEDREL, "value"},
+		{"valuesched", valueprocs.VALUESCHEDREL, "value", "headroom"},
+	} {
+		cfg := DefaultServiceConfig()
+		assert.Nil(t, applyTuning(&cfg, args), "args %v", args)
+		assert.Equal(t, base, cfg, "args %v should change nothing", args)
+	}
+
+	cfg := DefaultServiceConfig()
+	assert.Nil(t, applyTuning(&cfg, []string{
+		"valuesched", valueprocs.VALUESCHEDREL, "value", "headroom", "confirmFor=0",
+	}))
+	assert.Equal(t, time.Duration(0), cfg.Policy.ConfirmFor,
+		"zero is a hold time meaning apply at once, not an unset value")
+	assert.Equal(t, base.SigmaOS, cfg.SigmaOS, "the platform knobs are untouched")
+}
+
+// TestTuningRejectsGarbage keeps the failure loud, for the same reason the arm
+// arguments do. A sweep cell labelled confirmFor=1s that silently ran the
+// five-second default would be reported as a measurement of one second.
+func TestTuningRejectsGarbage(t *testing.T) {
+	for _, bad := range []string{
+		"confirmFor",         // not key=value at all
+		"confirmfor=1s",      // near miss on the name
+		"confirmFor=1",       // a duration needs its unit
+		"confirmFor=-1s",     // a hold cannot run backwards
+		"probePeriod=0",      // would be a ticker that never ticks
+		"oversubscribe=0",    // would leave no concurrency at all
+		"oversubscribe=lots", // not a number
+	} {
+		cfg := DefaultServiceConfig()
+		err := applyTuning(&cfg, []string{
+			"valuesched", valueprocs.VALUESCHEDREL, "value", "headroom", bad,
+		})
+		assert.NotNil(t, err, "tuning %q should be rejected", bad)
+		if err != nil {
+			assert.Contains(t, err.Error(), "valuesched", "tuning %q", bad)
+		}
+	}
+}
+
+// TestKnownTuningIsStable pins that the help text in an error message is
+// ordered, so that a failure reads the same way twice.
+func TestKnownTuningIsStable(t *testing.T) {
+	assert.Equal(t, []string{"confirmFor", "oversubscribe", "probePeriod"},
+		knownTuning())
+}
+
+// TestTuningEnvReachesTheArgumentVector closes the loop the surface exists for.
+// A knob that can be parsed but cannot be set from outside the process is a
+// knob no sweep can vary, which is the state this replaces.
+func TestTuningEnvReachesTheArgumentVector(t *testing.T) {
+	t.Setenv(TuningEnv, "  confirmFor=1s   probePeriod=250ms ")
+	args := tuningArgs()
+	assert.Equal(t, []string{"confirmFor=1s", "probePeriod=250ms"}, args,
+		"whitespace between pairs is separator, not content")
+
+	// And what comes out is what the service will read back in.
+	cfg := DefaultServiceConfig()
+	full := append([]string{"valuesched", valueprocs.VALUESCHEDREL, "value", "headroom"}, args...)
+	assert.Nil(t, applyTuning(&cfg, full))
+	assert.Equal(t, time.Second, cfg.Policy.ConfirmFor)
+	assert.Equal(t, 250*time.Millisecond, cfg.SigmaOS.ProbePeriod)
+}
+
+// TestTuningEnvUnsetAddsNothing keeps the common case free of empty arguments,
+// which would shift nothing but would leave every spawn carrying a stray "".
+func TestTuningEnvUnsetAddsNothing(t *testing.T) {
+	t.Setenv(TuningEnv, "")
+	assert.Nil(t, tuningArgs())
 }

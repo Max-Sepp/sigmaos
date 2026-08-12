@@ -1,8 +1,13 @@
 package adapter
 
 import (
+	"fmt"
 	"hash/fnv"
 	"os"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
 
 	db "sigmaos/debug"
 	"sigmaos/proc"
@@ -156,9 +161,109 @@ func RunSrv() error {
 		return err
 	}
 	cfg.Policy.Signal, cfg.Policy.Sizing = sig, sz
-	db.DPrintf(db.ALWAYS, "valuesched: policy signal %v sizing %v",
-		cfg.Policy.Signal, cfg.Policy.Sizing)
+	if err := applyTuning(&cfg, os.Args); err != nil {
+		return err
+	}
+	db.DPrintf(db.ALWAYS, "valuesched: policy signal %v sizing %v, confirmFor %v probePeriod %v oversubscribe %v",
+		cfg.Policy.Signal, cfg.Policy.Sizing, cfg.Policy.ConfirmFor,
+		cfg.SigmaOS.ProbePeriod, cfg.SigmaOS.Oversubscribe)
 	return NewSrv(sc, cfg).Run(sc)
+}
+
+// argTuning is where the optional overrides begin, one past the sizing rule.
+//
+// They are key=value rather than further positions because position is what
+// argSignal and argSizing already cost us once: a vector is built in one file
+// and read in another, neither mentions the other, and an off-by-one compiles
+// and passes every unit test before taking the service down at startup. A name
+// cannot be off by one, and a caller may pass one knob without passing the
+// three it does not care about.
+const argTuning = 4
+
+// tuning is what a deployment may set without a rebuild.
+//
+// These are the numbers an experiment varies, and every one of them was chosen
+// for "a cluster of long-running batch work" while the jobs measured here run
+// for seconds. Requiring a full build per value made the obvious experiment --
+// sweep the hold time, look at the settle time -- cost more than the result was
+// worth, which is why it had not been done.
+var tuning = map[string]func(*Config, string) error{
+	"confirmFor": func(c *Config, v string) error {
+		d, err := nonNegativeDuration(v)
+		// Zero is meaningful: apply a proposal the moment it is made.
+		c.Policy.ConfirmFor = d
+		return err
+	},
+	"probePeriod": func(c *Config, v string) error {
+		d, err := nonNegativeDuration(v)
+		if err == nil && d <= 0 {
+			return fmt.Errorf("must be positive, since it drives a ticker")
+		}
+		c.SigmaOS.ProbePeriod = d
+		return err
+	},
+	"oversubscribe": func(c *Config, v string) error {
+		f, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			return fmt.Errorf("want a number: %v", err)
+		}
+		if f <= 0 {
+			return fmt.Errorf("must be positive; one slot per core is %q", "1")
+		}
+		c.SigmaOS.Oversubscribe = f
+		return nil
+	},
+}
+
+func nonNegativeDuration(v string) (time.Duration, error) {
+	d, err := time.ParseDuration(v)
+	if err != nil {
+		return 0, fmt.Errorf("want a duration such as 1s or 500ms: %v", err)
+	}
+	if d < 0 {
+		return 0, fmt.Errorf("must not be negative")
+	}
+	return d, nil
+}
+
+// applyTuning reads the optional overrides off the end of the argument vector.
+//
+// An unrecognised key is an error rather than a shrug, for the same reason a
+// bad signal is: a sweep that quietly ran the default under a label naming
+// something else would report a comparison between two identical things as a
+// result. A vector with no overrides at all is the common case and does
+// nothing.
+func applyTuning(cfg *Config, args []string) error {
+	if len(args) <= argTuning {
+		return nil
+	}
+	for _, a := range args[argTuning:] {
+		k, v, ok := strings.Cut(a, "=")
+		if !ok {
+			return fmt.Errorf("valuesched: tuning %q: want key=value, one of %v",
+				a, knownTuning())
+		}
+		set, ok := tuning[k]
+		if !ok {
+			return fmt.Errorf("valuesched: unknown tuning %q: want one of %v",
+				k, knownTuning())
+		}
+		if err := set(cfg, v); err != nil {
+			return fmt.Errorf("valuesched: tuning %v: %v", k, err)
+		}
+	}
+	return nil
+}
+
+// knownTuning is the key set, sorted, so an error message reads the same way
+// twice and a test can assert on it.
+func knownTuning() []string {
+	out := make([]string, 0, len(tuning))
+	for k := range tuning {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }
 
 // argSignal and argSizing are where the arm sits in valuesched's argument
@@ -168,7 +273,7 @@ func RunSrv() error {
 // to whatever StartJobArm passes (ft/procgroupmgr/procgroupmgr.go's
 // NewProcGroupConfigRealmSwitch), so the layout is:
 //
-//	os.Args = [binary, job, signal, sizing]
+//	os.Args = [binary, job, signal, sizing, key=value...]
 //
 // Reading index 1 instead parses the job name as a signal, which fails, which
 // takes the service down before it serves anything -- and takes down the
