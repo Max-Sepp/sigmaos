@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	db "sigmaos/debug"
+	"sigmaos/util/burn"
 	"sigmaos/valueprocs/vproc"
 )
 
@@ -70,7 +71,7 @@ func RunValueProcsTrainer(args []string) {
 	// a concave curve would make the ranking follow something other than
 	// quality.
 	for i := range scores {
-		Burn(iterDur)
+		burn.For(iterDur)
 		// A silent trainer runs the same work and reports none of it, which is
 		// what an application that only knows its answer at the end looks like
 		// to the scheduler. It is scored once, on completion, below.

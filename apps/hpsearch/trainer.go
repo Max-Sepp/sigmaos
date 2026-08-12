@@ -12,6 +12,7 @@ import (
 	db "sigmaos/debug"
 	"sigmaos/proc"
 	"sigmaos/sigmaclnt"
+	"sigmaos/util/burn"
 )
 
 const (
@@ -120,7 +121,7 @@ func RunTrainer(args []string) {
 	asymptote, scores := syntheticCurve(seed, maxIters)
 	for i := range scores {
 		// Simulate one iteration of training.
-		Burn(iterDur)
+		burn.For(iterDur)
 		db.DPrintf(db.HPSEARCH, "hp-trainer config %d iter %d score %f", configId, i, scores[i])
 	}
 

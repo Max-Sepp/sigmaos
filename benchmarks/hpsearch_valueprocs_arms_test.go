@@ -15,6 +15,8 @@ package benchmarks_test
 // once" is the quantity these claims are actually about.
 
 import (
+	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -22,6 +24,7 @@ import (
 
 	"sigmaos/apps/hpsearch"
 	db "sigmaos/debug"
+	"sigmaos/proc"
 	"sigmaos/sigmaclnt"
 	sp "sigmaos/sigmap"
 	"sigmaos/test"
@@ -365,4 +368,141 @@ func worstConfig(curves []*hpsearch.Curve) int {
 		}
 	}
 	return id
+}
+
+// --- the squeeze arm --------------------------------------------------------
+
+const (
+	// SqueezeBurnMillis is how long each burner occupies a core. Long enough
+	// to outlast the squeeze phase; the tree is cancelled rather than waited
+	// for, so overrunning costs nothing.
+	SqueezeBurnMillis = 600_000
+
+	// SqueezeIters is what a trial in this arm runs for. Much longer than the
+	// default, because the phases below each have to outlast ConfirmFor: a
+	// shrink has to be proposed continuously before it is applied, and a
+	// search that finished first would leave the squeeze unobserved.
+	SqueezeIters = 4000
+
+	// SqueezeSettle bounds how long a phase may take to land.
+	SqueezeSettle = 90 * time.Second
+)
+
+// treeWidth is how many attempts a tree is running right now, or -1 if it
+// cannot be read.
+func treeWidth(vpc clnt.Observer, tid string) int {
+	st, err := vpc.Status(tid)
+	if err != nil {
+		return -1
+	}
+	return int(st.NRunning)
+}
+
+// awaitWidth waits for a tree's running count to satisfy ok, and reports
+// whether it did. It fails the test on timeout, quoting what it saw instead.
+//
+// Width is waited for rather than slept for because the delays are not
+// constants: a contraction has to clear ConfirmFor, and the reports driving it
+// arrive at whatever rate the trials manage under whatever share of the
+// machine they have at the time.
+func awaitWidth(t *testing.T, vpc clnt.Observer, tid, why string, ok func(int) bool) bool {
+	deadline := time.Now().Add(SqueezeSettle)
+	last := -1
+	for time.Now().Before(deadline) {
+		if last = treeWidth(vpc, tid); last >= 0 && ok(last) {
+			db.DPrintf(db.ALWAYS, "squeeze: %v -- %v is running %d", why, tid, last)
+			return true
+		}
+		time.Sleep(VPSampleInterval)
+	}
+	assert.Fail(t, "tree never reached the expected width",
+		"%v: last saw %d after %v", why, last, SqueezeSettle)
+	return false
+}
+
+// TestHPSearchValueProcsSqueeze is the half of the sizing claim that memory
+// contention cannot reach: what a search gives up when another tree takes a
+// share of the machine, and what it takes back when that tree goes away.
+//
+// The competitor is a tree rather than load outside the scheduler, and that is
+// the point. Slots is what the machines can run, so an external squeeze
+// reaches width only through queue delay, which withholds growth and never
+// forces a shed -- it cannot narrow a search that has already settled. A
+// second tree divides the same ledger, which can.
+//
+// It also sidesteps the contention harness's schedule entirely: the squeeze
+// arrives and leaves when this test says so, with the sampler already running,
+// so both transitions are inside the observed window by construction.
+func TestHPSearchValueProcsSqueeze(t *testing.T) {
+	f := newHPSearchVPFixture(t)
+	if f == nil {
+		return
+	}
+	defer f.shutdown()
+
+	slots := schedSlots(t, f.vpc)
+	if !assert.True(t, slots >= 2, "Need at least 2 slots to divide, got %d", slots) {
+		return
+	}
+	f.cfg.MaxIters = SqueezeIters
+
+	smp := startVPSampler(f.vpc)
+	defer smp.summarize()
+
+	j, err := hpsearch.StartValueProcsJob(f.vpc, f.cfg)
+	if !assert.Nil(t, err, "Error StartValueProcsJob: %v", err) {
+		return
+	}
+	defer f.vpc.Cancel(j.TID())
+	db.DPrintf(db.ALWAYS, "TestHPSearchValueProcsSqueeze: slots=%d NConfigs=%d MaxIters=%d",
+		slots, f.cfg.NConfigs, f.cfg.MaxIters)
+
+	full := func(n int) bool { return n == slots }
+
+	// Alone, the search narrows to what the machines can run.
+	if !awaitWidth(t, f.vpc, j.TID(), "uncontended", full) {
+		return
+	}
+	alone := time.Since(smp.start)
+
+	// A competitor arrives. It is elastic -- a quorum of one over as many
+	// burners as there are slots -- so both trees can be sized. An inelastic
+	// one, needing every child, would drive the search to its own quorum
+	// instead of to its share, which is a different claim.
+	burners := make([]*clnt.WorkNode, slots)
+	for i := range burners {
+		p := proc.NewProc("vpburn", []string{strconv.Itoa(SqueezeBurnMillis)})
+		burners[i] = clnt.Leaf(p).WithLabel(fmt.Sprintf("burn-%d", i))
+	}
+	burnRoot, err := clnt.Select(1, burners...)
+	if !assert.Nil(t, err, "Error Select: %v", err) {
+		return
+	}
+	burnTid := "vpburn-" + sp.GenPid("").String()
+	if _, err := f.vpc.Submit(burnTid, "vpburn", burnRoot); !assert.Nil(t, err, "Error Submit: %v", err) {
+		return
+	}
+
+	// At most its share. Stated as a bound rather than as the exact half,
+	// because which tree lands on the odd slot depends on the order reports
+	// arrive in, and the claim is that the search gives capacity up rather
+	// than that it gives up a particular slot.
+	squeezed := awaitWidth(t, f.vpc, j.TID(), "squeezed by a second tree",
+		func(n int) bool { return n > 0 && n <= slots/2 })
+	squeezedAt := time.Since(smp.start)
+
+	// And takes it back when the competitor goes.
+	assert.Nil(t, f.vpc.Cancel(burnTid), "Error Cancel")
+	released := awaitWidth(t, f.vpc, j.TID(), "released", full)
+
+	trace := smp.reportTrace("HPSearch value-procs squeeze")
+	db.DPrintf(db.ALWAYS, "HPSearch value-procs squeeze: settled at %d after %v, squeezed to %d by %v, %d burners; trace %v",
+		slots, alone.Round(time.Second), slots/2, squeezedAt.Round(time.Second), len(burners), trace)
+
+	// Stated as the two transitions rather than as levels, because a run that
+	// never moved and a run that moved and moved back reduce to the same
+	// summary. Both are asserted by awaitWidth above; this records that the
+	// pair of them happened in one run.
+	assert.True(t, squeezed && released,
+		"the search should give up half the machine to a second tree and take it back")
 }

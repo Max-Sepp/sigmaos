@@ -278,6 +278,10 @@ func (j *ValueProcsJob) Curves(outcomes []*TrialOutcome) []*Curve {
 	return curves
 }
 
+// TID is the tree this job submitted, for a caller that needs to watch or
+// cancel it while it runs rather than only reap it through Wait.
+func (j *ValueProcsJob) TID() string { return j.tid }
+
 // Status returns the tree's raw status, for callers that want the full
 // per-leaf breakdown (state, run count, stops, score) that Wait's
 // reconstructed approxLosers curves only partially capture.
