@@ -24,13 +24,24 @@ func PrintMRStats(fsl *fslib.FsLib, jobRoot, job string) error {
 	totOut := sp.Tlength(0)
 	totWTmp := sp.Tlength(0)
 	totRTmp := sp.Tlength(0)
-	results := []*Result{}
+	all := []*Result{}
+	winners := []*Result{}
 	for {
 		r := &Result{}
 		if err := dec.Decode(r); err == io.EOF {
 			break
 		}
-		results = append(results, r)
+		all = append(all, r)
+		// Lost entries are a discarded speculative sibling of a task the
+		// baseline coordinator already recorded a winner for (see
+		// apps/mr/coord.go's processResult) -- keep them out of the
+		// per-task/aggregate numbers below so backup/original races don't
+		// double-count a task's real input/output, and report them
+		// separately instead.
+		if r.Lost {
+			continue
+		}
+		winners = append(winners, r)
 		if r.IsM {
 			totIn += r.In
 			totWTmp += r.Out
@@ -39,8 +50,8 @@ func PrintMRStats(fsl *fslib.FsLib, jobRoot, job string) error {
 			totRTmp += r.In
 		}
 	}
-	sort.Slice(results, func(i, j int) bool {
-		return test.Tput(results[i].In+results[i].Out, results[i].MsInner) > test.Tput(results[j].In+results[j].Out, results[j].MsInner)
+	sort.Slice(winners, func(i, j int) bool {
+		return test.Tput(winners[i].In+winners[i].Out, winners[i].MsInner) > test.Tput(winners[j].In+winners[j].Out, winners[j].MsInner)
 	})
 
 	// over is a task's overhead, MsOuter-MsInner, the wall time it existed
@@ -48,7 +59,7 @@ func PrintMRStats(fsl *fslib.FsLib, jobRoot, job string) error {
 	// map/reduce slot-wait: Tot = summed, Max = worst.
 	var mOverTot, rOverTot, mOverMax, rOverMax int64
 	var nM, nR int
-	for _, r := range results {
+	for _, r := range winners {
 		over := max(r.MsOuter-r.MsInner, 0)
 		if r.IsM {
 			mOverTot += over
@@ -59,7 +70,11 @@ func PrintMRStats(fsl *fslib.FsLib, jobRoot, job string) error {
 			nR++
 			rOverMax = max(rOverMax, over)
 		}
-		fmt.Printf("[%s, kid:%v]:\n\tin %v out %v tot %v inner %vms outer %vms (%s)\n", r.Task, r.KernelID, humanize.Bytes(uint64(r.In)), humanize.Bytes(uint64(r.Out)), test.Mbyte(r.In+r.Out), r.MsInner, r.MsOuter, test.TputStr(r.In+r.Out, r.MsInner))
+		backupTag := ""
+		if r.IsBackup {
+			backupTag = " [WON AS BACKUP]"
+		}
+		fmt.Printf("[%s, kid:%v, taskId:%d]%s:\n\tin %v out %v tot %v inner %vms outer %vms (%s)\n", r.Task, r.KernelID, r.TaskId, backupTag, humanize.Bytes(uint64(r.In)), humanize.Bytes(uint64(r.Out)), test.Mbyte(r.In+r.Out), r.MsInner, r.MsOuter, test.TputStr(r.In+r.Out, r.MsInner))
 	}
 	fmt.Printf("==== totIn %s (%d) totOut %s tmpOut %s tmpIn %s\n",
 		humanize.Bytes(uint64(totIn)), totIn,
@@ -77,7 +92,45 @@ func PrintMRStats(fsl *fslib.FsLib, jobRoot, job string) error {
 	}
 	fmt.Printf("==== slot pressure (outer-inner queueing overhead): map total %dms mean %dms max %dms (n=%d); reduce total %dms mean %dms max %dms (n=%d)\n",
 		mOverTot, mOverMean, mOverMax, nM, rOverTot, rOverMean, rOverMax, nR)
+
+	printSpeculativeDecisions(all)
 	return nil
+}
+
+// printSpeculativeDecisions logs every speculative-execution decision the
+// baseline coordinator made (apps/mr/coord.go's speculate/processResult):
+// each backup that fired, and how it and its sibling were resolved (which one
+// won, which lost and how much wall-time it wasted). Lets a benchmark's own
+// log retrace speculation task-by-task instead of only via the aggregate
+// Nspeculate/Nwasted/MsWasted counters.
+func printSpeculativeDecisions(all []*Result) {
+	decisions := make([]*Result, 0)
+	for _, r := range all {
+		if r.IsBackup || r.Lost {
+			decisions = append(decisions, r)
+		}
+	}
+	if len(decisions) == 0 {
+		fmt.Println("==== speculative execution: no backups fired")
+		return
+	}
+	fmt.Println("==== speculative execution decisions:")
+	for _, r := range decisions {
+		role := "backup"
+		if !r.IsBackup {
+			role = "original"
+		}
+		outcome := "won"
+		if r.Lost {
+			outcome = "lost"
+		}
+		phase := "reduce"
+		if r.IsM {
+			phase = "map"
+		}
+		fmt.Printf("  [%s %s attempt %s] taskId=%d proc=%s runMs=%d\n", phase, role, outcome, r.TaskId, r.Task, r.MsOuter)
+	}
+	fmt.Printf("==== %d speculative decisions recorded\n", len(decisions))
 }
 
 func RemoveJob(fsl *fslib.FsLib, jobRoot, job string) error {

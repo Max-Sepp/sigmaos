@@ -252,6 +252,41 @@ func (mc *MSchedClnt) MSchedStats() (int, []map[string]*proto.RealmStats, error)
 	return len(sds), sdstats, err
 }
 
+// MSchedLoad reports every machine's load, keyed by kernel ID.
+//
+// Keyed, unlike MSchedStats above, which returns a positional slice and so
+// loses which machine each entry came from. A caller folding these into a
+// cluster-wide figure does not need the association, but one chasing a single
+// hot machine does, and it costs nothing to keep.
+//
+// A kernel that cannot be reached is left out rather than failing the call:
+// occupancy is a measurement, and a measurement missing one machine is more
+// useful than no measurement at all.
+func (mc *MSchedClnt) MSchedLoad() (map[string]*proto.GetMSchedLoadRep, error) {
+	sds, err := mc.rpcdc.GetEntries()
+	if err != nil {
+		return nil, err
+	}
+	loads := make(map[string]*proto.GetMSchedLoadRep, len(sds))
+	for _, sd := range sds {
+		rpcc, err := mc.GetRPCClnt(sd)
+		if err != nil {
+			db.DPrintf(db.ALWAYS, "MSchedLoad %v: GetRPCClnt err %v", sd, err)
+			continue
+		}
+		// The request carries no arguments: each msched reports only its own load.
+		req := &proto.GetMSchedLoadReq{}
+		res := &proto.GetMSchedLoadRep{}
+		// One round-trip per machine, issued serially, so cost grows with cluster size.
+		if err := rpcc.RPC("MSched.GetMSchedLoad", req, res); err != nil {
+			db.DPrintf(db.ALWAYS, "MSchedLoad %v: RPC err %v", sd, err)
+			continue
+		}
+		loads[sd] = res
+	}
+	return loads, nil
+}
+
 func (mc *MSchedClnt) Done() {
 	atomic.StoreInt32(&mc.done, 1)
 }

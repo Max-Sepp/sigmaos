@@ -23,10 +23,15 @@ import (
 	"sigmaos/util/crash"
 	"sigmaos/util/perf"
 	"sigmaos/util/rand"
+	"sigmaos/valueprocs/vproc"
 )
 
 const (
 	CONCURRENCY = 5
+	// gradientHeartbeat is how often DoMap reports a gradient while sleeping
+	// through an injected straggler delay, so a wedged leaf's gradient rises
+	// in real time instead of only becoming visible once the delay is over.
+	gradientHeartbeat = time.Second
 )
 
 type Mapper struct {
@@ -48,6 +53,8 @@ type Mapper struct {
 	ckrs        []*chunkreader.ChunkReader
 	ch          chan error
 	slowdownMs  int
+	vc          vproc.Scorer  // nil unless spawned by the value-procs coordinator
+	expectedDur time.Duration // 0 if no estimate was given; see Gradient
 }
 
 func NewMapper(sc *sigmaclnt.SigmaClnt, mapf mr.MapT, combinef mr.ReduceT, jobRoot, job string, p *perf.Perf, nr, lsz, wsz int, input string, intOutput string, slowdownMs int) (*Mapper, error) {
@@ -80,7 +87,7 @@ func NewMapper(sc *sigmaclnt.SigmaClnt, mapf mr.MapT, combinef mr.ReduceT, jobRo
 }
 
 func newMapper(mapf mr.MapT, reducef mr.ReduceT, args []string, p *perf.Perf) (*Mapper, error) {
-	if len(args) != 7 && len(args) != 8 {
+	if len(args) != 7 && len(args) != 8 && len(args) != 9 {
 		return nil, fmt.Errorf("NewMapper: wrong number of arguments %v", args)
 	}
 	nr, err := strconv.Atoi(args[2])
@@ -98,10 +105,21 @@ func newMapper(mapf mr.MapT, reducef mr.ReduceT, args []string, p *perf.Perf) (*
 	// The straggler delay is an optional 8th arg, for callers (e.g. mr_test.go)
 	// that construct a Mapper directly without it.
 	slowdownMs := SlowdownOff
-	if len(args) == 8 {
+	if len(args) == 8 || len(args) == 9 {
 		slowdownMs, err = strconv.Atoi(args[7])
 		if err != nil {
 			return nil, fmt.Errorf("NewMapper: slowdownMs %v isn't int", args[7])
+		}
+	}
+	// The expected map duration is an optional 9th arg, given only by the
+	// value-procs coordinator (see mr.Rate); absent, expectedDur stays 0 and
+	// this mapper's gradient is always 0, there being no scale to normalize a
+	// rate against.
+	expectedDurMs := 0
+	if len(args) == 9 {
+		expectedDurMs, err = strconv.Atoi(args[8])
+		if err != nil {
+			return nil, fmt.Errorf("NewMapper: expectedDurMs %v isn't int", args[8])
 		}
 	}
 	sc, err := sigmaclnt.NewSigmaClnt(proc.GetProcEnv())
@@ -112,10 +130,14 @@ func newMapper(mapf mr.MapT, reducef mr.ReduceT, args []string, p *perf.Perf) (*
 	if err != nil {
 		return nil, fmt.Errorf("NewMapper failed %v", err)
 	}
+	m.expectedDur = time.Duration(expectedDurMs) * time.Millisecond
 
 	if err := m.Started(); err != nil {
 		return nil, fmt.Errorf("NewMapper couldn't start %v", args)
 	}
+	// Calling Started() again here (StartWith below) is safe: msched's
+	// ProcState.started documents itself as callable more than once.
+	m.vc = startVProc(sc)
 
 	crash.FailersDefault(m.FsLib, []crash.Tselector{crash.MRMAP_CRASH, crash.MRMAP_PARTITION})
 	return m, nil
@@ -285,11 +307,44 @@ func (m *Mapper) doSplit(s *mr.Split) (sp.Tlength, error) {
 	return n, err
 }
 
+// sleepReportingGradient sleeps for d, reporting score 0 once per
+// gradientHeartbeat along the way. Without this, vc.Score is not called until
+// doSplit finishes, so the leaf has no tangent at all while it is stuck here
+// and the scheduler cannot tell it apart from one that has merely not been
+// placed yet.
+//
+// Repeating score 0 is what makes the reports say something: each interval
+// contributes no progress, so the rate the scheduler reads is 0. That is the
+// claim "I am converting no time into value", and it is what justifies
+// starting a backup.
+func (m *Mapper) sleepReportingGradient(rate *Rate, d time.Duration) {
+	deadline := time.Now().Add(d)
+	for {
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			return
+		}
+		step := gradientHeartbeat
+		if remaining < step {
+			step = remaining
+		}
+		time.Sleep(step)
+		if m.vc != nil {
+			now := time.Now()
+			m.vc.Score(0, rate.Observe(0, now))
+		}
+	}
+}
+
 func (m *Mapper) DoMap() (sp.Tlength, sp.Tlength, Bin, error) {
+	// The rate is measured from the task's start, not from the first split: a
+	// leaf stuck in the straggler delay must look wedged to the scheduler
+	// while it is still wedged, not only once the delay has already ended.
+	rate := NewRate(m.expectedDur)
 	if m.slowdownMs > SlowdownOff {
 		// Artificially slow down this one task, to measure straggler impact.
 		db.DPrintf(db.MR, "doMap: straggler delay %dms", m.slowdownMs)
-		time.Sleep(time.Duration(m.slowdownMs) * time.Millisecond)
+		m.sleepReportingGradient(rate, time.Duration(m.slowdownMs)*time.Millisecond)
 	}
 	db.DPrintf(db.MR, "doMap %v", m.input)
 	getInputStart := time.Now()
@@ -301,7 +356,7 @@ func (m *Mapper) DoMap() (sp.Tlength, sp.Tlength, Bin, error) {
 	perf.LogSpawnLatency("Mapper.getInput", m.ProcEnv().GetPID(), m.ProcEnv().GetSpawnTime(), getInputStart)
 	ni := sp.Tlength(0)
 	getSplitStart := time.Now()
-	for _, s := range bin {
+	for i, s := range bin {
 		n, err := m.doSplit(&s)
 		if err != nil {
 			db.DPrintf(db.MR, "doSplit %v err %v\n", s, err)
@@ -311,6 +366,10 @@ func (m *Mapper) DoMap() (sp.Tlength, sp.Tlength, Bin, error) {
 			db.DFatalf("Split: short split o %d l %d %d\n", s.Offset, s.Length, n)
 		}
 		ni += n
+		if m.vc != nil {
+			sc := float64(i+1) / float64(len(bin))
+			m.vc.Score(sc, rate.Observe(sc, time.Now()))
+		}
 	}
 	perf.LogSpawnLatency("Mapper.doSplit", m.ProcEnv().GetPID(), m.ProcEnv().GetSpawnTime(), getSplitStart)
 	closeWrtStart := time.Now()
@@ -356,7 +415,10 @@ func RunMapper(mapf mr.MapT, combinef mr.ReduceT, args []string) {
 	db.DPrintf(db.MR_TPT, "%s: in %s out %v tot %v %vms (%s)\n", "map", humanize.Bytes(uint64(nin)), humanize.Bytes(uint64(nout)), test.Mbyte(nin+nout), time.Since(start).Milliseconds(), test.TputStr(nin+nout, time.Since(start).Milliseconds()))
 	if err == nil {
 		m.ClntExit(proc.NewStatusInfo(proc.StatusOK, "OK",
-			Result{true, m.ProcEnv().GetPID().String(), nin, nout, outbin, time.Since(start).Milliseconds(), 0, m.ProcEnv().GetKernelID()}))
+			Result{
+				IsM: true, Task: m.ProcEnv().GetPID().String(), In: nin, Out: nout, OutBin: outbin,
+				MsInner: time.Since(start).Milliseconds(), KernelID: m.ProcEnv().GetKernelID(),
+			}))
 	} else {
 		m.ClntExit(proc.NewStatusErr(err.Error(), nil))
 	}

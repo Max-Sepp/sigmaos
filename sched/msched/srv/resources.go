@@ -20,12 +20,19 @@ func (msched *MSched) getCPUUtil() int64 {
 	return atomic.LoadInt64(&msched.cpuUtil)
 }
 
-func (msched *MSched) monitorCPU() {
+func (msched *MSched) getAvailMem() proc.Tmem {
+	return proc.Tmem(atomic.LoadInt64(&msched.memAvailMB))
+}
+
+func (msched *MSched) monitorLoad() {
 	cm := perf.GetActiveCores()
 	t := time.NewTicker(sp.Conf.MSched.UTIL_REFRESH_RATE)
 	var oldStats cpuStats
 	for {
 		<-t.C
+		// Sampled here rather than read per-RPC: mem.GetAvailableMem re-reads
+		// and re-parses /proc/meminfo on every call.
+		atomic.StoreInt64(&msched.memAvailMB, int64(mem.GetAvailableMem()))
 		oldStats = *msched.cpuStats
 		idle, total := perf.GetCPUSample(cm)
 		msched.cpuStats.idle = idle

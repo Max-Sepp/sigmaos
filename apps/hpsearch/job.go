@@ -24,25 +24,51 @@ const (
 	PruneMargin = 0.1
 )
 
-// Config is one hyperparameter search: how many configs to try, how long to
-// run each, and what resources to give them.
+// Config is one hyperparameter search: how many configs to try and how long
+// to run each.
+//
+// No arm declares a resource reservation. A trainer's real footprint is one
+// busy core and negligible memory, but declaring either would put the
+// baseline and pruning arms under besched's admission accounting while the
+// value-procs arm, whose leaves declare nothing, stays outside it -- so the
+// arms would differ in how they are admitted as well as in how they are
+// scheduled, which is the one thing a comparison between them must not
+// confound.
 type Config struct {
 	NConfigs int
 	MaxIters int
 	IterDur  time.Duration
-	Mcpu     proc.Tmcpu
 	Seed     int64
 	Margin   float64
+
+	// Negative controls for the value-procs arm: one config can be made to
+	// misreport, so the cost of a trial the scheduler cannot trust is
+	// measurable rather than assumed.
+	//
+	// Both name a config rather than a fraction of them, because the question
+	// is what a single bad neighbour does to the honest ones -- and because a
+	// tree in which everybody lies is a tree in which the ranking is
+	// unchanged, so it tests nothing. -1 disables.
+	//
+	// Neither knob touches the Curve a trainer returns. The scheduler's view
+	// is corrupted; the ground truth Analyze measures quality against is not,
+	// which is what lets a test see the honest configs lose.
+	InflateConfig int     // config that multiplies its reported score by InflateFactor
+	InflateFactor float64 // how much it inflates by; 1 is honest
+	SilentConfig  int     // config that reports nothing at all until it completes
 }
 
 func DefaultConfig() *Config {
 	return &Config{
 		NConfigs: 15,
-		MaxIters: 20,
+		MaxIters: 300,
 		IterDur:  50 * time.Millisecond,
-		Mcpu:     1000,
 		Seed:     7159623, // Fixed to make the synthetic curves reproducible
 		Margin:   PruneMargin,
+
+		InflateConfig: -1,
+		InflateFactor: 1,
+		SilentConfig:  -1,
 	}
 }
 
@@ -105,7 +131,7 @@ func (j *HPSearchJob) Wait() ([]*Curve, error) {
 
 // SpawnTrainer spawns a single hp-trainer proc for one hyperparameter
 // configuration, without waiting for it to start running.
-func SpawnTrainer(sc *sigmaclnt.SigmaClnt, configId int, seed int64, maxIters int, iterDur time.Duration, mcpu proc.Tmcpu) (*proc.Proc, error) {
+func SpawnTrainer(sc *sigmaclnt.SigmaClnt, configId int, seed int64, maxIters int, iterDur time.Duration) (*proc.Proc, error) {
 	args := []string{
 		strconv.Itoa(configId),
 		strconv.FormatInt(seed, 10),
@@ -114,7 +140,6 @@ func SpawnTrainer(sc *sigmaclnt.SigmaClnt, configId int, seed int64, maxIters in
 	}
 
 	p := proc.NewProc(TrainerBin, args)
-	p.SetMcpu(mcpu)
 
 	if err := sc.Spawn(p); err != nil {
 		return nil, err
@@ -124,8 +149,8 @@ func SpawnTrainer(sc *sigmaclnt.SigmaClnt, configId int, seed int64, maxIters in
 
 // StartTrainer spawns a single hp-trainer proc and waits for it to start
 // running.
-func StartTrainer(sc *sigmaclnt.SigmaClnt, configId int, seed int64, maxIters int, iterDur time.Duration, mcpu proc.Tmcpu) (*proc.Proc, error) {
-	p, err := SpawnTrainer(sc, configId, seed, maxIters, iterDur, mcpu)
+func StartTrainer(sc *sigmaclnt.SigmaClnt, configId int, seed int64, maxIters int, iterDur time.Duration) (*proc.Proc, error) {
+	p, err := SpawnTrainer(sc, configId, seed, maxIters, iterDur)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +167,7 @@ func StartNoPruneJob(sc *sigmaclnt.SigmaClnt, cfg *Config) (*HPSearchJob, error)
 	procs := make([]*proc.Proc, cfg.NConfigs)
 	// Spawn one trainer per config, each with its own derived seed.
 	for i := 0; i < cfg.NConfigs; i++ {
-		p, err := SpawnTrainer(sc, i, rng.Int63(), cfg.MaxIters, cfg.IterDur, cfg.Mcpu)
+		p, err := SpawnTrainer(sc, i, rng.Int63(), cfg.MaxIters, cfg.IterDur)
 		if err != nil {
 			return nil, err
 		}
@@ -151,7 +176,7 @@ func StartNoPruneJob(sc *sigmaclnt.SigmaClnt, cfg *Config) (*HPSearchJob, error)
 	return &HPSearchJob{sc: sc, cfg: cfg, procs: procs, waitedOn: false}, nil
 }
 
-func SpawnPruningTrainer(sc *sigmaclnt.SigmaClnt, configId int, seed int64, maxIters int, iterDur time.Duration, mcpu proc.Tmcpu, progressDir string, margin float64) (*proc.Proc, error) {
+func SpawnPruningTrainer(sc *sigmaclnt.SigmaClnt, configId int, seed int64, maxIters int, iterDur time.Duration, progressDir string, margin float64) (*proc.Proc, error) {
 	// Same argv as SpawnTrainer, plus the progressDir/margin the trainer
 	// needs to prune itself against its siblings.
 	args := []string{
@@ -163,7 +188,6 @@ func SpawnPruningTrainer(sc *sigmaclnt.SigmaClnt, configId int, seed int64, maxI
 		strconv.FormatFloat(margin, 'f', -1, 64),
 	}
 	p := proc.NewProc(PruningTrainerBin, args)
-	p.SetMcpu(mcpu)
 	if err := sc.Spawn(p); err != nil {
 		return nil, err
 	}
@@ -172,8 +196,8 @@ func SpawnPruningTrainer(sc *sigmaclnt.SigmaClnt, configId int, seed int64, maxI
 
 // StartPruningTrainer spawns a single hp-trainer-pruned proc and waits for
 // it to start running.
-func StartPruningTrainer(sc *sigmaclnt.SigmaClnt, configId int, seed int64, maxIters int, iterDur time.Duration, mcpu proc.Tmcpu, progressDir string, margin float64) (*proc.Proc, error) {
-	p, err := SpawnPruningTrainer(sc, configId, seed, maxIters, iterDur, mcpu, progressDir, margin)
+func StartPruningTrainer(sc *sigmaclnt.SigmaClnt, configId int, seed int64, maxIters int, iterDur time.Duration, progressDir string, margin float64) (*proc.Proc, error) {
+	p, err := SpawnPruningTrainer(sc, configId, seed, maxIters, iterDur, progressDir, margin)
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +220,7 @@ func StartPruningJob(sc *sigmaclnt.SigmaClnt, cfg *Config) (*HPSearchJob, error)
 	procs := make([]*proc.Proc, cfg.NConfigs)
 	// Spawn one pruning trainer per config, all sharing progressDir.
 	for i := 0; i < cfg.NConfigs; i++ {
-		p, err := SpawnPruningTrainer(sc, i, rng.Int63(), cfg.MaxIters, cfg.IterDur, cfg.Mcpu, progressDir, cfg.Margin)
+		p, err := SpawnPruningTrainer(sc, i, rng.Int63(), cfg.MaxIters, cfg.IterDur, progressDir, cfg.Margin)
 		if err != nil {
 			return nil, err
 		}

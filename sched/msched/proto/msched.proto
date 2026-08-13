@@ -74,3 +74,35 @@ message GetMSchedStatsReq {
 message GetMSchedStatsRep {
   map<string, RealmStats> mSchedStats = 1;
 }
+
+message GetMSchedLoadReq {
+}
+
+// GetMSchedLoadRep reports how loaded this machine is. msched already
+// maintains all of it; none of it was reachable from outside.
+//
+// cpuUtil is here because memory alone cannot see a busy machine. Best-effort
+// admission gates on free memory, and best-effort procs routinely reserve
+// none, so a fleet pinning every core can still report all its memory free.
+//
+// memFreeMB and memAvailMB measure different things and both are reported
+// because the gap between them is itself the diagnostic. memFreeMB is the
+// admission ledger: total memory less what running procs have declared, which
+// is what besched admits against and so what says whether another declaring
+// proc fits. memAvailMB is the machine: what the kernel says can be allocated
+// without swapping, which is what says whether the host is actually full.
+// A proc that declares nothing and touches gigabytes moves the second and not
+// the first.
+//
+// memAvailValid carries presence, because zero is a reading a full machine
+// genuinely produces. Without it a reader could not tell "this machine has
+// nothing left" from "this peer does not sample availability", and would fall
+// back to the ledger exactly when the machine is fullest, reporting it idle.
+message GetMSchedLoadRep {
+  uint32 memFreeMB = 1;
+  uint32 memTotalMB = 2;
+  int64 cpuUtil = 3;    // 0-100, machine-wide
+  int32 nCores = 4;
+  uint32 memAvailMB = 5;   // real /proc/meminfo MemAvailable
+  bool memAvailValid = 6;  // whether memAvailMB is a reading
+}

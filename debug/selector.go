@@ -99,6 +99,7 @@ const (
 	FSREADER       Tselector = "FSREADER"
 	SLEEPER_TIMING Tselector = "SLEEPER_TIMING"
 	MATMUL         Tselector = "MATMUL"
+	MEMFILLER      Tselector = "MEMFILLER"
 )
 
 // Etcd
@@ -134,6 +135,12 @@ const (
 // CodedMatmul
 const (
 	CODEDMATMUL Tselector = "CODEDMATMUL"
+)
+
+// Value procs
+const (
+	VALUEPROC     Tselector = "VALUEPROC"
+	VALUEPROC_ERR Tselector = VALUEPROC + ERR
 )
 
 // Socialnet

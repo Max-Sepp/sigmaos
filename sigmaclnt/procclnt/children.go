@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync"
 
+	procapi "sigmaos/api/proc"
 	db "sigmaos/debug"
 	"sigmaos/proc"
 	sp "sigmaos/sigmap"
@@ -116,5 +117,5 @@ func (cs *ChildState) GetProcSeqno(pid sp.Tpid) (*proc.ProcSeqno, error) {
 	if fut, ok := cs.ranOn[pid]; ok {
 		return fut.Get()
 	}
-	return nil, fmt.Errorf("Proc %v child state not found", pid)
+	return nil, fmt.Errorf("%w: proc %v child state not found", procapi.ErrUnknownChild, pid)
 }

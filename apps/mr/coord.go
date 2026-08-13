@@ -564,6 +564,15 @@ func (c *Coord) recordWasted(pids []sp.Tpid) {
 	}
 }
 
+// isBackupPid reports whether pid is a recorded speculative backup attempt.
+// Callers needing this alongside recordWasted/recordWastedFinished must call
+// it first: both of those delete the pid's backupPids entry.
+func (c *Coord) isBackupPid(pid sp.Tpid) bool {
+	c.specMu.Lock()
+	defer c.specMu.Unlock()
+	return c.backupPids[pid]
+}
+
 // recordWastedFinished charges a speculative backup that ran to completion but
 // had its result discarded (it lost the race), using its self-reported
 // duration d. A discarded original isn't charged -- see recordWasted.
@@ -1005,14 +1014,22 @@ func (c *Coord) processResult(ch <-chan ftmgr.Tresult[[]byte, []byte], m, r int3
 				db.DFatalf("NewResult %v err %v", res.Status.Data(), err)
 			}
 			r.MsOuter = res.Ms.Milliseconds()
+			r.TaskId = int32(res.Id)
+			r.IsBackup = c.isBackupPid(res.Proc.GetPid())
 			db.DPrintf(db.MR_COORD, "Task results %v", r)
 
 			// If a sibling attempt (a speculative backup, or -- for map
 			// tasks -- an earlier completion before a restart-triggered
 			// redo) already won this task, this is a late loser: discard it
-			// instead of overwriting the winner's stored output.
+			// instead of overwriting the winner's stored output. Still
+			// record it (Lost=true) to MRstats so a benchmark's own log
+			// shows every speculative decision, not just winners.
 			if (r.IsM && ts[res.Id]) || (!r.IsM && tsR[res.Id]) {
 				db.DPrintf(db.MR_COORD, "processResult: discarding late/speculative result for already-finished task %v", res.Id)
+				r.Lost = true
+				if err := c.AppendFileJson(MRstats(c.jobRoot, c.job), r); err != nil {
+					db.DFatalf("Appendfile %v err %v", MRstats(c.jobRoot, c.job), err)
+				}
 				c.recordWastedFinished(res.Proc.GetPid(), res.Ms)
 				continue
 			}
@@ -1051,6 +1068,29 @@ func (c *Coord) processResult(ch <-chan ftmgr.Tresult[[]byte, []byte], m, r int3
 			}
 			db.DPrintf(db.ALWAYS, "tasks done %d/%d\n", nM+nR, c.nmaptask+c.nreducetask)
 		} else {
+			isMap := res.Ftclnt == c.mftclnt.AsRawClnt()
+
+			// A losing speculative attempt now self-terminates the moment
+			// it's evicted (vproc.AutoExitOnEvict, wired in via mapper.go/
+			// reducer.go), so its own result can arrive here as
+			// StatusEvicted for a task a sibling has already won. That is
+			// cleanup arriving late, not a failure -- mirrors the discard
+			// check on the success path above, just for the case where the
+			// loser didn't get far enough to report StatusOK before losing.
+			if res.Status != nil && res.Status.IsStatusEvicted() && ((isMap && ts[res.Id]) || (!isMap && tsR[res.Id])) {
+				db.DPrintf(db.MR_COORD, "processResult: discarding evicted late/speculative attempt for already-finished task %v", res.Id)
+				// This attempt never reported its own stats (it was evicted
+				// before finishing), so there's no decoded Result to extend --
+				// record a minimal one anyway so PrintMRStats can still show
+				// that this task had a losing evicted attempt.
+				lost := &Result{IsM: isMap, Task: res.Proc.GetPid().String(), TaskId: int32(res.Id), IsBackup: c.isBackupPid(res.Proc.GetPid()), Lost: true, MsOuter: res.Ms.Milliseconds()}
+				if err := c.AppendFileJson(MRstats(c.jobRoot, c.job), lost); err != nil {
+					db.DFatalf("Appendfile %v err %v", MRstats(c.jobRoot, c.job), err)
+				}
+				c.recordWastedFinished(res.Proc.GetPid(), res.Ms)
+				continue
+			}
+
 			db.DPrintf(db.MR, "Task failed %v status %v", res.Id, res.Status)
 			if res.Status != nil && res.Status.Msg() == RESTART {
 				// reducer indicates to run some mappers again
@@ -1062,7 +1102,7 @@ func (c *Coord) processResult(ch <-chan ftmgr.Tresult[[]byte, []byte], m, r int3
 				if err := res.Ftclnt.MoveTasks([]ftclnt.TaskId{res.Id}, ftclnt.TODO); err != nil {
 					db.DFatalf("MarkRunnable %v err %v", res.Id, err)
 				}
-				c.evictSiblings(res.Id, res.Proc.GetPid(), res.Ftclnt == c.mftclnt.AsRawClnt())
+				c.evictSiblings(res.Id, res.Proc.GetPid(), isMap)
 			}
 			c.stat.Nfail.Add(1)
 		}

@@ -1,6 +1,7 @@
 package mr
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -26,6 +27,7 @@ import (
 	"sigmaos/util/crash"
 	"sigmaos/util/perf"
 	"sigmaos/util/rand"
+	"sigmaos/valueprocs/vproc"
 )
 
 const (
@@ -44,6 +46,8 @@ type Reducer struct {
 	pwrt         *perf.PerfWriter
 	wrt          *fslib.FileWriter
 	perf         *perf.Perf
+	vc           vproc.Scorer  // nil unless spawned by the value-procs coordinator
+	expectedDur  time.Duration // 0 if no estimate was given; see Gradient
 }
 
 func NewReducer(sc *sigmaclnt.SigmaClnt, reducef mr.ReduceT, args []string, p *perf.Perf) (*Reducer, error) {
@@ -58,20 +62,28 @@ func NewReducer(sc *sigmaclnt.SigmaClnt, reducef mr.ReduceT, args []string, p *p
 	if err != nil {
 		return nil, fmt.Errorf("Reducer: id %v isn't int %v", args[0], err)
 	}
-	srvId := fttask.FtTaskSvcId(args[1])
 
-	ftclnt := fttask_clnt.NewFtTaskClnt[TreduceTask, Bin](sc.FsLib, srvId, sp.NullFence())
+	if args[1] == InlineInputSentinel {
+		// The value-procs coordinator has no ft/task service to read the
+		// input Bin from, so it's given inline instead (args[5]).
+		if err := json.Unmarshal([]byte(args[5]), &r.input); err != nil {
+			return nil, fmt.Errorf("Reducer: inline input %v: %w", args[5], err)
+		}
+	} else {
+		srvId := fttask.FtTaskSvcId(args[1])
+		ftclnt := fttask_clnt.NewFtTaskClnt[TreduceTask, Bin](sc.FsLib, srvId, sp.NullFence())
 
-	start := time.Now()
-	data, err := ftclnt.ReadTasks([]fttask_clnt.TaskId{fttask_clnt.TaskId(id)})
-	if err != nil {
-		return nil, fmt.Errorf("Reducer: ReadTasks %v err %v", id, err)
+		start := time.Now()
+		data, err := ftclnt.ReadTasks([]fttask_clnt.TaskId{fttask_clnt.TaskId(id)})
+		if err != nil {
+			return nil, fmt.Errorf("Reducer: ReadTasks %v err %v", id, err)
+		}
+		if len(data) != 1 {
+			return nil, fmt.Errorf("Reducer: ReadTasks %v len %d != 1", id, len(data))
+		}
+		db.DPrintf(db.MR_COORD, "Reducer: ReadTasks %v %v in %v", id, len(data), time.Since(start))
+		r.input = data[0].Data.Input
 	}
-	if len(data) != 1 {
-		return nil, fmt.Errorf("Reducer: ReadTasks %v len %d != 1", id, len(data))
-	}
-	db.DPrintf(db.MR_COORD, "Reducer: ReadTasks %v %v in %v", id, len(data), time.Since(start))
-	r.input = data[0].Data.Input
 	r.tmp = r.outputTarget + rand.Name()
 
 	db.DPrintf(db.MR, "Reducer outputting to %v", r.tmp)
@@ -204,6 +216,7 @@ func (r *Reducer) ReadFiles(rtot *readResult) error {
 	if randOffset < 0 {
 		randOffset *= -1
 	}
+	rate := NewRate(r.expectedDur)
 	for i := 0; i < r.nmaptask; i++ {
 		f := (i + randOffset) % r.nmaptask
 		if MAXCONCURRENCY > 1 {
@@ -212,6 +225,10 @@ func (r *Reducer) ReadFiles(rtot *readResult) error {
 			rr := &readResult{f: r.input[f].File, kvm: rtot.kvm}
 			r.readFile(rr)
 			rtot.sum(rr)
+			if r.vc != nil {
+				sc := float64(i+1) / float64(r.nmaptask)
+				r.vc.Score(sc, rate.Observe(sc, time.Now()))
+			}
 		}
 	}
 	if MAXCONCURRENCY > 1 {
@@ -278,7 +295,10 @@ func (r *Reducer) DoReduce() *proc.Status {
 		break
 	}
 	return proc.NewStatusInfo(proc.StatusOK, "OK",
-		Result{false, r.ProcEnv().GetPID().String(), rtot.n, nbyte, Bin{}, rtot.d.Milliseconds(), 0, r.ProcEnv().GetKernelID()})
+		Result{
+			IsM: false, Task: r.ProcEnv().GetPID().String(), In: rtot.n, Out: nbyte, OutBin: Bin{},
+			MsInner: rtot.d.Milliseconds(), KernelID: r.ProcEnv().GetKernelID(),
+		})
 }
 
 func RunReducer(reducef mr.ReduceT, args []string) {
@@ -299,6 +319,18 @@ func RunReducer(reducef mr.ReduceT, args []string) {
 	r, err := NewReducer(sc, reducef, args, p)
 	if err != nil {
 		r.ClntExit(proc.NewStatusErr("NewReducer err", err))
+	}
+	// Calling Started() again here (inside StartWith) is safe: msched's
+	// ProcState.started documents itself as callable more than once.
+	r.vc = startVProc(sc)
+	// The expected reduce duration is a 7th arg, given only alongside the
+	// inline input the value-procs coordinator uses in place of an ft/task
+	// reference (see Gradient); absent, expectedDur stays 0 and this
+	// reducer's gradient is always 0.
+	if len(args) == 7 && args[1] == InlineInputSentinel {
+		if ms, err := strconv.Atoi(args[6]); err == nil {
+			r.expectedDur = time.Duration(ms) * time.Millisecond
+		}
 	}
 	crash.Failer(sc.FsLib, crash.MRREDUCE_CRASH, func(e crash.Tevent) {
 		crash.Crash()

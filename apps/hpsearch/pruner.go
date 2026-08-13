@@ -9,6 +9,7 @@ import (
 	"sigmaos/proc"
 	"sigmaos/sigmaclnt/fslib"
 	sp "sigmaos/sigmap"
+	"sigmaos/util/burn"
 )
 
 // Number of iters a specific hyperparameter configuration must trail the best
@@ -99,7 +100,7 @@ func RunPruningTrainer(args []string) {
 	behindStreak := 0
 	for i := range scores {
 		// Simulate one iteration of training, then publish the score.
-		SleepBurn(iterDur)
+		burn.For(iterDur)
 		publishProgress(sc.FsLib, progressDir, configId, i, scores[i])
 
 		// Track how many iterations in a row we've trailed the best sibling.

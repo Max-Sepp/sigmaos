@@ -42,6 +42,7 @@ type MSched struct {
 	sc                  *sigmaclnt.SigmaClnt
 	cpuStats            *cpuStats
 	cpuUtil             int64
+	memAvailMB          int64
 	nProcsRun           atomic.Uint64
 	nProcGets           atomic.Uint64
 	nProcGetsSuccessful atomic.Uint64
@@ -205,6 +206,19 @@ func (msched *MSched) GetMSchedStats(ctx fs.CtxI, req proto.GetMSchedStatsReq, r
 	}
 	msched.realmMu.RUnlock()
 	res.MSchedStats = mschedStats
+	return nil
+}
+
+// GetMSchedLoad reports this machine's ledger-free memory, real available
+// memory, and machine-wide CPU utilization. Read-only: the getters are
+// lock-safe, and nothing here changes a scheduling decision.
+func (msched *MSched) GetMSchedLoad(ctx fs.CtxI, req proto.GetMSchedLoadReq, res *proto.GetMSchedLoadRep) error {
+	res.MemFreeMB = uint32(msched.getFreeMem())
+	res.MemTotalMB = uint32(mem.GetTotalMem())
+	res.MemAvailMB = uint32(msched.getAvailMem())
+	res.MemAvailValid = true
+	res.CpuUtil = msched.getCPUUtil()
+	res.NCores = int32(linuxsched.GetNCores())
 	return nil
 }
 
@@ -396,7 +410,7 @@ func RunMSched(kernelID string, reserveMcpu uint) error {
 	defer p.Done()
 	go msched.getQueuedProcs()
 	go msched.stats()
-	go msched.monitorCPU()
+	go msched.monitorLoad()
 	msched.register(ssrv.GetEndpoint())
 	ssrv.RunServer()
 	return nil

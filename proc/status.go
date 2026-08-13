@@ -56,14 +56,29 @@ func NewStatusErr(msg string, data interface{}) *Status {
 }
 
 func NewStatusFromBytes(b []byte) *Status {
-	if len(b) == 0 {
-		return nil
-	}
-	status := &Status{}
-	if err := json.Unmarshal(b, status); err != nil {
+	status, err := StatusFromBytes(b)
+	if err != nil {
 		log.Fatalf("Error unmarshal status: %v", err)
 	}
 	return status
+}
+
+// StatusFromBytes is NewStatusFromBytes for a caller that can carry on without
+// the status. Bytes that arrive over the network are the case that needs it:
+// dying is a reasonable answer to a status this proc wrote and cannot read
+// back, and no answer at all to one a peer sent.
+//
+// Empty is not an error. A proc may exit without a status, and there is
+// nothing to report about that beyond the nil.
+func StatusFromBytes(b []byte) (*Status, error) {
+	if len(b) == 0 {
+		return nil, nil
+	}
+	status := &Status{}
+	if err := json.Unmarshal(b, status); err != nil {
+		return nil, err
+	}
+	return status, nil
 }
 
 func (s *Status) IsStatusOK() bool {

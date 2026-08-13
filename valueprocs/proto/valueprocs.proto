@@ -1,0 +1,284 @@
+syntax = "proto3";
+
+import "proc/proc.proto";
+
+option go_package = "sigmaos/valueprocs/proto";
+
+// ========== naming an attempt ==========
+
+// RunRef names one attempt at one leaf.
+//
+// All three fields travel together everywhere, because a leaf that is stopped
+// runs again under a higher run number. Without it, a message about an
+// attempt that has already been superseded is indistinguishable from one
+// about the current attempt, and would be applied to the wrong one instead of
+// dropped.
+message RunRef {
+  string tID = 1;
+  string nodeID = 2;
+  uint64 run = 3;
+}
+
+// ========== submitting work ==========
+
+// NodeSpec is one node of a submitted tree, recursively. A node with no
+// children is a leaf and carries a proc; a node with children is a k-of-n
+// select and carries k.
+//
+// Node identity is deliberately absent. The scheduler derives it from the
+// node's position in the tree, so that two clients cannot disagree about what
+// a name means; a client that wants to recognise a node in a report gives it
+// a label instead.
+message NodeSpec {
+  int32 k = 1;
+  repeated NodeSpec children = 2;
+  ProcProto leafProc = 3;             // set iff children is empty
+  string label = 4;
+}
+
+// SubmitTreeReq registers a tree.
+//
+// The caller chooses tID, and sending the same tree under it twice registers
+// one tree and reports the second as a repeat. That is what makes a submission
+// safe to retry over a connection that may have dropped after the service
+// already acted -- the caller cannot tell those apart, so the service has to.
+// A *different* tree under a tID already in use is still an error, since the
+// two callers cannot both be right about what it names.
+//
+// The attributes an arbiter divides capacity on are not here on purpose. They
+// come from the identity of the caller, which the service reads from the RPC
+// itself, so that an application cannot raise its own share by describing
+// itself generously.
+message SubmitTreeReq {
+  string tID = 1;
+  string label = 2;
+  NodeSpec root = 3;
+}
+
+message SubmitTreeRep {
+  string tID = 1;
+  // created is false when this request was a repeat of one already accepted.
+  bool created = 2;
+}
+
+message CancelTreeReq {
+  string tID = 1;
+}
+
+message CancelTreeRep {
+  bool oK = 1;
+}
+
+// ========== the value channel ==========
+
+// ReportScoreReq is pushed by a running proc, and is the hot path.
+//
+// The two fields are one report: a point on the proc's value curve and the
+// slope there. score is how much of its value has been realized, cardinal
+// within one node; gradient is the derivative of that with respect to elapsed
+// time, in units of the proc's own expected duration, so that
+// score + gradient*w is the proc's own estimate of where it will be w
+// expected-durations later. A proc covering its work as fast as it predicted
+// reports a gradient near 1, and one making no progress reports 0 however long
+// it has been running.
+//
+// The sign is the reverse of an overdueness measure: this number falls as an
+// attempt gets into trouble. A proc reporting 0 while its score climbs asserts
+// a flat curve its own scores contradict, and the scheduler extrapolates along
+// whatever is reported here, so the claim matters.
+message ReportScoreReq {
+  RunRef ref = 1;
+  double score = 2;
+  double gradient = 3;
+}
+
+message ReportScoreRep {
+  bool oK = 1;
+}
+
+// ========== collecting results ==========
+
+// LeafResult is one leaf's finished output.
+message LeafResult {
+  uint64 seq = 1;                     // position in its tree's log, from 1
+  RunRef ref = 2;
+  string label = 3;
+  bytes procStatus = 4;               // proc.Status.Marshal()
+}
+
+// NextResultsReq asks for everything a tree produced after a position the
+// caller holds. The service keeps no per-reader state, so the same request
+// twice returns the same answer and one that fails halfway may simply be made
+// again.
+message NextResultsReq {
+  string tID = 1;
+  uint64 since = 2;
+
+  // epoch identifies the incarnation of the service the caller's position
+  // came from. Zero asserts nothing, which is what a first read sends;
+  // anything else is checked, because the numbering restarts when the
+  // service does and a stale position would otherwise be answered with a
+  // different result wearing the same sequence number.
+  uint64 epoch = 3;
+
+  // waitMs parks the call until something lands, the tree finishes, or the
+  // wait elapses. Zero returns whatever is available immediately.
+  int64 waitMs = 4;
+}
+
+message NextResultsRep {
+  repeated LeafResult results = 1;
+  uint64 next = 2;
+  uint64 epoch = 3;
+
+  // treeDone reports that nothing will ever follow next. It travels with the
+  // final results rather than being asked for separately, so that a caller
+  // cannot learn a tree has finished before it has been handed everything the
+  // tree produced.
+  bool treeDone = 4;
+  string treeState = 5;
+
+  // staleEpoch reports that the position sent belongs to an incarnation of
+  // the service that no longer exists, so everything the caller knows about
+  // this tree is void and it must start over.
+  //
+  // A field rather than an error, because an error's identity does not
+  // survive an RPC -- it arrives as a string, and a caller that has to branch
+  // on this must not be left matching text to decide whether its whole view
+  // is invalid.
+  bool staleEpoch = 6;
+}
+
+// ========== reporting ==========
+
+message TreeStatusReq {
+  string tID = 1;
+}
+
+// TreeStatusRep is a sample, not an event: latest wins, nothing is kept, and
+// it carries no results. Results are collected with NextResults, which is
+// what keeps this cheap enough to poll.
+message TreeStatusRep {
+  string tID = 1;
+  string label = 2;
+  string state = 3;
+  bool cancelled = 4;
+  int64 submittedUnixNs = 5;
+  int32 nRunning = 6;
+  int32 nCharged = 7;
+  repeated NodeStatus nodes = 8;
+
+  // share is how many slots the arbiter last granted this tree, and budget is
+  // what that leaves once what the tree already holds is subtracted. Budget is
+  // signed: below zero is an overdraft the tree owes back, which is the only
+  // thing that makes shed fire, so a squeeze that did not happen is diagnosed
+  // by reading these two rather than by inferring them from widths.
+  //
+  // Both carry math.MaxInt64 when nothing bounds them -- no arbiter installed,
+  // or no size reported by the platform. That is a sentinel rather than a zero
+  // or a negative because both of those are meaningful here: a budget of -2 is
+  // a real overdraft of two slots, and reading it as "unknown" would hide the
+  // one case worth seeing. Same for settled in SchedStatsRep.
+  int64 share = 9;
+  int64 budget = 10;
+}
+
+message NodeStatus {
+  string nodeID = 1;
+  string label = 2;
+  string state = 3;
+  int32 k = 4;
+  int32 nChildren = 5;
+  int32 nRunning = 6;
+  int32 nCharged = 7;
+  int32 target = 8;
+
+  // Leaf-only below here.
+  bool isLeaf = 9;
+  string workload = 10;
+  uint64 run = 11;
+  string runState = 12;
+  int32 attempts = 13;
+  int32 stops = 14;
+  double score = 15;
+  double gradient = 16;
+  bool hasScore = 17;
+
+  // scoreStale reports that a running attempt's tangent has aged out. It
+  // discounts and never terminates: an attempt that is compute-bound may
+  // simply not have reached its next reporting point, so staleness lowers what
+  // its claim is worth and is never on its own a reason to stop it.
+  bool scoreStale = 18;
+
+  string pID = 19;                    // the current attempt's proc
+
+  // elapsedMs is how long this leaf has been resident in total, across every
+  // attempt plus the one in flight.
+  //
+  // Residency, not work. An attempt sharing a core with fourteen others is
+  // resident far longer than it is running, so this overstates cost by the
+  // oversubscription factor -- by most, that is, exactly when a search is
+  // widest. Use partial for cost.
+  int64 elapsedMs = 20;
+
+  // partial is what this leaf's last stopped attempt handed back, opaque here
+  // and meaningful only to whoever submitted the work.
+  //
+  // It is the same bytes the next attempt receives as its resume token, and
+  // this is the only way they reach the submitter. An attempt that is stopped
+  // reports no result, so without it the submitter's sole account of what the
+  // attempt achieved -- or cost -- is an inference from its last score.
+  bytes partial = 21;
+}
+
+message SchedStatsReq {}
+
+// SchedStatsRep explains the layer's behaviour from outside.
+//
+// pressure is reported alongside the terms it was folded from, because a bad
+// pressure reading is the first thing to suspect when the layer misbehaves
+// and it must be diagnosable without reading the code. The two counts are
+// broken down by kind rather than totalled, since a flat total cannot answer
+// "mostly pruning or mostly speculating?", which is the question the reasons
+// exist for.
+message SchedStatsRep {
+  double pressure = 1;
+  double busy = 2;
+  double delayPressure = 3;
+  map<string, double> components = 4;
+
+  int32 nTrees = 5;
+  int32 nRunning = 6;
+  int32 nCharged = 7;
+  int32 slots = 8;
+
+  map<uint32, int32> nStartsByKind = 9;
+  map<uint32, int32> nStopsByKind = 10;
+  int32 nScoreDropped = 11;
+
+  // Below here the platform, not the scheduler: how well its decisions were
+  // carried out. A nonzero nSynthesizedStopped is a bug report about a proc
+  // that ignored its eviction, not normal operation.
+  int64 nSynthesizedStopped = 12;
+  int64 nSynthesizedFailed = 13;
+  int64 nEvictRetries = 14;
+  int64 nUnrequestedEvicts = 15;
+
+  uint64 epoch = 16;
+
+  // The slot ledger, which is what sizing decides on. slots above is only its
+  // first term, and reporting that term alone is what made a search that
+  // refused to narrow impossible to explain from outside: every remaining
+  // quantity had to be guessed at from widths.
+  //
+  // probe is the whole exploration budget and probeHeld is how much of it is
+  // actually being carried -- attempts that are charged and have never
+  // reported. settled is capacity net of everything held against it,
+  // slots - (nCharged - probeHeld), and is signed: below zero is the
+  // contraction sizing is asking for. nChargedReported is what separates a
+  // slot from a probe, and is the term that liquidates the budget.
+  int32 probe = 17;
+  int32 probeHeld = 18;
+  int64 settled = 19;
+  int32 nChargedReported = 20;
+}
